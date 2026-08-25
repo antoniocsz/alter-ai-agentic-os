@@ -14,7 +14,7 @@ Planejamento (por feature)
         │
         ▼
 Pipeline de tarefas
-  └─ queue → active → done   (apenas 1 tarefa ativa por vez)
+  └─ queue → active → done   (N ativas com escopos disjuntos, via harness start/finish)
         │
         ▼
 Execução da tarefa
@@ -30,14 +30,39 @@ Conclusão
 ```
 AGENTS.md            — arquivo base: protocolo, regras inegociáveis, guard rails, índices
 .agents/             — referências modulares (carregar sob demanda por especialidade)
+scripts/harness/     — CLI do harness (init, module, start, finish, check)
 context/
 ├── project/         — visão do projeto (overview, domain-model, stack, ADRs)
 ├── modules/         — contexto e status por módulo (context.md + status.md)
 └── agents/
     ├── queue/       — tarefas planejadas, não iniciadas
-    ├── active/      — tarefa em execução AGORA (apenas 1)
+    ├── active/      — tarefa em execução AGORA (N, com escopos disjuntos)
     └── done/        — tarefas concluídas (histórico)
 ```
+
+## CLI do harness
+
+`scripts/harness` é um CLI em Node.js (zero dependências), invocado via `pnpm harness` a partir da raiz do projeto:
+
+| Comando | O que faz |
+|---|---|
+| `harness init <dir>` | Gera projeto novo: camada harness + `context/` + monorepo mínimo |
+| `harness module <nome>` | Scaffold de módulo (`packages/modules/<nome>/` + `context/modules/<nome>/`) |
+| `harness start <task>` | Move `queue/` → `active/`, bloqueando conflito de escopo com tasks ativas |
+| `harness finish <task>` | Valida `git diff` contra o `## Escopo` e move `active/` → `done/` |
+| `harness check [flags]` | Valida o protocolo (pipeline, escopos, seções, módulos). Flags: `--json`, `--barrel`, `--lint`, `--typecheck` |
+
+`<task>` aceita o nome completo (`04-api-routes-finance.md`) ou o prefixo numérico (`04`).
+
+## Começando um projeto
+
+1. **Inicializar:** `pnpm harness init <nome-do-projeto>` — gera AGENTS.md, `.agents/`, `scripts/harness/`, `context/` e o esqueleto do monorepo (turbo.json, pnpm-workspace.yaml, tsconfig.base.json, eslint.config.js, `apps/api`, `packages/contracts`).
+2. **Versionar:** `cd <nome-do-projeto> && git init && git add -A && git commit -m "chore: bootstrap harness"`.
+3. **Instalar:** `pnpm install` (configs e dependências iniciais).
+4. **Onboarding:** rodar a context-interview (7 blocos, abaixo) para preencher `context/project/overview.md` e `stack.md` e definir os ADRs iniciais.
+5. **Criar módulos:** `pnpm harness module <nome>` para cada bounded context; preencher `context.md` e `status.md`.
+6. **Planejar e executar:** criar tasks em `context/agents/queue/` (com `## Escopo`) e operar com `harness start` / `harness finish`.
+7. **Verificar:** `pnpm harness check` a qualquer momento — também útil no CI.
 
 ## Bootstrap de projeto novo
 
@@ -60,8 +85,10 @@ Ao final, criar os ADRs iniciais com base nas decisões tomadas.
 | Pasta | Função |
 |---|---|
 | `queue/` | Tarefas planejadas, não iniciadas. Criar aqui ANTES de começar. |
-| `active/` | Tarefa em execução AGORA. Apenas 1 por vez. |
+| `active/` | Tarefa em execução AGORA. N podem coexistir com escopos disjuntos. |
 | `done/` | Tarefas concluídas. Manter histórico. |
+
+O pipeline é operado pelo CLI: `harness start <task>` move `queue/` → `active/` (bloqueando escopo sobreposto); `harness finish <task>` valida o escopo e move `active/` → `done/`.
 
 Regras:
 
@@ -70,6 +97,28 @@ Regras:
 3. Ao finalizar, mover de `active/` para `done/` e verificar se há tarefas antigas da queue já concluídas — movê-las para `done/` também.
 4. Nome dos arquivos: `<numero>-<descricao-curta>.md` (ex: `23-frontend-goals.md`).
 5. Conteúdo da task: título, escopo, referências a módulos afetados e checklist.
+6. Toda task declara `## Escopo` com os arquivos que vai tocar — é o que permite paralelismo seguro.
+
+## Execução em paralelo (subagents)
+
+Tasks ativas com `## Escopo` disjuntos rodam em paralelo. O `harness start` garante isso: se uma nova task sobrepuser o escopo de uma ativa, o start é bloqueado com a indicação do conflito.
+
+Fluxo com subagents:
+
+1. Planejar as tasks em `queue/` (via feature-planning), cada uma com `## Escopo` explícito.
+2. Para cada task, rodar `harness start <task>` — o CLI valida o paralelismo e move para `active/`.
+3. Spawnar um subagent por task ativa, cada um lendo o próprio arquivo de task (especificação + escopo).
+4. Cada subagent executa o protocolo obrigatório e termina rodando `harness finish <task>` — que falha se o subagent tocou arquivo fora do escopo.
+5. Ao final, `harness check` valida o conjunto e o coordenador revisa as tasks em `done/`.
+
+Exemplo de prompt de orquestração:
+
+```
+Executar em paralelo as tasks 01-domain-transaction.md e 03-api-routes-transaction.md
+da queue. Para cada uma, rode `pnpm harness start <task>` antes de iniciar o
+subagent. Cada subagent deve ler o arquivo da task, respeitar o ## Escopo e
+concluir com `pnpm harness finish <task>`. Ao final, rode `pnpm harness check`.
+```
 
 ## Protocolo de execução de tarefa
 
@@ -135,9 +184,10 @@ com módulos, camadas e tasks, e só comece a executar após minha confirmação
 **Execução de uma task da queue:**
 
 ```
-Execute a task 04-api-routes-finance.md da queue. Aplique o protocolo
-obrigatório, carregue codegen.md antes de gerar código e mova a task
-para done/ ao finalizar, atualizando o status.md do módulo.
+Execute a task 04-api-routes-finance.md da queue. Rode `pnpm harness start 04`
+antes de começar, aplique o protocolo obrigatório, carregue codegen.md antes de
+gerar código, toque apenas nos arquivos do ## Escopo e conclua com
+`pnpm harness finish 04`, atualizando o status.md do módulo.
 ```
 
 ## Geração de código
@@ -160,7 +210,7 @@ Nunca pular para o passo 4 sem completar 1, 2 e 3. Priorizar reuso de `@saas/con
 2. **Escopo estrito** — tocar somente nos arquivos do plano aprovado. Qualquer descoberta fora do escopo: reportar e parar, nunca agir.
 3. **Nunca `git checkout`/`restore`/`reset` sem aprovação** — se o working tree estiver num estado inesperado, parar e decidir junto com o usuário.
 4. **`pnpm install` / `expo install` / package.json / lockfile só com aprovação** — instalar ou reconciliar dependências é mudança estrutural.
-5. **Pipeline queue→active→done** — limpar a queue antes de iniciar, registrar a tarefa antes de começar, apenas 1 ativa por vez, mover para `done/` ao finalizar.
+5. **Pipeline queue→active→done** — limpar a queue antes de iniciar, registrar a tarefa antes de começar, tasks ativas apenas com `## Escopo` disjuntos (validado por `harness start`/`check`), mover para `done/` via `harness finish`.
 6. **Sem tarefas "bônus"** — não executar melhorias, limpezas ou correções não pedidas no plano aprovado.
 7. **Sempre que houver dúvida sobre o estado do repositório, reportar antes de qualquer ação.**
 
@@ -168,7 +218,8 @@ Nunca pular para o passo 4 sem completar 1, 2 e 3. Priorizar reuso de `@saas/con
 
 - [ ] Código gerado segue as regras de `.agents/codegen.md`
 - [ ] `context/modules/<modulo>/status.md` atualizado
-- [ ] Arquivo em `context/agents/active/` movido para `context/agents/done/`
+- [ ] Arquivo em `context/agents/active/` movido para `context/agents/done/` (via `harness finish`)
+- [ ] `git diff` dentro do `## Escopo` declarado (validado por `harness finish`)
 - [ ] Decisão arquitetural nova registrada em `context/project/adr/` (se houver)
 - [ ] Barrel export (`index.ts`) atualizado com novos exports
 - [ ] Sem imports entre módulos diretos (ESLint boundaries)

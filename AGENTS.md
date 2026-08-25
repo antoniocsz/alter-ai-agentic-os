@@ -29,8 +29,10 @@ Nunca pule os passos 2, 3 e 4. Nunca gere código sem ler .agents/codegen.md.
 | Pasta | Função |
 |---|---|
 | `queue/` | Tarefas planejadas, não iniciadas. Criar aqui ANTES de começar. |
-| `active/` | Tarefa em execução AGORA. Apenas 1 por vez. |
+| `active/` | Tarefa em execução AGORA. N podem coexistir desde que os escopos (`## Escopo`) sejam disjuntos. |
 | `done/` | Tarefas concluídas. Manter histórico. |
+
+O pipeline é operado pelo CLI: `pnpm harness start <task> | finish <task> | check`.
 
 **Regras:**
 
@@ -39,6 +41,7 @@ Nunca pule os passos 2, 3 e 4. Nunca gere código sem ler .agents/codegen.md.
 3. **Ao finalizar,** mover de `active/` para `done/` E verificar se há tarefas antigas na queue que já foram concluídas — movê-las para `done/` também.
 4. **Nome dos arquivos:** `<numero>-<descricao-curta>.md` (ex: `23-frontend-goals.md`, `32-subscriber-transaction-created.md`).
 5. **Conteúdo:** titulo, escopo, referências a módulos afetados e checklist.
+6. **Toda task declara `## Escopo`** — lista dos arquivos que vai tocar. `harness start` bloqueia tasks ativas com escopo sobreposto (paralelismo seguro); `harness finish` valida via git diff que só foram tocados arquivos do escopo.
 
 ---
 
@@ -97,7 +100,7 @@ Estas regras se aplicam a TODO agente e valem para QUALQUER tarefa, incluindo de
 2. **Escopo estrito** — tocar somente nos arquivos do plano aprovado. Qualquer descoberta fora do escopo (arquivos revertidos externamente, bugs, débito técnico): **reportar e parar**, nunca agir.
 3. **Nunca `git checkout`/`restore`/`reset` sem aprovação** — reverter ou reescrever arquivos não mapeados é proibido. Se o working tree estiver num estado inesperado, parar e decidir junto com o usuário.
 4. **`pnpm install` / `expo install` / package.json / lockfile só com aprovação** — instalar ou reconciliar dependências é mudança estrutural.
-5. **Pipeline queue→active→done** — limpar a queue antes de iniciar (mover concluídas para done); registrar a tarefa na queue antes de começar; apenas 1 ativa por vez; mover para done ao finalizar.
+5. **Pipeline queue→active→done** — limpar a queue antes de iniciar (mover concluídas para done); registrar a tarefa na queue antes de começar; tasks ativas podem coexistir apenas com `## Escopo` disjuntos (validado por `harness start`/`check`); mover para done ao finalizar via `harness finish`.
 6. **Sem tarefas "bônus"** — não executar melhorias, limpezas ou correções não pedidas no plano aprovado.
 7. **Sempre que houver dúvida sobre o estado do repositório, reportar antes de qualquer ação.**
 
@@ -136,6 +139,7 @@ packages/
 
 context/            — documentação viva + estado de agentes
 .agents/            — referências modulares (carregar sob demanda)
+scripts/harness/    — CLI do harness (init, module, start, finish, check)
 ```
 
 ---
@@ -170,7 +174,8 @@ Exemplo: criar endpoint + regra de permissão → `codegen.md` + `backend.md` + 
 Antes de marcar a tarefa como concluída:
 - [ ] Código gerado segue as regras de `.agents/codegen.md`
 - [ ] `context/modules/<modulo>/status.md` atualizado
-- [ ] Arquivo em `context/agents/active/` movido para `context/agents/done/`
+- [ ] Arquivo em `context/agents/active/` movido para `context/agents/done/` (via `harness finish`)
+- [ ] `git diff` dentro do `## Escopo` declarado (validado por `harness finish`)
 - [ ] Decisão arquitetural nova registrada em `context/project/adr/` (se houver)
 - [ ] Barrel export (`index.ts`) atualizado com novos exports
 - [ ] Sem imports entre módulos diretos (ESLint boundaries)

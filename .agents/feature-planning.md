@@ -70,6 +70,8 @@ Ex: `01-backend-domain-ocorrencia.md`, `06a-frontend-viewmodel-ocorrencias.md`
 # Task: [descrição em 1 linha]
 ## Agente: `agente-<especialidade>`
 ## Módulo: `packages/modules/<modulo>`
+## Escopo (arquivos que esta task vai tocar):
+- `packages/modules/<modulo>/src/...`
 ## Depende de: [ ] `<arquivo-da-task-anterior>.md`
 ## Contexto para ler: context/modules/<modulo>/context.md
 ## Skills a carregar: codegen.md + <especialidade>.md
@@ -81,6 +83,6 @@ Ex: `01-backend-domain-ocorrencia.md`, `06a-frontend-viewmodel-ocorrencias.md`
 - [ ] [verificação objetiva]
 - [ ] Typecheck passando
 - [ ] Lint passando
-## Ao terminar: atualizar status.md, mover para agents/done/
+## Ao terminar: atualizar status.md, rodar `pnpm harness finish <task>`, mover para agents/done/
 ## Complexidade: baixa | média | alta
 ```
