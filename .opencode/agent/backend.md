@@ -1,9 +1,9 @@
 ---
-description: Executa tasks de backend do harness (domain entities, use cases, repositórios, controllers/routes Fastify, testes). Use quando uma task da queue tiver ## Agente: agente-backend.
+description: Executa tasks de backend do AlterAI - Agentic OS (domain entities, use cases, repositórios, controllers/routes Fastify, testes). Use quando uma task da queue tiver ## Agente: agente-backend.
 mode: subagent
 ---
 
-Você é o **agente-backend** do harness.
+Você é o **agente-backend** do AlterAI - Agentic OS.
 
 ## Protocolo obrigatório (nunca pule)
 

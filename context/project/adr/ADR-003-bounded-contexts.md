@@ -5,7 +5,7 @@
 
 ## Contexto
 
-Organizar o domínio em bounded contexts (módulos) que isolem regras de negócio, evitem acoplamento e possam evoluir independentemente. Todo projeto gerado pelo harness nasce com uma fundação padrão (tenancy, auth, authorization, audit) e módulos de negócio criados sob demanda.
+Organizar o domínio em bounded contexts (módulos) que isolem regras de negócio, evitem acoplamento e possam evoluir independentemente. Todo projeto gerado pelo AlterAI - Agentic OS nasce com uma fundação padrão (tenancy, auth, authorization, audit) e módulos de negócio criados sob demanda.
 
 ## Decisão
 

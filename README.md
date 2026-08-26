@@ -1,6 +1,6 @@
-# Harness
+# AlterAI - Agentic OS
 
-Camada de operação que padroniza como agentes de IA trabalham em um projeto de software. O harness define o **protocolo obrigatório**, mantém o **contexto vivo** e gerencia o **pipeline de tarefas** — de forma reutilizável em qualquer projeto, independente do domínio ou da stack.
+Camada de operação que padroniza como agentes de IA trabalham em um projeto de software. O AlterAI - Agentic OS define o **protocolo obrigatório**, mantém o **contexto vivo** e gerencia o **pipeline de tarefas** — de forma reutilizável em qualquer projeto, independente do domínio ou da stack.
 
 ## Visão geral do fluxo
 
@@ -25,7 +25,7 @@ Conclusão
   └─ status.md atualizado + task em done/ + checklist verificado
 ```
 
-## Estrutura do harness
+## Estrutura do AlterAI - Agentic OS
 
 ```
 AGENTS.md            — arquivo base: protocolo, regras inegociáveis, guard rails, índices
@@ -40,7 +40,7 @@ context/
     └── done/        — tarefas concluídas (histórico)
 ```
 
-## CLI do harness
+## CLI do AlterAI - Agentic OS
 
 `scripts/harness` é um CLI em Node.js (zero dependências), invocado via `pnpm harness` a partir da raiz do projeto:
 
@@ -210,13 +210,13 @@ Ordem padrão de dependências:
 
 ## Exemplo de prompt
 
-O harness é acionado por prompts em linguagem natural. O agente responde seguindo o fluxo: registra na queue, aplica o protocolo e aguarda consentimento antes de qualquer alteração.
+O AlterAI - Agentic OS é acionado por prompts em linguagem natural. O agente responde seguindo o fluxo: registra na queue, aplica o protocolo e aguarda consentimento antes de qualquer alteração.
 
 **Bootstrap de projeto novo:**
 
 ```
 Quero iniciar um projeto novo de SaaS B2B de gestão de clientes.
-Siga o fluxo do harness: faça a context-interview (7 blocos, um por vez,
+Siga o fluxo do AlterAI - Agentic OS: faça a context-interview (7 blocos, um por vez,
 confirmando antes de avançar) e gere overview, domain-model, stack e ADRs.
 Ao final, monte a queue inicial com as primeiras tasks.
 ```
@@ -225,7 +225,7 @@ Ao final, monte a queue inicial com as primeiras tasks.
 
 ```
 Adicionar uma feature de gestão de assinaturas no módulo de billing.
-Siga o fluxo do harness: planeje via feature-planning, apresente o plano
+Siga o fluxo do AlterAI - Agentic OS: planeje via feature-planning, apresente o plano
 com módulos, camadas e tasks, e só comece a executar após minha confirmação.
 ```
 

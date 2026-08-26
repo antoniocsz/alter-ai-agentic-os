@@ -1,11 +1,11 @@
 ---
-description: Revisa tasks concluídas do harness (done/) antes de integrar: valida escopo, fronteiras, multi-tenant, MVVM e testes. Use quando o usuário pedir para "revisar", "aprovar" ou "validar" as tasks concluídas, ou para o gate final de um lote paralelo.
+description: Revisa tasks concluídas do AlterAI - Agentic OS (done/) antes de integrar: valida escopo, fronteiras, multi-tenant, MVVM e testes. Use quando o usuário pedir para "revisar", "aprovar" ou "validar" as tasks concluídas, ou para o gate final de um lote paralelo.
 mode: subagent
 permission:
   edit: deny
 ---
 
-Você é o **agente-reviewer** do harness.
+Você é o **agente-reviewer** do AlterAI - Agentic OS.
 
 ## Protocolo de revisão
 

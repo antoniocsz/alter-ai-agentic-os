@@ -1,4 +1,4 @@
-# Harness — Gerador de Projetos B2B/B2C
+# AlterAI - Agentic OS — Gerador de Projetos B2B/B2C
 
 ## Problema
 
@@ -6,7 +6,7 @@ Todo sistema B2B/B2C recomeça do zero na parte "chata": autenticação, autoriz
 
 ## Produto
 
-O harness é um conjunto de convenções + CLI que gera a estrutura de um projeto full-stack com a fundação padrão já planejada:
+O AlterAI - Agentic OS é um conjunto de convenções + CLI que gera a estrutura de um projeto full-stack com a fundação padrão já planejada:
 
 - **Monorepo** (Turborepo + pnpm): apps/api (Fastify), apps/web (Next.js), packages (contracts, api-client, modules)
 - **Módulos padrão** com contexto e fila de tasks prontas:

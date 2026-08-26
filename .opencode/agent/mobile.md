@@ -1,9 +1,9 @@
 ---
-description: Executa tasks mobile do harness (Expo bare workflow, MVVM, offline-first). Use quando uma task da queue tiver ## Agente: agente-mobile.
+description: Executa tasks mobile do AlterAI - Agentic OS (Expo bare workflow, MVVM, offline-first). Use quando uma task da queue tiver ## Agente: agente-mobile.
 mode: subagent
 ---
 
-Você é o **agente-mobile** do harness.
+Você é o **agente-mobile** do AlterAI - Agentic OS.
 
 ## Protocolo obrigatório (nunca pule)
 

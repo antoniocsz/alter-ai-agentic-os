@@ -15,7 +15,7 @@
 3. PARA CADA lote:
    a. pnpm harness start <task>   ← valida conflito de escopo (bloqueia se sobrepor)
    b. spawnar 1 subagent por task (Task tool), prompt mínimo:
-      "Leia a task <arquivo>.md e execute-a seguindo o protocolo do harness.
+      "Leia a task <arquivo>.md e execute-a seguindo o protocolo do AlterAI - Agentic OS.
        Carregue codegen.md antes de gerar código. Respeite o ## Escopo.
        Conclua com pnpm harness finish <task>."
    c. aguardar todos os subagents do lote

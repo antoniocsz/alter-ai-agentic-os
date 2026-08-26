@@ -1,9 +1,9 @@
 ---
-description: Executa tasks de frontend web do harness (Next.js App Router, MVVM estrito). Use quando uma task da queue tiver ## Agente: agente-frontend.
+description: Executa tasks de frontend web do AlterAI - Agentic OS (Next.js App Router, MVVM estrito). Use quando uma task da queue tiver ## Agente: agente-frontend.
 mode: subagent
 ---
 
-Você é o **agente-frontend** do harness.
+Você é o **agente-frontend** do AlterAI - Agentic OS.
 
 ## Protocolo obrigatório (nunca pule)
 

@@ -5,7 +5,7 @@
 
 ## Contexto
 
-O harness gera projetos B2B/B2C onde cada cliente (empresa) precisa isolar seus dados. A hierarquia segue o modelo de tenancy de SaaS: a plataforma (você) detém tenants, cada organização contrata o serviço e os clientes finais operam dentro dela.
+O AlterAI - Agentic OS gera projetos B2B/B2C onde cada cliente (empresa) precisa isolar seus dados. A hierarquia segue o modelo de tenancy de SaaS: a plataforma (você) detém tenants, cada organização contrata o serviço e os clientes finais operam dentro dela.
 
 ## Decisão
 

@@ -1,6 +1,6 @@
 # {{NAME}}
 
-Projeto inicializado com o harness.
+Projeto inicializado com o AlterAI - Agentic OS.
 
 ## Stack
 
@@ -22,7 +22,7 @@ pnpm dev
 
 Testes: `pnpm test` · Typecheck: `pnpm typecheck` · Lint + formatação: `pnpm lint`
 
-## Harness
+## AlterAI - Agentic OS
 
 ```bash
 pnpm harness task "<descrição>" --module <nome> --scope "p1,p2"   # planejar task
