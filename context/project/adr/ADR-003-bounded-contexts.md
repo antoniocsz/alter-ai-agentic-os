@@ -1,35 +1,33 @@
-# ADR-003: Bounded Contexts
+# ADR-003: Bounded Contexts (Módulos)
 
 **Data:** 2025-01-01
-**Status:** accepted
+**Status:** accepted (revisto para fundação padrão B2B/B2C)
 
 ## Contexto
 
-Organizar o domínio de finanças pessoais familiares em bounded contexts (módulos) que isolem regras de negócio, evitem acoplamento e possam evoluir independentemente.
+Organizar o domínio em bounded contexts (módulos) que isolem regras de negócio, evitem acoplamento e possam evoluir independentemente. Todo projeto gerado pelo harness nasce com uma fundação padrão (tenancy, auth, authorization, audit) e módulos de negócio criados sob demanda.
 
 ## Decisão
 
-Dividir o domínio nos seguintes módulos:
+Dividir o domínio em módulos, com a fundação padrão:
 
 | Módulo | Responsabilidade | Eventos que publica |
 |--------|-----------------|---------------------|
+| `@saas/tenancy` | Hierarquia e contexto de tenancy, membresias | `tenant.created`, `membership.changed` |
 | `@saas/auth` | Cadastro, login, JWT, refresh token, gestão de perfil | `user.created`, `user.updated` |
-| `@saas/family` | Criação de família, convites, papéis, membresia | `member.invited`, `member.joined`, `member.removed` |
-| `@saas/finance` | Contas, categorias, transações (receitas/despesas) | `transaction.created`, `account.balance.changed` |
-| `@saas/budget` | Orçamentos mensais, metas financeiras | `budget.limit.exceeded`, `goal.completed` |
-| `@saas/credit-card` | Cartões de crédito, faturas, transações de cartão | `invoice.created`, `invoice.paid` |
-| `@saas/bill` | Contas a pagar/receber, recorrências | `bill.paid`, `bill.overdue` |
-| `@saas/dashboard` | KPIs, gráficos, visão consolidada | (consome eventos, não publica) |
-| `@saas/report` | Relatórios, exportação CSV/PDF | `report.generated` |
+| `@saas/authorization` | RBAC/ABAC: roles, permissões, abilities (CASL) | `role.assigned`, `role.removed`, `permission.changed` |
+| `@saas/audit` | Trilha de auditoria (append-only) | (consome eventos, não publica) |
+| `@saas/analytics` | ETL para ClickHouse, insights, relatórios | `report.generated` |
 | `@saas/billing` | Planos, feature flags, Stripe checkout/webhooks | `subscription.changed`, `subscription.canceled` |
-| `@saas/notification` | Alertas, lembretes, notificações push/email | (consome eventos) |
+
+Módulos de negócio (products, subscriptions, ...) são adicionados via `pnpm harness module <nome>` conforme o domínio do projeto.
 
 ## Consequências positivas
 
 - Cada módulo pode ser testado e implantado independentemente
 - Fronteiras claras evitam acoplamento indevido
 - Eventos permitem reação sem dependência direta entre módulos
-- Novo desenvolvedor entende o domínio por módulo
+- Fundação padrão reduz o custo de iniciar um novo projeto B2B/B2C
 
 ## Trade-offs aceitos
 
@@ -38,5 +36,6 @@ Dividir o domínio nos seguintes módulos:
 
 ## Alternativas descartadas
 
-- **Módulo financeiro gigante:** difícil de testar e evoluir
-- **CRUD puro sem eventos:** impossível ter dashboard reativo sem poluir use-cases
+- **Módulo de domínio gigante:** difícil de testar e evoluir
+- **CRUD puro sem eventos:** impossível ter audit/analytics reativos sem poluir use-cases
+- **Sem fundação padrão:** cada projeto novo recomeça do zero auth/tenancy/audit

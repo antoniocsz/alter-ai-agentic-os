@@ -1,43 +1,41 @@
-# ADR-002: Hierarquia de Tenancy — Família como Unidade Principal
+# ADR-002: Hierarquia de Tenancy — Platform → Organization → ClientAccount
 
 **Data:** 2025-01-01
-**Status:** accepted
+**Status:** accepted (revisto para SaaS B2B/B2C genérico)
 
 ## Contexto
 
-O Sistema é um app de gestão financeira focado em famílias. Diferente de um SaaS B2B tradicional (Platform → Organization → ClientAccount), precisamos que a família seja a unidade principal de agrupamento.
+O harness gera projetos B2B/B2C onde cada cliente (empresa) precisa isolar seus dados. A hierarquia segue o modelo de tenancy de SaaS: a plataforma (você) detém tenants, cada organização contrata o serviço e os clientes finais operam dentro dela.
 
 ## Decisão
 
 Adotar a hierarquia:
 
 ```
-Platform
-  └─ Family (até 5 membros)
-       ├─ User (admin)
-       ├─ User (member)
-       └─ User (viewer)
+Platform (você)
+  └─ Organization (empresa que contrata)
+       └─ ClientAccount (cliente final)
 ```
 
-- `familyId` é o tenant principal — toda entidade de negócio é scoped por família
-- Um usuário pertence a exatamente uma família por vez
-- Papéis dentro da família: admin (convida/remove/gerencia billing), member (opera), viewer (só lê)
-- Usuários sem família (pré-convite) podem existir mas sem acesso a dados financeiros
+- `tenantId` é o tenant ativo de cada request — toda entidade de negócio é tenant-scoped
+- O middleware de tenancy resolve o tenant a partir do header `X-Tenant-Id` + JWT e injeta o `tenantId` em toda query
+- Papéis: `platform-admin` (gerencia a plataforma), `org-owner` (dono da organização), `org-member` (membro com permissões configuráveis), `client-user` (cliente final — lê/edita os próprios dados)
+- RBAC define o baseline por papel; ABAC sobrepõe com condições por atributo do recurso
 
 ## Consequências positivas
 
-- Modelo de permissões simples e claro
-- Billing por família (um Premium cobre todos)
-- Isolamento total entre famílias (tenant A não vê dados de tenant B)
-- Convidar membros é intuitivo para o usuário final
+- Isolamento total entre tenants (tenant A não vê dados de tenant B)
+- Um usuário pode pertencer a múltiplas organizações/tenants (seletor de tenant)
+- Billing por organização (plano cobre a org)
+- Base para RBAC/ABAC (`@saas/authorization`) com cache de abilities por `userId+tenantId`
 
 ## Trade-offs aceitos
 
-- Usuário não participa de múltiplas famílias simultaneamente (simplificação para MVP)
-- Mudar de família requer sair de uma e entrar em outra
+- Complexidade de hierarquia maior que um modelo de tenant único — necessária para B2B
+- Resolução de tenancy adiciona overhead de middleware por request
 
 ## Alternativas descartadas
 
-- **Usuário individual isolado:** sem compartilhamento familiar — não atende o requisito
-- **Hierarquia completa (Platform → Org → ClientAccount):】 complexidade desnecessária para PF
-- **Permissões por recurso (ABAC puro):】 mais flexível mas mais complexo; RBAC por papel atende bem
+- **Tenant único (grupo de usuários doméstico):** não atende SaaS B2B/B2C multi-tenant
+- **ABAC puro sem RBAC:** mais flexível, porém mais complexo; RBAC por papel como baseline atende bem a maioria dos casos
+- **Permissões por usuário individual:** insustentável em escala

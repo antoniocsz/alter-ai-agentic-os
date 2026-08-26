@@ -196,12 +196,14 @@ function baselineJson(task) {
 
 export function syncFromMarkdown(db, root) {
   const changed = []
+  const onDisk = new Set()
   for (const [dir, status] of [
     [queueDir(root), 'queue'],
     [activeDir(root), 'active'],
     [doneDir(root), 'done']
   ]) {
     for (const name of listTasks(dir)) {
+      onDisk.add(name)
       const t = taskFromMarkdown(dir, name)
       const existing = db.prepare('SELECT status FROM tasks WHERE id = ?').get(name)
       upsertTask(db, t)
@@ -210,6 +212,16 @@ export function syncFromMarkdown(db, root) {
         changed.push({ id: name, to: status })
       }
     }
+  }
+  const orphans = db
+    .prepare('SELECT id FROM tasks')
+    .all()
+    .filter((r) => !onDisk.has(r.id))
+  for (const o of orphans) {
+    db.prepare('DELETE FROM task_events WHERE task_id = ?').run(o.id)
+    db.prepare('DELETE FROM interactions WHERE task_id = ?').run(o.id)
+    db.prepare('DELETE FROM tasks WHERE id = ?').run(o.id)
+    changed.push({ id: o.id, to: 'removed (arquivo ausente)' })
   }
   return changed
 }

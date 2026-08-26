@@ -47,6 +47,7 @@ export async function init(args) {
     '  - context/ (overview.md, stack.md, adr/, modules/, agents/queue|active|done)',
     '  - Monorepo mínimo (turbo.json, pnpm-workspace.yaml, tsconfig.base.json, eslint.config.js)',
     '  - apps/api (Fastify) + apps/web (Next.js), packages/contracts + packages/api-client',
+    '  - Módulos padrão (tenancy, auth, authorization, audit) + tasks de fundação na queue',
     '  - Vitest configurado (turbo test) e opencode.json + CI (.github/workflows/ci.yml)'
   ]
   if (withPrisma) {

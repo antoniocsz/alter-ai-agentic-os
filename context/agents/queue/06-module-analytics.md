@@ -5,7 +5,7 @@
 - `packages/modules/analytics/**`
 - `context/modules/analytics/context.md`
 - `context/modules/analytics/status.md`
-## Depende de: [ ] `05-module-tenancy.md`
+## Depende de: [ ] `03-module-tenancy.md`
 ## Contexto para ler: context/modules/analytics/context.md
 ## Skills a carregar: codegen.md + backend.md + data.md
 ## O que já existe: definição do módulo em context/modules/analytics/ (sem código)
@@ -29,5 +29,5 @@
 - [ ] Barrel export atualizado
 - [ ] Typecheck passando: `pnpm turbo typecheck --filter=@saas/analytics`
 - [ ] Lint passando
-## Ao terminar: atualizar status.md, rodar `pnpm harness finish 07` e registrar handoff
+## Ao terminar: atualizar status.md, rodar `pnpm harness finish 06` e registrar handoff
 ## Complexidade: alta

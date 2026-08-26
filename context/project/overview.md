@@ -1,34 +1,35 @@
-# VemPlanejar — Visão Geral do Projeto
+# Harness — Gerador de Projetos B2B/B2C
 
 ## Problema
 
-Famílias brasileiras têm dificuldade em organizar as finanças de forma conjunta. Apps existentes são focados em indivíduos ou empresas — falta uma solução que atenda o orçamento familiar com simplicidade.
+Todo sistema B2B/B2C recomeça do zero na parte "chata": autenticação, autorização, tenancy multi-tenant e auditoria. Sem isso, cada projeto novo gasta semanas reimplementando a fundação.
 
 ## Produto
 
-VemPlanejar é um app de gestão financeira familiar com:
+O harness é um conjunto de convenções + CLI que gera a estrutura de um projeto full-stack com a fundação padrão já planejada:
 
-- Controle de receitas e despesas (individuais e compartilhadas)
-- Contas conjuntas com visibilidade por membro
-- Orçamentos e metas familiares
-- Cartão de crédito com controle de faturas
-- Contas a pagar/receber com recorrência
-- Dashboard com KPIs e gráficos
-- Relatórios exportáveis (Premium)
-- Planos Free e Premium (assinatura Stripe)
+- **Monorepo** (Turborepo + pnpm): apps/api (Fastify), apps/web (Next.js), packages (contracts, api-client, modules)
+- **Módulos padrão** com contexto e fila de tasks prontas:
+  - `tenancy` — hierarquia Platform → Organization → ClientAccount, middleware de tenantId
+  - `auth` — register/login, JWT (15min) + refresh (7d rotation), perfil
+  - `authorization` — RBAC/ABAC (roles, modules, permissions, abilities CASL)
+  - `audit` — trilha append-only com retenção LGPD (5 anos)
+- **Pipeline de tasks** (queue → active → done) com validação de escopo, banco SQLite e kanban
+- **Agentes do opencode** prontos (coordinator, backend, frontend, mobile, reviewer)
 
 ## Público
 
-Famílias de até 5 membros. Cada membro tem um papel (admin, member, viewer).
+Projetos B2B/B2C multi-tenant. Papéis base: platform-admin, org-owner, org-member, client-user. Módulos de negócio são adicionados conforme o domínio via `pnpm harness module <nome>`.
 
 ## Stack
 
-Monorepo Turborepo | Fastify + Prisma + PostgreSQL + Redis | Next.js 16 + Tailwind + shadcn/ui | Expo + NativeWind | TanStack Query | Zustand | Zod | Stripe | Resend
+Monorepo Turborepo | Fastify + Prisma + PostgreSQL + Redis | Next.js 16 | TanStack Query | Zod | Vitest | ESLint (formatador via @stylistic) | CASL | Stripe
 
 ## Princípios
 
-- Família como unidade principal de tenancy
+- Tenancy multi-tenant como fundação (tenantId em toda query)
+- RBAC baseline + ABAC conditions (`@saas/authorization`)
 - MVVM estrito no frontend e mobile
-- Comunicação entre módulos via eventos
-- Dependency Inversion — use-cases dependem de interfaces
-- Feature flags por plano (Free vs Premium)
+- Comunicação entre módulos via eventos (`@saas/contracts`)
+- Dependency Inversion — use cases dependem de interfaces
+- Audit por padrão (append-only, fora do request path)

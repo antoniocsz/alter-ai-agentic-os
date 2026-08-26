@@ -18,7 +18,7 @@ apps/
   mobile/       Expo bare
 
 packages/
-  modules/      Bounded contexts (@saas/auth, @saas/finance, etc.)
+  modules/      Bounded contexts (@saas/tenancy, @saas/auth, etc.)
   ui/           Design system web (shadcn/ui + Tailwind)
   ui-mobile/    Componentes React Native (NativeWind)
   api-client/   HTTP client compartilhado (web + mobile)

@@ -9,7 +9,7 @@ Cadastro, autenticação e gestão de perfil de usuários.
 ## Use Cases
 - `RegisterUseCase` — criar conta, gera token de verificação, publica `user.created`
 - `LoginUseCase` — validar credenciais
-- `RefreshTokenUseCase` — validar refresh token
+- `RefreshTokenUseCase` — validar refresh token (rotation)
 - `GetProfileUseCase` — obter dados do perfil
 - `UpdateProfileUseCase` — atualizar nome/avatar, publica `user.updated`
 - `VerifyEmailUseCase` — verificar email com token
@@ -26,12 +26,16 @@ Cadastro, autenticação e gestão de perfil de usuários.
 
 ## Dependências
 - `@saas/contracts` (tipos, erros, eventos, EventBus)
+- `@fastify/jwt` (access 15min) + refresh token (7d, rotation, revogação)
+- `IPasswordHasher` (bcrypt/argon2)
 
 ## Repositórios
 - `IUserRepository` — interface para persistência de usuários
 - `IPasswordResetTokenRepository` — interface para tokens de reset (single-use)
 
 ## Regras
+- Senha nunca em claro — hash via `IPasswordHasher`
+- Rate limit em `register` (5 req/15min)
+- Email verificado antes de operações sensíveis (configurável)
 - Token de reset é single-use com TTL 15min — expirado ou reutilizado é rejeitado
-- Rate limit em `forgot-password` (1 req/5min por email)
 - Após o reset, todos os refresh tokens do usuário são revogados

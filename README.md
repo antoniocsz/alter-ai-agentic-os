@@ -61,11 +61,11 @@ context/
 | `harness kanban` | Painel kanban: `--serve [porta]` (drag&drop) ou `--out <arquivo>` (estático) |
 | `harness check [flags]` | Valida o protocolo (pipeline, escopos, seções, módulos). Flags: `--json`, `--barrel`, `--lint`, `--typecheck`, `--db` |
 
-`<task>` aceita o nome completo (`04-api-routes-finance.md`) ou o prefixo numérico (`04`).
+`<task>` aceita o nome completo (`01-module-tenancy.md`) ou o prefixo numérico (`01`).
 
 ## Começando um projeto
 
-1. **Inicializar:** `pnpm harness init <nome-do-projeto> [--prisma] [--git]` — gera AGENTS.md, `.agents/`, `.opencode/agent/` (agents prontos), `scripts/harness/`, `context/` e o esqueleto do monorepo (turbo.json, pnpm-workspace.yaml, tsconfig.base.json, eslint.config.js, `apps/api`, `apps/web`, `packages/contracts`, `packages/api-client`, Vitest, `opencode.json`, CI). `--prisma` adiciona `docker-compose.yml` (Postgres + Redis com limites de memória/CPU), `packages/prisma` (schema + client) e `.env.example`; `--git` inicializa o repositório com commit inicial.
+1. **Inicializar:** `pnpm harness init <nome-do-projeto> [--prisma] [--git]` — gera AGENTS.md, `.agents/`, `.opencode/agent/` (agents prontos), `scripts/harness/`, `context/` e o esqueleto do monorepo (turbo.json, pnpm-workspace.yaml, tsconfig.base.json, eslint.config.js, `apps/api`, `apps/web`, `packages/contracts`, `packages/api-client`, Vitest, `opencode.json`, CI). Já vem com os **módulos padrão** (tenancy, auth, authorization, audit) e suas tasks de fundação na queue. `--prisma` adiciona `docker-compose.yml` (Postgres + Redis com limites de memória/CPU), `packages/prisma` (schema + client) e `.env.example`; `--git` inicializa o repositório com commit inicial.
 2. **Versionar:** `cd <nome-do-projeto> && git init && git add -A && git commit -m "chore: bootstrap harness"` (já feito com `--git`).
 3. **Instalar:** `pnpm install` (configs e dependências iniciais).
 4. **Banco local (com `--prisma`):** `docker compose up -d` e `cp .env.example .env`; scripts em `apps/api`: `db:up`, `db:migrate`, `db:deploy`.
@@ -215,7 +215,7 @@ O harness é acionado por prompts em linguagem natural. O agente responde seguin
 **Bootstrap de projeto novo:**
 
 ```
-Quero iniciar um projeto novo de app de controle de gastos familiares.
+Quero iniciar um projeto novo de SaaS B2B de gestão de clientes.
 Siga o fluxo do harness: faça a context-interview (7 blocos, um por vez,
 confirmando antes de avançar) e gere overview, domain-model, stack e ADRs.
 Ao final, monte a queue inicial com as primeiras tasks.
@@ -224,7 +224,7 @@ Ao final, monte a queue inicial com as primeiras tasks.
 **Nova feature:**
 
 ```
-Adicionar uma feature de metas mensais por categoria no módulo de finanças.
+Adicionar uma feature de gestão de assinaturas no módulo de billing.
 Siga o fluxo do harness: planeje via feature-planning, apresente o plano
 com módulos, camadas e tasks, e só comece a executar após minha confirmação.
 ```
@@ -232,7 +232,7 @@ com módulos, camadas e tasks, e só comece a executar após minha confirmação
 **Execução de uma task da queue:**
 
 ```
-Execute a task 04-api-routes-finance.md da queue. Rode `pnpm harness start 04`
+Execute a task 04-module-audit.md da queue. Rode `pnpm harness start 04`
 antes de começar, aplique o protocolo obrigatório, carregue codegen.md antes de
 gerar código, toque apenas nos arquivos do ## Escopo e conclua com
 `pnpm harness finish 04`, atualizando o status.md do módulo.

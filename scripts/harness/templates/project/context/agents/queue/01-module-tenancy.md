@@ -28,5 +28,5 @@
 - [ ] Barrel export atualizado
 - [ ] Typecheck passando: `pnpm turbo typecheck --filter=@saas/tenancy`
 - [ ] Lint passando
-## Ao terminar: atualizar status.md, rodar `pnpm harness finish 05` e registrar handoff
+## Ao terminar: atualizar status.md, rodar `pnpm harness finish 01` e registrar handoff
 ## Complexidade: alta
