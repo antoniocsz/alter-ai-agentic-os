@@ -17,8 +17,16 @@ export async function moduleCmd(args) {
     throw new Error(`módulo já existe: ${moduleDest}`)
   }
 
+  const withPrisma = args.includes('--with-prisma')
+  const withHttp = args.includes('--with-http')
+
+  const deps = { '@saas/contracts': 'workspace:*' }
+  if (withPrisma) deps['@saas/prisma'] = 'workspace:*'
+  if (withHttp) deps.fastify = '^5.0.0'
+
   const tpl = path.join(templatesDir(), 'module')
-  const vars = { NAME: name }
+  const depsJson = JSON.stringify(deps, null, 2).replace(/^/gm, '  ')
+  const vars = { NAME: name, DEPS: depsJson }
 
   walk(tpl, (relpath) => {
     const isContext = relpath.startsWith('context/')
@@ -41,6 +49,7 @@ export async function moduleCmd(args) {
       `✅ Módulo @saas/${name} criado`,
       `  - ${path.relative(root, moduleDest)}`,
       `  - ${path.relative(root, contextDest)}/context.md e status.md`,
+      `  - deps: ${Object.keys(deps).join(', ')}`,
       '',
       'Próximos passos:',
       '  - Preencher context.md (responsabilidade, entidades, use cases)',

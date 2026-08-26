@@ -46,23 +46,33 @@ context/
 
 | Comando | O que faz |
 |---|---|
-| `harness init <dir>` | Gera projeto novo: camada harness + `context/` + monorepo mínimo |
-| `harness module <nome>` | Scaffold de módulo (`packages/modules/<nome>/` + `context/modules/<nome>/`) |
+| `harness init <dir>` | Gera projeto novo. Flags: `--prisma` (docker-compose Postgres+Redis, `packages/prisma`, `.env.example`), `--git [--branch <b>]` (git init + commit inicial) |
+| `harness module <nome>` | Scaffold de módulo. Flags: `--with-prisma`, `--with-http` |
+| `harness update [--source <cam>]` | Re-sincroniza a camada harness a partir do harness-fonte (ou `HARNESS_SOURCE`) |
+| `harness task "<desc>"` | Cria task na queue com numeração automática e `## Escopo`. Flags: `--module`, `--agent`, `--scope`, `--dep`, `--complexity` |
 | `harness start <task>` | Move `queue/` → `active/`, bloqueando conflito de escopo com tasks ativas |
-| `harness finish <task>` | Valida `git diff` contra o `## Escopo` e move `active/` → `done/` |
-| `harness check [flags]` | Valida o protocolo (pipeline, escopos, seções, módulos). Flags: `--json`, `--barrel`, `--lint`, `--typecheck` |
+| `harness finish <task>` | Valida `git diff` contra o `## Escopo` e move `active/` → `done/`. Flag: `--handoff "<resumo>"` |
+| `harness requeue <task>` | Move `active/` → `queue/` (devolve para a fila) |
+| `harness reopen <task>` | Move `done/` → `active/` (reabre) |
+| `harness sync` | Reindexa o banco SQLite (`.harness/harness.db`) a partir dos `.md` |
+| `harness log "<texto>"` | Registra interação no banco. Flags: `--task`, `--kind`, `--source` |
+| `harness history <task>` | Mostra eventos + interações de uma task (memorização) |
+| `harness report` | Métricas do banco (WIP, cycle time, aging, throughput). Flags: `--format`, `--module`, `--days` |
+| `harness kanban` | Painel kanban: `--serve [porta]` (drag&drop) ou `--out <arquivo>` (estático) |
+| `harness check [flags]` | Valida o protocolo (pipeline, escopos, seções, módulos). Flags: `--json`, `--barrel`, `--lint`, `--typecheck`, `--db` |
 
 `<task>` aceita o nome completo (`04-api-routes-finance.md`) ou o prefixo numérico (`04`).
 
 ## Começando um projeto
 
-1. **Inicializar:** `pnpm harness init <nome-do-projeto>` — gera AGENTS.md, `.agents/`, `scripts/harness/`, `context/` e o esqueleto do monorepo (turbo.json, pnpm-workspace.yaml, tsconfig.base.json, eslint.config.js, `apps/api`, `packages/contracts`).
-2. **Versionar:** `cd <nome-do-projeto> && git init && git add -A && git commit -m "chore: bootstrap harness"`.
+1. **Inicializar:** `pnpm harness init <nome-do-projeto> [--prisma] [--git]` — gera AGENTS.md, `.agents/`, `.opencode/agent/` (agents prontos), `scripts/harness/`, `context/` e o esqueleto do monorepo (turbo.json, pnpm-workspace.yaml, tsconfig.base.json, eslint.config.js, `apps/api`, `apps/web`, `packages/contracts`, `packages/api-client`, Vitest, `opencode.json`, CI). `--prisma` adiciona `docker-compose.yml` (Postgres + Redis com limites de memória/CPU), `packages/prisma` (schema + client) e `.env.example`; `--git` inicializa o repositório com commit inicial.
+2. **Versionar:** `cd <nome-do-projeto> && git init && git add -A && git commit -m "chore: bootstrap harness"` (já feito com `--git`).
 3. **Instalar:** `pnpm install` (configs e dependências iniciais).
-4. **Onboarding:** rodar a context-interview (7 blocos, abaixo) para preencher `context/project/overview.md` e `stack.md` e definir os ADRs iniciais.
-5. **Criar módulos:** `pnpm harness module <nome>` para cada bounded context; preencher `context.md` e `status.md`.
-6. **Planejar e executar:** criar tasks em `context/agents/queue/` (com `## Escopo`) e operar com `harness start` / `harness finish`.
-7. **Verificar:** `pnpm harness check` a qualquer momento — também útil no CI.
+4. **Banco local (com `--prisma`):** `docker compose up -d` e `cp .env.example .env`; scripts em `apps/api`: `db:up`, `db:migrate`, `db:deploy`.
+5. **Onboarding:** rodar a context-interview (7 blocos, abaixo) para preencher `context/project/overview.md` e `stack.md` e definir os ADRs iniciais.
+6. **Criar módulos:** `pnpm harness module <nome>` para cada bounded context; preencher `context.md` e `status.md`.
+7. **Planejar e executar:** criar tasks em `context/agents/queue/` (com `## Escopo`) e operar com `harness start` / `harness finish`.
+8. **Verificar:** `pnpm harness check` a qualquer momento — também útil no CI.
 
 ## Bootstrap de projeto novo
 
@@ -119,6 +129,44 @@ da queue. Para cada uma, rode `pnpm harness start <task>` antes de iniciar o
 subagent. Cada subagent deve ler o arquivo da task, respeitar o ## Escopo e
 concluir com `pnpm harness finish <task>`. Ao final, rode `pnpm harness check`.
 ```
+
+## Agentes (subagents opencode)
+
+O harness inclui agents prontos em `.opencode/agent/` (copiados pelo `harness init`):
+
+| Agent | mode | O que faz |
+|---|---|---|
+| `coordinator` | primary | Orquestra lotes paralelos: `start`, spawna subagents, `check`, revisão e handoff |
+| `backend` | subagent | Tasks de API/domínio (carrega `codegen.md` + `backend.md`, opera `start`/`finish`) |
+| `frontend` | subagent | Tasks de UI (Next.js + MVVM estrito) |
+| `mobile` | subagent | Tasks mobile (Expo + MVVM + offline-first) |
+| `reviewer` | subagent | Revisa `done/` (`edit: deny`) usando `.agents/review.md` |
+
+Cada agente segue o protocolo do AGENTS.md, carrega as referências de `.agents/` da sua especialidade e respeita o `## Escopo`. O `coordinator` pode ser acionado por prompt para processar a queue inteira em paralelo.
+
+## Banco de dados (memória, andamento e interações)
+
+`scripts/harness` mantém um banco SQLite (`node:sqlite`, sem dependências) em `.harness/harness.db` (gitignored, regenerável via `harness sync`). O markdown continua sendo a **fonte da verdade** das tasks; o banco é um índice/histórico que auxilia a memorização:
+
+- `tasks` — metadados das tasks (status, escopo, agente, módulo, dependência, timestamps de início/fim)
+- `task_events` — trilha de eventos: `started`, `finished`, `requeued`, `reopened`, `out_of_scope`, `check_violation`, `synced`
+- `interactions` — registros livres (`prompt`/`response`/`note`/`system`) via `harness log`, associados ou não a uma task
+
+O CLI grava eventos automaticamente em `start`/`finish`/`requeue`/`reopen`/`check`. Consultas:
+
+```
+pnpm harness sync                       # reindexa do markdown (idempotente)
+pnpm harness log "decidimos usar event-sourcing" --task 05-events.md --kind note
+pnpm harness history 05-events.md       # eventos + interações da task
+pnpm harness check --db                 # detecta drift entre markdown e banco
+```
+
+## Painel kanban
+
+`harness kanban` visualiza o andamento em colunas queue/active/done.
+
+- **Servidor com drag&drop:** `pnpm harness kanban --serve [porta]` (padrão 4310) sobe um servidor HTTP nativo. Arrastar um card dispara o mesmo pipeline do CLI — mover para `active` valida conflito de escopo; mover para `done` valida o `git diff`. Erros aparecem como toast. Auto-atualiza a cada 3s.
+- **Estático:** `pnpm harness kanban` gera `kanban.html` auto-contido (sem drag&drop).
 
 ## Protocolo de execução de tarefa
 
@@ -241,8 +289,12 @@ Carregue o arquivo relevante de `.agents/` antes de iniciar a tarefa:
 | Permissões, roles, CASL, abilities | `.agents/authorization.md` |
 | Stripe, planos, assinaturas, webhook | `.agents/billing.md` |
 | Schema Prisma, queries, cache, analytics, ML | `.agents/data.md` |
-| Deploy, CI/CD, EasyPanel, EAS | `.agents/infra.md` |
+| Deploy, CI/CD, EasyPanel/Coolify, EAS | `.agents/infra.md` |
 | Testes (unitário, integração, E2E) | `.agents/testing.md` |
 | Segurança, JWT, rate limit, LGPD | `.agents/security.md` |
+| Logs, telemetria, erros, alertas | `.agents/observability.md` |
+| Performance (API, web, mobile, banco) | `.agents/performance.md` |
+| Orquestrar subagents em paralelo (coordenador) | `.agents/orchestration.md` |
+| Revisar tasks concluídas (gate final) | `.agents/review.md` |
 
 Uma tarefa pode exigir múltiplos arquivos. Exemplo: criar endpoint + regra de permissão → `codegen.md` + `backend.md` + `authorization.md`.

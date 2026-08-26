@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Harness — Kanban de Tasks</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --col: #171a21;
+    --border: #262b36;
+    --text: #e6e9ef;
+    --muted: #8b93a5;
+    --accent: #6366f1;
+    --queue: #d97706;
+    --active: #2563eb;
+    --done: #16a34a;
+    --card: #1e222c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  header {
+    display: flex; align-items: center; gap: 12px; padding: 14px 20px;
+    border-bottom: 1px solid var(--border); background: var(--col);
+  }
+  header h1 { font-size: 16px; margin: 0; font-weight: 600; }
+  header .mode { color: var(--muted); font-size: 12px; }
+  main { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; padding: 20px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .col {
+    background: var(--col); border: 1px solid var(--border); border-radius: 12px;
+    padding: 12px; min-height: 200px;
+  }
+  .col[data-over="true"] { border-color: var(--accent); }
+  .col h2 {
+    display: flex; align-items: center; gap: 8px; margin: 0 0 12px;
+    font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted);
+  }
+  .col h2 .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .col.queue h2 .dot { background: var(--queue); }
+  .col.active h2 .dot { background: var(--active); }
+  .col.done h2 .dot { background: var(--done); }
+  .col h2 .count {
+    margin-left: auto; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 999px; padding: 1px 8px; font-size: 11px;
+  }
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px 12px; margin-bottom: 10px; cursor: grab;
+  }
+  .card.dragging { opacity: .4; }
+  .card .title { font-size: 14px; font-weight: 600; margin: 0 0 6px; word-break: break-word; }
+  .card .meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .tag {
+    font-size: 11px; border-radius: 6px; padding: 2px 6px;
+    background: var(--bg); color: var(--muted); border: 1px solid var(--border);
+  }
+  .tag.module { color: var(--accent); }
+  .tag.baixa { color: #4ade80; }
+  .tag.média, .tag.media { color: #facc15; }
+  .tag.alta { color: #f87171; }
+  .tag.dep { color: #f472b6; }
+  .card .foot { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; margin-top: 8px; }
+  #toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: #7f1d1d; color: #fecaca; border: 1px solid #b91c1c; border-radius: 10px;
+    padding: 10px 16px; max-width: 80vw; font-size: 13px; display: none; z-index: 10;
+    white-space: pre-wrap;
+  }
+  .empty { color: var(--muted); font-size: 12px; text-align: center; padding: 20px 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Harness — Tasks</h1>
+  <span class="mode" id="mode"></span>
+</header>
+<main id="board"></main>
+<div id="toast"></div>
+
+<script>
+const BOARD_DATA = __BOARD_DATA__;
+const IS_SERVER = window.location.protocol === 'http:' || window.location.protocol === 'https:';
+const COLUMNS = [
+  { key: 'queue',  label: 'Queue',  color: 'var(--queue)' },
+  { key: 'active', label: 'Active', color: 'var(--active)' },
+  { key: 'done',   label: 'Done',   color: 'var(--done)' }
+];
+
+let board = { queue: [], active: [], done: [] };
+const toast = document.getElementById('toast');
+const mode = document.getElementById('mode');
+mode.textContent = IS_SERVER ? 'servidor local · drag&drop habilitado' : 'estático · rode `pnpm harness kanban --serve` para mover';
+
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function cardHtml(t) {
+  const comp = esc(t.complexity || '');
+  const dep = t.depends_on ? `<span class="tag dep">depende: ${esc(t.depends_on)}</span>` : '';
+  const scope = `<span class="tag">escopo: ${t.scope_count}</span>`;
+  return `
+    <div class="card" draggable="${IS_SERVER}" data-id="${esc(t.id)}" data-status="${esc(boardStatus(t.id))}">
+      <p class="title">${esc(t.title || t.id)}</p>
+      <div class="meta">
+        ${t.module ? `<span class="tag module">${esc(t.module)}</span>` : ''}
+        ${comp ? `<span class="tag ${comp.toLowerCase()}">${comp}</span>` : ''}
+        ${t.agent ? `<span class="tag">${esc(t.agent)}</span>` : ''}
+        ${scope}
+        ${dep}
+      </div>
+      <div class="foot">
+        <span>${esc(t.id)}</span>
+        <span>${t.started_at ? 'iniciada ' + new Date(t.started_at).toLocaleDateString() : ''}</span>
+      </div>
+    </div>`;
+}
+
+function boardStatus(id) {
+  for (const col of COLUMNS) if (board[col.key].some((t) => t.id === id)) return col.key;
+  return '';
+}
+
+function render() {
+  const main = document.getElementById('board');
+  main.innerHTML = COLUMNS.map((col) => {
+    const items = board[col.key] || [];
+    return `
+      <section class="col ${col.key}" data-col="${col.key}" data-over="false">
+        <h2><span class="dot"></span>${col.label}<span class="count">${items.length}</span></h2>
+        ${items.length ? items.map(cardHtml).join('') : '<div class="empty">nenhuma task</div>'}
+      </section>`;
+  }).join('');
+  if (IS_SERVER) attachDnD();
+}
+
+function attachDnD() {
+  let draggedId = null;
+  document.querySelectorAll('.card').forEach((card) => {
+    card.addEventListener('dragstart', () => {
+      draggedId = card.dataset.id;
+      card.classList.add('dragging');
+    });
+    card.addEventListener('dragend', () => {
+      card.classList.remove('dragging');
+      draggedId = null;
+    });
+  });
+  document.querySelectorAll('.col').forEach((col) => {
+    col.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      col.dataset.over = 'true';
+    });
+    col.addEventListener('dragleave', () => (col.dataset.over = 'false'));
+    col.addEventListener('drop', (e) => {
+      e.preventDefault();
+      col.dataset.over = 'false';
+      if (!draggedId) return;
+      moveTask(draggedId, col.dataset.col);
+    });
+  });
+}
+
+async function moveTask(id, to) {
+  try {
+    const res = await fetch(`/api/tasks/${encodeURIComponent(id)}/move`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ to })
+    });
+    const data = await res.json();
+    if (!data.ok) return showToast(data.error || 'erro ao mover');
+    await loadBoard();
+  } catch (err) {
+    showToast('erro de conexão: ' + err.message);
+  }
+}
+
+function showToast(msg) {
+  toast.textContent = msg;
+  toast.style.display = 'block';
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => (toast.style.display = 'none'), 6000);
+}
+
+async function loadBoard() {
+  if (!IS_SERVER) return;
+  try {
+    const res = await fetch('/api/board');
+    const data = await res.json();
+    if (data.ok) {
+      board = data.board;
+      render();
+    }
+  } catch { /* servidor caiu — aguarda próximo poll */ }
+}
+
+if (IS_SERVER) {
+  loadBoard();
+  setInterval(loadBoard, 3000);
+} else {
+  board = BOARD_DATA;
+  render();
+}
+</script>
+</body>
+</html>

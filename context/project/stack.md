@@ -3,7 +3,7 @@
 ## Monorepo
 - Turborepo + pnpm workspaces
 - TypeScript strict
-- ESLint flat config + Prettier
+- ESLint flat config (lint + formatação via @stylistic)
 
 ## Backend
 - **Runtime:** Node.js 22 + TypeScript

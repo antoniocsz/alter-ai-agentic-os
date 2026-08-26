@@ -2,3 +2,15 @@ packages:
   - "apps/*"
   - "packages/*"
   - "packages/modules/*"
+
+# Dev/template: não bloquear packages recém-publicados (pnpm 11 default = 1 dia)
+minimumReleaseAge: 0
+
+autoInstallPeers: true
+
+allowBuilds:
+  "@prisma/client": true
+  "@prisma/engines": true
+  prisma: true
+  esbuild: true
+  sharp: true

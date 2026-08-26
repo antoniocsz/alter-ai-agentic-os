@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { execSync } from 'node:child_process'
 import { queueDir, activeDir, doneDir, listTasks, parseTask, findConflicts } from './lib/tasks.js'
+import { tryOpenDb, logEvent, recordInteraction, findDrift } from './lib/db.js'
 
 const NAME_RE = /^\d{2,}-.+\.md$/
 const REQUIRED_SECTIONS = ['agente', 'módulo', 'escopo', 'critério de conclusão']
@@ -12,9 +13,18 @@ export async function check(args) {
   const doBarrel = args.includes('--barrel')
   const doLint = args.includes('--lint')
   const doTypecheck = args.includes('--typecheck')
+  const doDb = args.includes('--db')
 
+  const db = tryOpenDb(root)
   const errors = []
-  const add = (m) => errors.push(m)
+  const add = (m, taskId = null) => {
+    errors.push(m)
+    if (db && taskId) {
+      try {
+        logEvent(db, taskId, 'check_violation', m)
+      } catch {}
+    }
+  }
 
   const qDir = queueDir(root)
   const aDir = activeDir(root)
@@ -27,14 +37,14 @@ export async function check(args) {
   const all = { queue: q, active: a, done: d }
   for (const [dir, names] of Object.entries(all)) {
     for (const n of names) {
-      if (!NAME_RE.test(n)) add(`[${dir}] nome inválido (esperado <nn>-<descricao>.md): ${n}`)
+      if (!NAME_RE.test(n)) add(`[${dir}] nome inválido (esperado <nn>-<descricao>.md): ${n}`, n)
     }
   }
 
   const seen = new Map()
   for (const [dir, names] of Object.entries(all)) {
     for (const n of names) {
-      if (seen.has(n)) add(`task em mais de uma pasta (${seen.get(n)} e ${dir}): ${n}`)
+      if (seen.has(n)) add(`task em mais de uma pasta (${seen.get(n)} e ${dir}): ${n}`, n)
       else seen.set(n, dir)
     }
   }
@@ -42,7 +52,12 @@ export async function check(args) {
   const activeTasks = a.map((n) => parseTask(path.join(aDir, n)))
   const conflicts = findConflicts(activeTasks)
   for (const c of conflicts) {
-    add(`conflito de escopo entre tasks ativas: ${c.a} (${c.aPath}) ↔ ${c.b} (${c.bPath})`)
+    add(`conflito de escopo entre tasks ativas: ${c.a} (${c.aPath}) ↔ ${c.b} (${c.bPath})`, c.a)
+    if (db) {
+      try {
+        logEvent(db, c.b, 'check_violation', `conflito de escopo com ${c.a}`)
+      } catch {}
+    }
   }
 
   for (const [dir, names] of Object.entries(all)) {
@@ -50,15 +65,15 @@ export async function check(args) {
       const task = parseTask(path.join(taskDir(root, dir), n))
       const keys = Object.keys(task.sections).map((k) => k.toLowerCase())
       for (const req of REQUIRED_SECTIONS) {
-        if (!keys.some((k) => k.includes(req))) add(`[${dir}/${n}] seção obrigatória ausente: ${req}`)
+        if (!keys.some((k) => k.includes(req))) add(`[${dir}/${n}] seção obrigatória ausente: ${req}`, n)
       }
-      const modName = extractModule(task.sections['Módulo']?.join(' ') ?? '')
+      const modName = extractModule(task.values?.['Módulo'] ?? task.sections['Módulo']?.join(' ') ?? '')
       if (modName) {
         if (!fs.existsSync(path.join(root, 'context', 'modules', modName, 'context.md'))) {
-          add(`[${dir}/${n}] módulo sem context.md: ${modName}`)
+          add(`[${dir}/${n}] módulo sem context.md: ${modName}`, n)
         }
         if (!fs.existsSync(path.join(root, 'context', 'modules', modName, 'status.md'))) {
-          add(`[${dir}/${n}] módulo sem status.md: ${modName}`)
+          add(`[${dir}/${n}] módulo sem status.md: ${modName}`, n)
         }
       }
     }
@@ -84,6 +99,27 @@ export async function check(args) {
 
   if (doLint) runCommand('pnpm turbo lint', root, add, 'lint')
   if (doTypecheck) runCommand('pnpm turbo typecheck', root, add, 'typecheck')
+
+  if (doDb) {
+    if (!fs.existsSync(path.join(root, '.harness', 'harness.db'))) {
+      add('banco .harness/harness.db não existe — rode `pnpm harness sync`')
+    } else if (db) {
+      const drift = findDrift(db, root)
+      for (const d of drift) {
+        add(`drift markdown × banco: ${d.id} (banco: ${d.db}, markdown: ${d.md})`, d.id)
+      }
+    }
+  }
+
+  if (db) {
+    try {
+      recordInteraction(db, {
+        kind: 'system',
+        content: `harness check: ${errors.length === 0 ? 'ok' : errors.length + ' violação(ões)'}`,
+        source: 'cli'
+      })
+    } catch {}
+  }
 
   if (json) {
     process.stdout.write(JSON.stringify({ ok: errors.length === 0, errors }, null, 2) + '\n')

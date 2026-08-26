@@ -4,16 +4,36 @@ import { moduleCmd } from '../src/module.js'
 import { start } from '../src/start.js'
 import { finish } from '../src/finish.js'
 import { check } from '../src/check.js'
+import { sync } from '../src/sync.js'
+import { logCmd, historyCmd } from '../src/log.js'
+import { kanban } from '../src/kanban.js'
+import { requeue, reopen } from '../src/requeue.js'
+import { task } from '../src/task.js'
+import { report } from '../src/report.js'
+import { update } from '../src/update.js'
 
 const usage = `harness <comando> [args]
 
 Comandos:
-  init <dir>          Gera um projeto novo com camada harness + monorepo mínimo
-  module <nome>       Scaffold de módulo (packages/modules/<nome> + context/)
+  init <dir>          Gera projeto novo [--prisma] [--git [--branch <b>]]
+  module <nome>       Scaffold de módulo [--with-prisma] [--with-http]
+  task "<descrição>"  Cria task na queue com numeração automática e ## Escopo
   start <task>        Move queue/<task> → active/ com checagem de conflito de escopo
   finish <task>       Valida escopo (git diff) e move active/<task> → done/
-  check [--json]      Valida o protocolo (pipeline, escopos, módulos, projeto)
+  requeue <task>      Move active/<task> → queue/ (volta para a fila)
+  reopen <task>       Move done/<task> → active/ (reabre)
+  sync                Reindexa o banco SQLite (.harness/harness.db) a partir do markdown
+  log "<texto>"       Registra uma interação no banco [--task] [--kind] [--source]
+  history <task>      Mostra eventos e interações de uma task
+  report              Métricas do banco [--format table|json|csv] [--module] [--days]
+  kanban [--serve [porta] | --out <arquivo>]   Painel kanban (servidor ou HTML estático)
+  update [--source <cam>] Re-sincroniza a camada harness a partir da fonte (ou HARNESS_SOURCE)
+  check [--json]      Valida o protocolo (pipeline, escopos, seções, módulos)
   help                Mostra esta ajuda
+
+Flags do check: --json | --barrel | --lint | --typecheck | --db
+Flags do task:  --module <m> | --agent backend|frontend|mobile | --scope "p1,p2" | --dep <task> | --complexity
+Flags do finish: --handoff "<resumo>"
 `
 
 const [cmd, ...args] = process.argv.slice(2)
@@ -26,11 +46,38 @@ try {
     case 'module':
       await moduleCmd(args)
       break
+    case 'task':
+      await task(args)
+      break
     case 'start':
       await start(args)
       break
     case 'finish':
       await finish(args)
+      break
+    case 'requeue':
+      await requeue(args)
+      break
+    case 'reopen':
+      await reopen(args)
+      break
+    case 'sync':
+      await sync(args)
+      break
+    case 'log':
+      await logCmd(args)
+      break
+    case 'history':
+      await historyCmd(args)
+      break
+    case 'report':
+      await report(args)
+      break
+    case 'update':
+      await update(args)
+      break
+    case 'kanban':
+      await kanban(args)
       break
     case 'check':
       await check(args)

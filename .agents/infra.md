@@ -1,7 +1,7 @@
 # .agents/infra.md
 # Carregar para tarefas de infra (EasyPanel + CI/CD + EAS)
 
-## EasyPanel — serviços
+## EasyPanel / Coolify — serviços
 
 | Serviço | Tipo | Build command |
 |---|---|---|

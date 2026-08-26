@@ -25,6 +25,17 @@ export function copyDir(src, dest, { vars = {}, renderAll = false } = {}) {
   }
 }
 
+export function copyPath(src, dest) {
+  if (!fs.existsSync(src)) return
+  const stat = fs.statSync(src)
+  if (stat.isDirectory()) {
+    copyDir(src, dest)
+  } else {
+    fs.mkdirSync(path.dirname(dest), { recursive: true })
+    fs.copyFileSync(src, dest)
+  }
+}
+
 export function renderTemplateFile(src, dest, vars) {
   fs.mkdirSync(path.dirname(dest), { recursive: true })
   fs.writeFileSync(dest, render(fs.readFileSync(src, 'utf8'), vars))

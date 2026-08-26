@@ -5,7 +5,7 @@
 ## Monorepo
 - Turborepo + pnpm workspaces
 - TypeScript strict
-- ESLint flat config + Prettier
+- ESLint flat config (lint + formatação via @stylistic)
 
 ## Backend
 - Runtime, framework, ORM, cache, validação, email, storage, pagamentos, filas, testes

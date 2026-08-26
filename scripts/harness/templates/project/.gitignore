@@ -3,4 +3,6 @@ dist/
 .turbo/
 .env
 .env.*
+!.env.example
 *.log
+.harness/

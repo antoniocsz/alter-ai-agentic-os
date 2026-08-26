@@ -32,7 +32,7 @@ Nunca pule os passos 2, 3 e 4. Nunca gere código sem ler .agents/codegen.md.
 | `active/` | Tarefa em execução AGORA. N podem coexistir desde que os escopos (`## Escopo`) sejam disjuntos. |
 | `done/` | Tarefas concluídas. Manter histórico. |
 
-O pipeline é operado pelo CLI: `pnpm harness start <task> | finish <task> | check`.
+O pipeline é operado pelo CLI: `pnpm harness start <task> | finish <task> | requeue <task> | reopen <task> | sync | check`. Eventos e interações ficam registrados em `.harness/harness.db` (SQLite); `harness kanban --serve` expõe o andamento num painel.
 
 **Regras:**
 
@@ -163,6 +163,12 @@ Carregue o arquivo relevante de `.agents/` antes de iniciar a tarefa:
 | Deploy, CI/CD, EasyPanel, EAS | `.agents/infra.md` |
 | Testes (unitário, integração, E2E) | `.agents/testing.md` |
 | Segurança, JWT, rate limit, LGPD | `.agents/security.md` |
+| Logs, telemetria, erros, alertas | `.agents/observability.md` |
+| Performance (API, web, mobile, banco) | `.agents/performance.md` |
+| Orquestrar subagents em paralelo (coordenador) | `.agents/orchestration.md` |
+| Revisar tasks concluídas (gate final) | `.agents/review.md` |
+
+Agentes prontos (opencode, `.opencode/agent/`): `coordinator`, `backend`, `frontend`, `mobile`, `reviewer`.
 
 Uma tarefa pode exigir múltiplos arquivos.
 Exemplo: criar endpoint + regra de permissão → `codegen.md` + `backend.md` + `authorization.md`.

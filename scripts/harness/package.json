@@ -8,6 +8,6 @@
     "harness": "./bin/harness.js"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.5"
   }
 }

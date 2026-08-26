@@ -21,12 +21,21 @@ export function parseTask(filePath) {
   const content = fs.readFileSync(filePath, 'utf8')
   const name = path.basename(filePath)
   const sections = {}
+  const values = {}
   const lines = content.split(/\r?\n/)
   let current = null
   for (const line of lines) {
     const m = line.match(/^##\s+(.+)$/)
     if (m) {
-      current = m[1].trim()
+      const heading = m[1].trim()
+      const colon = heading.indexOf(':')
+      if (colon !== -1) {
+        const key = heading.slice(0, colon).trim()
+        values[key] = heading.slice(colon + 1).trim()
+        current = key
+      } else {
+        current = heading
+      }
       sections[current] = []
       continue
     }
@@ -46,7 +55,7 @@ export function parseTask(filePath) {
     }
   }
 
-  return { name, filePath, scope, sections, raw: content }
+  return { name, filePath, scope, sections, values, raw: content }
 }
 
 export function pathsOverlap(a, b) {
@@ -83,6 +92,17 @@ export function moveTask(root, name, fromDir, toDir) {
   fs.mkdirSync(toDir, { recursive: true })
   fs.renameSync(from, to)
   return to
+}
+
+export function taskLocation(root, name) {
+  for (const [status, dir] of [
+    ['queue', queueDir(root)],
+    ['active', activeDir(root)],
+    ['done', doneDir(root)]
+  ]) {
+    if (fs.existsSync(path.join(dir, name))) return status
+  }
+  return null
 }
 
 export function resolveTaskName(dir, arg) {

@@ -7,9 +7,11 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
+  "dependencies": {{DEPS}},
   "devDependencies": {
-    "typescript": "^5.0.0"
+    "typescript": "^6.0.0"
   }
 }
