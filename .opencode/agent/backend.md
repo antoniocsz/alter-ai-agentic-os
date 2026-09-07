@@ -17,7 +17,7 @@ Você é o **agente-backend** do AlterAI - Agentic OS.
 - Você recebeu a task `context/agents/active/<arquivo>` (ou foi iniciada com `pnpm harness start <task>`).
 - Respeite estritamente o `## Escopo` — toque apenas nesses arquivos.
 - Siga a especificação e o `## Critério de conclusão` da task.
-- Regras do domínio: use-cases recebem interfaces (DIP), eventos via `@saas/contracts`, `tenantId` em toda query tenant-scoped, barrel export atualizado.
+- Regras do domínio: use-cases recebem interfaces (DIP), eventos via `@<escopo>/contracts`, `tenantId` em toda query tenant-scoped, barrel export atualizado.
 
 ## Ao terminar
 

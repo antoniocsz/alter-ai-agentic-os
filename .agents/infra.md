@@ -5,8 +5,8 @@
 
 | Serviço | Tipo | Build command |
 |---|---|---|
-| api | App (Nixpacks) | `pnpm turbo build --filter=@saas/app-api` |
-| web-* | App (Nixpacks) | `pnpm turbo build --filter=@saas/app-<nome>` |
+| api | App (Nixpacks) | `pnpm turbo build --filter=@<escopo>/app-api` |
+| web-* | App (Nixpacks) | `pnpm turbo build --filter=@<escopo>/app-<nome>` |
 | postgres | Database | — |
 | redis | Database | — |
 
@@ -34,9 +34,9 @@ on:
 jobs:
   test-and-deploy:
     steps:
-      - run: pnpm turbo typecheck --filter=@saas/app-api...
-      - run: pnpm turbo test --filter=@saas/app-api...
-      - run: pnpm turbo build --filter=@saas/app-api
+      - run: pnpm turbo typecheck --filter=@<escopo>/app-api...
+      - run: pnpm turbo test --filter=@<escopo>/app-api...
+      - run: pnpm turbo build --filter=@<escopo>/app-api
       - run: pnpm prisma migrate deploy  # antes de iniciar o serviço
       - name: Deploy EasyPanel
         run: curl -X POST ${{ secrets.EASYPANEL_WEBHOOK_API }} -H "Authorization: Bearer ${{ secrets.EASYPANEL_TOKEN }}"

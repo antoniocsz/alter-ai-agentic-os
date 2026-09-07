@@ -40,7 +40,7 @@ export default function Page() { return <OcorrenciasListView /> }
 | UI client-only (modal, seleção wizard) | Zustand |
 | Formulários | React Hook Form + Zod |
 
-## Schemas Zod — definir em `model/schemas.ts`, compartilhar com backend via `@saas/contracts` quando possível
+## Schemas Zod — definir em `model/schemas.ts`, compartilhar com backend via `@<escopo>/contracts` quando possível
 
 ## CASL no frontend — UI apenas, segurança está no backend
 

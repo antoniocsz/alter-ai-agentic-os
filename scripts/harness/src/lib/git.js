@@ -13,7 +13,7 @@ function git(root, args) {
 
 export function modifiedFiles(root) {
   if (!isGitRepo(root)) return []
-  const out = git(root, 'status --porcelain=v1')
+  const out = git(root, 'status --porcelain=v1 -uall')
   const files = []
   for (const raw of out.split(/\r?\n/)) {
     if (!raw.trim()) continue

@@ -16,14 +16,14 @@ Nunca pule para o passo 4 sem completar 1, 2 e 3.
 ## Passo 2 — o que verificar antes de criar
 
 **Packages compartilhados — nunca recriar:**
-- `@saas/contracts` → DomainError, NotFoundError, ForbiddenError, EventBus, PaginatedResult, ListParams, eventos
-- `@saas/ui` → DataTable, Skeleton, EmptyState, Pagination, todos os componentes de UI
-- `@saas/ui-mobile` → componentes React Native compartilhados
-- `@saas/api-client` → instância http configurada com interceptors
+- `@<escopo>/contracts` → DomainError, NotFoundError, ForbiddenError, EventBus, PaginatedResult, ListParams, eventos
+- `@<escopo>/ui` → DataTable, Skeleton, EmptyState, Pagination, todos os componentes de UI
+- `@<escopo>/ui-mobile` → componentes React Native compartilhados
+- `@<escopo>/api-client` → instância http configurada com interceptors
 
 **Apresente antes de gerar:**
 ```
-"✅ Reaproveitado: DomainError (@saas/contracts), DataTable (@saas/ui)
+"✅ Reaproveitado: DomainError (@<escopo>/contracts), DataTable (@<escopo>/ui)
 🆕 A criar: OcorrenciaEntity, CreateOcorrenciaUseCase, OcorrenciasListView
 ⚠️ Similar encontrado: ListParams — posso estender com status. Prefere assim?"
 ```
@@ -63,5 +63,5 @@ Aguarde confirmação. Nunca gere na mesma mensagem do mapeamento.
 
 - **Extensão:** tipo quase igual → `interface MeuParams extends ListParams { status?: string }`
 - **Composição:** componente de UI → passar `columns` pro DataTable, não recriar tabela
-- **Extração:** apareceu em 2 módulos → mover para `@saas/ui` ou `@saas/contracts`
+- **Extração:** apareceu em 2 módulos → mover para `@<escopo>/ui` ou `@<escopo>/contracts`
 - **Hook base:** ViewModels de listagem iguais → `useListViewModel<T>(queryKey, fetcher)`

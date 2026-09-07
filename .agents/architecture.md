@@ -14,7 +14,7 @@
 
 ```bash
 packages/modules/<nome>/
-├── package.json          # name: "@saas/<nome>", exports: { ".": "./src/index.ts" }
+├── package.json          # name: "@<escopo>/<nome>", exports: { ".": "./src/index.ts" }
 ├── src/
 │   ├── domain/
 │   │   ├── entities/
@@ -30,7 +30,7 @@ packages/modules/<nome>/
 
 ## Checklist de novo módulo
 
-- [ ] `package.json` com nome `@saas/<nome>`
+- [ ] `package.json` com nome `@<escopo>/<nome>`
 - [ ] `src/index.ts` barrel export
 - [ ] `context/modules/<nome>/context.md` preenchido
 - [ ] `context/modules/<nome>/status.md` criado
@@ -49,7 +49,7 @@ ui       → pode importar: config
 
 ```typescript
 // ❌ billing importa tenancy
-// ✅ billing publica evento → tenancy assina via @saas/contracts
+// ✅ billing publica evento → tenancy assina via @<escopo>/contracts
 export interface SubscriptionCanceledEvent {
   type: 'subscription.canceled'
   tenantId: string
@@ -61,7 +61,7 @@ export interface SubscriptionCanceledEvent {
 
 | App | Público | Importa módulos? |
 |---|---|---|
-| `landing` | Marketing | ❌ só @saas/ui e tipos de @saas/contracts |
+| `landing` | Marketing | ❌ só @<escopo>/ui e tipos de @<escopo>/contracts |
 | `admin` | Plataforma interna | ✅ todos |
 | `organization` | Org contratante | ✅ módulos de negócio |
 | `client` | Cliente final | ✅ módulos de negócio (escopo via ABAC) |

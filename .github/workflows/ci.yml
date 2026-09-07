@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: versão do harness
+        run: node scripts/harness/bin/harness.js --version
+      - name: testes unitários + integração (node:test)
+        run: node --test "scripts/harness/tests/*.test.js"
+      - name: pipeline do próprio repo
+        run: node scripts/harness/bin/harness.js check --json
+
+  smoke-init:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: init (padrão) + check
+        run: |
+          node scripts/harness/bin/harness.js init /tmp/demo-default
+          cd /tmp/demo-default && node scripts/harness/bin/harness.js check --json
+      - name: init --bare + check + module + task
+        run: |
+          node scripts/harness/bin/harness.js init /tmp/demo-bare --bare
+          cd /tmp/demo-bare
+          node scripts/harness/bin/harness.js check --json
+          node scripts/harness/bin/harness.js module billing
+          node scripts/harness/bin/harness.js task "primeira task do billing" --module billing
+          node scripts/harness/bin/harness.js check --json
+      - name: update --dry-run para injetar a camada num projeto
+        run: |
+          node scripts/harness/bin/harness.js init /tmp/demo-target --bare
+          cd /tmp/demo-target && node /repo/scripts/harness/bin/harness.js update --source /repo --dry-run

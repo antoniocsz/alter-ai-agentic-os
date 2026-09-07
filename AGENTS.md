@@ -1,14 +1,33 @@
 # AGENTS.md
 
 Arquivo base lido por todo agente antes de qualquer tarefa.
-Contém: regras globais, stack, e índice de referências modulares.
+Contém: protocolo, regras globais, guard rails e índice de referências modulares.
+
+---
+
+## Perfil do projeto
+
+Antes de qualquer tarefa, leia o contexto do projeto em `context/project/`:
+
+- `overview.md` — produto e problema
+- `domain-model.md` — domínio e módulos (bounded contexts)
+- `stack.md` — stack técnica decidida
+- `adr/` — decisões arquiteturais
+
+Este `AGENTS.md` é a **base genérica do harness** (protocolo + guard rails), reutilizável em
+qualquer projeto, independente do domínio ou da stack. As especificidades do projeto — stack,
+tenancy, estrutura de apps/packages, escopo e nomeação — vivem em `context/project/*` e em
+`context/modules/<modulo>/`. Se algo não estiver documentado, pergunte antes de assumir.
+
+Nos exemplos deste arquivo e de `.agents/*.md`, `@<escopo>` é um placeholder para o escopo de
+pacotes do seu projeto (ex: `@saas`, `@acme`).
 
 ---
 
 ## Protocolo obrigatório — toda tarefa segue esta ordem
 
 ```
-1. Ler este arquivo (AGENTS.md)
+1. Ler este arquivo (AGENTS.md) e o Perfil do projeto (context/project/*)
 2. Ler context/modules/<modulo>/context.md e status.md do módulo alvo
 3. Carregar a referência modular relevante de .agents/<especialidade>.md
 4. Carregar .agents/codegen.md ANTES de gerar qualquer código
@@ -18,7 +37,7 @@ Contém: regras globais, stack, e índice de referências modulares.
 8. Finalizar tarefas antigas da queue que foram concluídas
 ```
 
-Nunca pule os passos 2, 3 e 4. Nunca gere código sem ler .agents/codegen.md.
+Nunca pule os passos 1, 2, 3 e 4. Nunca gere código sem ler .agents/codegen.md.
 
 ---
 
@@ -45,49 +64,36 @@ O pipeline é operado pelo CLI: `pnpm harness start <task> | finish <task> | req
 
 ---
 
-## Stack do projeto
-
-**Monorepo:** Turborepo + pnpm workspaces
-**Backend:** Fastify + Prisma + PostgreSQL + Redis
-**Frontend:** Next.js 16 (App Router) + TanStack Query + Zustand + nuqs + React Hook Form + Zod + shadcn/ui + Tailwind v4
-**Mobile:** Expo (bare workflow) + Expo Router + MMKV + WatermelonDB
-**Auth:** JWT (15min) + Refresh Token (7d, rotation) + CASL (RBAC+ABAC)
-**Billing:** Stripe via PaymentProvider interface (DIP)
-**Analytics:** ClickHouse + Metabase + ETL cron
-**Deploy:** EasyPanel (VPS) + EAS (mobile) + GitHub Actions
-
----
-
 ## Regras inegociáveis — violação bloqueia PR
 
 ### Fronteiras de módulo
 ```typescript
 // ❌ NUNCA — import direto interno de outro módulo
-import { algo } from '@saas/outro-modulo/src/interno'
+import { algo } from '@<escopo>/outro-modulo/src/interno'
 
 // ✅ SEMPRE — apenas via barrel export público
-import { algo } from '@saas/outro-modulo'
+import { algo } from '@<escopo>/outro-modulo'
 ```
 
-### tenantId em toda query tenant-scoped
-O middleware Prisma injeta automaticamente. Nunca confie em query sem o filtro.
+### tenantId em toda query tenant-scoped (se multi-tenant)
+O middleware do ORM injeta automaticamente. Nunca confie em query sem o filtro.
 Teste sempre: "tenant A não consegue ver dado de tenant B".
 
 ### MVVM estrito no frontend e mobile
 - **View** → só JSX, zero `useQuery`/`useMutation`/`useForm` diretamente
 - **ViewModel** → hook que orquestra tudo, retorna dados + callbacks prontos
-- **Model** → tipos, schemas Zod, repository (sem hooks, sem JSX)
+- **Model** → tipos, schemas de validação, repository (sem hooks, sem JSX)
 
 ### Comunicação entre módulos via eventos
 Módulos nunca se importam diretamente.
-Publicar em `@saas/contracts` → outro módulo assina. Nunca importar módulo B dentro de módulo A.
+Publicar em `packages/contracts` → outro módulo assina. Nunca importar módulo B dentro de módulo A.
 
 ### Dependency Inversion no domínio
 Use cases dependem de interfaces (repositories, providers), nunca de implementações.
 ```typescript
 // ✅ UseCase recebe interface
 constructor(private repo: OcorrenciaRepository, private eventBus: EventBus) {}
-// ❌ UseCase instancia Prisma diretamente
+// ❌ UseCase instancia o ORM diretamente
 ```
 
 ---
@@ -106,44 +112,6 @@ Estas regras se aplicam a TODO agente e valem para QUALQUER tarefa, incluindo de
 
 ---
 
-## Hierarquia de tenancy
-
-```
-Platform (você)
-  └─ Organization (empresa que contrata)
-       └─ ClientAccount (cliente final)
-```
-
-Roles: `platform-admin` | `org-owner` | `org-member` | `client-user`
-
----
-
-## Estrutura do monorepo
-
-```
-apps/
-├── admin/          @saas/app-admin        — gestão interna
-├── landing/        @saas/app-landing      — marketing/SEO
-├── organization/   @saas/app-organization — painel org
-├── client/         @saas/app-client       — painel cliente
-├── mobile/         @saas/app-mobile       — Expo bare
-└── api/            @saas/app-api          — Fastify
-
-packages/
-├── modules/        @saas/<feature>        — bounded contexts
-├── ui/             @saas/ui               — design system web
-├── ui-mobile/      @saas/ui-mobile        — componentes RN
-├── api-client/     @saas/api-client       — http client
-├── contracts/      @saas/contracts        — tipos e eventos
-└── config/         @saas/{eslint,tsconfig,tailwind}-config
-
-context/            — documentação viva + estado de agentes
-.agents/            — referências modulares (carregar sob demanda)
-scripts/harness/    — CLI do harness (init, module, start, finish, check)
-```
-
----
-
 ## Índice de referências modulares
 
 Carregue o arquivo relevante de `.agents/` antes de iniciar a tarefa:
@@ -159,8 +127,8 @@ Carregue o arquivo relevante de `.agents/` antes de iniciar a tarefa:
 | Tarefa mobile (screen, hook mobile, offline) | `.agents/mobile.md` |
 | Permissões, roles, CASL, abilities | `.agents/authorization.md` |
 | Stripe, planos, assinaturas, webhook | `.agents/billing.md` |
-| Schema Prisma, queries, cache, analytics, ML | `.agents/data.md` |
-| Deploy, CI/CD, EasyPanel, EAS | `.agents/infra.md` |
+| Schema do banco, queries, cache, analytics, ML | `.agents/data.md` |
+| Deploy, CI/CD, EasyPanel/Coolify, EAS | `.agents/infra.md` |
 | Testes (unitário, integração, E2E) | `.agents/testing.md` |
 | Segurança, JWT, rate limit, LGPD | `.agents/security.md` |
 | Logs, telemetria, erros, alertas | `.agents/observability.md` |
@@ -185,4 +153,4 @@ Antes de marcar a tarefa como concluída:
 - [ ] Decisão arquitetural nova registrada em `context/project/adr/` (se houver)
 - [ ] Barrel export (`index.ts`) atualizado com novos exports
 - [ ] Sem imports entre módulos diretos (ESLint boundaries)
-- [ ] Typecheck passando: `pnpm turbo typecheck --filter=@saas/<modulo>`
+- [ ] Typecheck passando: `pnpm turbo typecheck`

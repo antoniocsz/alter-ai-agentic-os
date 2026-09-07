@@ -1,0 +1,13 @@
+{
+  "name": "harness",
+  "private": true,
+  "type": "module",
+  "description": "AlterAI - Agentic OS: camada de operação reutilizável para agentes de IA (protocolo, contexto vivo, pipeline de tarefas queue->active->done)",
+  "engines": {
+    "node": ">=22.5"
+  },
+  "scripts": {
+    "harness": "node scripts/harness/bin/harness.js",
+    "test": "node --test \"scripts/harness/tests/*.test.js\""
+  }
+}

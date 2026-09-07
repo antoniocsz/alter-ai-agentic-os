@@ -7,14 +7,7 @@ import { tryOpenDb, logEvent, recordInteraction, findDrift } from './lib/db.js'
 const NAME_RE = /^\d{2,}-.+\.md$/
 const REQUIRED_SECTIONS = ['agente', 'módulo', 'escopo', 'critério de conclusão']
 
-export async function check(args) {
-  const root = process.cwd()
-  const json = args.includes('--json')
-  const doBarrel = args.includes('--barrel')
-  const doLint = args.includes('--lint')
-  const doTypecheck = args.includes('--typecheck')
-  const doDb = args.includes('--db')
-
+export function validate(root, opts = {}) {
   const db = tryOpenDb(root)
   const errors = []
   const add = (m, taskId = null) => {
@@ -86,21 +79,21 @@ export async function check(args) {
     add('projeto sem context/project/adr/')
   }
 
-  if (doBarrel) {
+  if (opts.barrel) {
     const modules = path.join(root, 'packages', 'modules')
     if (fs.existsSync(modules)) {
       for (const m of fs.readdirSync(modules)) {
         if (m.startsWith('.')) continue
         const barrel = path.join(modules, m, 'src', 'index.ts')
-        if (!fs.existsSync(barrel)) add(`módulo @saas/${m} sem barrel export (src/index.ts)`)
+        if (!fs.existsSync(barrel)) add(`módulo @<escopo>/${m} sem barrel export (src/index.ts)`)
       }
     }
   }
 
-  if (doLint) runCommand('pnpm turbo lint', root, add, 'lint')
-  if (doTypecheck) runCommand('pnpm turbo typecheck', root, add, 'typecheck')
+  if (opts.lint) runCommand('pnpm turbo lint', root, add, 'lint')
+  if (opts.typecheck) runCommand('pnpm turbo typecheck', root, add, 'typecheck')
 
-  if (doDb) {
+  if (opts.db) {
     if (!fs.existsSync(path.join(root, '.harness', 'harness.db'))) {
       add('banco .harness/harness.db não existe — rode `pnpm harness sync`')
     } else if (db) {
@@ -121,19 +114,34 @@ export async function check(args) {
     } catch {}
   }
 
+  return {
+    ok: errors.length === 0,
+    errors,
+    summary: `tasks: ${q.length} queue / ${a.length} active / ${d.length} done`
+  }
+}
+
+export async function check(args) {
+  const root = process.cwd()
+  const json = args.includes('--json')
+
+  const res = validate(root, {
+    barrel: args.includes('--barrel'),
+    lint: args.includes('--lint'),
+    typecheck: args.includes('--typecheck'),
+    db: args.includes('--db')
+  })
+
   if (json) {
-    process.stdout.write(JSON.stringify({ ok: errors.length === 0, errors }, null, 2) + '\n')
+    process.stdout.write(JSON.stringify({ ok: res.ok, errors: res.errors }, null, 2) + '\n')
+  } else if (res.ok) {
+    process.stdout.write(`✅ harness ok — ${res.summary}\n`)
   } else {
-    const summary = `tasks: ${q.length} queue / ${a.length} active / ${d.length} done`
-    if (errors.length === 0) {
-      process.stdout.write(`✅ harness ok — ${summary}\n`)
-    } else {
-      process.stdout.write(`❌ ${errors.length} violação(ões) — ${summary}\n`)
-      for (const e of errors) process.stdout.write(`  - ${e}\n`)
-    }
+    process.stdout.write(`❌ ${res.errors.length} violação(ões) — ${res.summary}\n`)
+    for (const e of res.errors) process.stdout.write(`  - ${e}\n`)
   }
 
-  process.exit(errors.length === 0 ? 0 : 1)
+  process.exit(res.ok ? 0 : 1)
 }
 
 function taskDir(root, dir) {
@@ -143,8 +151,9 @@ function taskDir(root, dir) {
 function extractModule(text) {
   const m = text.match(/modules\/([a-z0-9-]+)/)
   if (m) return m[1]
-  const s = text.match(/@saas\/([a-z0-9-]+)/)
-  if (s) return s[1]
+  const at = text.match(/@[a-z0-9<>-]+\/([a-z0-9-]+)/)
+  if (at) return at[1]
+  if (/[/<>]/.test(text)) return null
   const bare = text.match(/[a-z][a-z0-9-]{2,}/)
   return bare ? bare[0] : null
 }

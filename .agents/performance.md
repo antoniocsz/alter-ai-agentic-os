@@ -35,7 +35,7 @@
 ## Como medir
 
 ```
-Backend:  pnpm turbo test --filter=@saas/app-api (loader de perf) + métricas RED
+Backend:  pnpm turbo test --filter=@<escopo>/app-api (loader de perf) + métricas RED
 Web:      web-vitals no app + Lighthouse CI (thresholds) no pipeline
 Mobile:   React DevTools Profiler + métricas de start no EAS
 ```

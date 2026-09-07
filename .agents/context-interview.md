@@ -12,8 +12,8 @@
 ```
 Bloco 1 → Produto e problema         → gera context/project/overview.md
 Bloco 2 → Domínio e módulos          → gera context/project/domain-model.md
-Bloco 3 → Multi-tenancy e hierarquia → impacta tenancy/ e authorization/
-Bloco 4 → Permissões e papéis        → impacta authorization/
+Bloco 3 → Multi-tenancy e hierarquia → condicional: só se o produto for multi-tenant
+Bloco 4 → Permissões e papéis        → impacta authorization/ (simplificado se não multi-tenant)
 Bloco 5 → Apps e superfícies         → impacta estrutura de apps/
 Bloco 6 → Stack e restrições         → gera context/project/stack.md
 Bloco 7 → Prioridades                → gera context/agents/queue/ com tasks iniciais
@@ -31,10 +31,10 @@ Bloco 7 → Prioridades                → gera context/agents/queue/ com tasks 
 
 **Bloco 1:** Qual problema resolve e pra quem? | Quem são os usuários? | Do zero ou evoluindo? | Referência de mercado?
 **Bloco 2:** Grandes áreas de negócio? | Quais se comunicam? | Qual é mais crítica? | Conceito que aparece em várias?
-**Bloco 3:** Multi-tenant? | Hierarquia entre tenants? | Usuário em mais de um tenant? | Como identifica o tenant ativo?
-**Bloco 4:** Quais papéis? | Fixos ou customizáveis? | Regra que depende do conteúdo do dado? | Quem gerencia permissões?
+**Bloco 3 (condicional):** Antes: "O produto é multi-tenant (clientes/tenants isolados)?" Se **não**, pule o bloco. Se sim: Hierarquia entre tenants? | Usuário em mais de um tenant? | Como identifica o tenant ativo?
+**Bloco 4:** Quais papéis? | Fixos ou customizáveis? | Regra que depende do conteúdo do dado? | Quem gerencia permissões? *(em produto não multi-tenant, ignore tenant-scoping e foque em papéis globais)*
 **Bloco 5:** Painel admin interno? | Painel da empresa contratante? | Interface do cliente final? | Landing/SEO? | Mobile? | Subdomínios?
-**Bloco 6:** Stack frontend? | Stack backend? | Banco + ORM? | Pagamento? | Mobile stack? | Restrições técnicas?
+**Bloco 6:** Stack frontend? | Stack backend? | Banco + ORM? | Pagamento? | Mobile stack? | Restrições técnicas? *(a stack decidida alimenta `context/project/stack.md`, referenciado pelo AGENTS.md)*
 **Bloco 7:** O que é mais urgente? | Dependência que bloqueia? | Decisão já tomada? | Backend, frontend ou paralelo?
 
 ## Saída esperada ao fim

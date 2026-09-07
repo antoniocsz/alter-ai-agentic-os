@@ -16,10 +16,11 @@ const DB_SCRIPTS =
 
 export async function init(args) {
   const [dir] = args
-  if (!dir) throw new Error('uso: harness init <dir> [--prisma] [--git [--branch <nome>]]')
+  if (!dir) throw new Error('uso: harness init <dir> [--prisma] [--git [--branch <nome>]] [--bare]')
 
   const withPrisma = args.includes('--prisma')
   const withGit = args.includes('--git')
+  const withBare = args.includes('--bare')
   const branchIdx = args.indexOf('--branch')
   const branch = branchIdx !== -1 ? args[branchIdx + 1] : null
 
@@ -41,13 +42,27 @@ export async function init(args) {
     renderAll: true
   })
 
+  if (withBare) {
+    for (const m of ['tenancy', 'auth', 'authorization', 'audit']) {
+      fs.rmSync(path.join(target, 'context', 'modules', m), { recursive: true, force: true })
+    }
+    const qDir = path.join(target, 'context', 'agents', 'queue')
+    if (fs.existsSync(qDir)) {
+      for (const f of fs.readdirSync(qDir)) {
+        fs.rmSync(path.join(qDir, f), { recursive: true, force: true })
+      }
+    }
+  }
+
   const gerado = [
     '  - AGENTS.md + .agents/ (camada harness)',
     '  - .opencode/agent/ (agents prontos) + scripts/harness (CLI)',
     '  - context/ (overview.md, stack.md, adr/, modules/, agents/queue|active|done)',
     '  - Monorepo mínimo (turbo.json, pnpm-workspace.yaml, tsconfig.base.json, eslint.config.js)',
     '  - apps/api (Fastify) + apps/web (Next.js), packages/contracts + packages/api-client',
-    '  - Módulos padrão (tenancy, auth, authorization, audit) + tasks de fundação na queue',
+    ...(withBare
+      ? ['  - Sem módulos padrão (--bare): crie do zero com `harness module <nome>`']
+      : ['  - Módulos padrão (tenancy, auth, authorization, audit) + tasks de fundação na queue']),
     '  - Vitest configurado (turbo test) e opencode.json + CI (.github/workflows/ci.yml)'
   ]
   if (withPrisma) {

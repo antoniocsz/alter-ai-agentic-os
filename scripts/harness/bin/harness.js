@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readFileSync } from 'node:fs'
 import { init } from '../src/init.js'
 import { moduleCmd } from '../src/module.js'
 import { start } from '../src/start.js'
@@ -15,7 +16,7 @@ import { update } from '../src/update.js'
 const usage = `harness <comando> [args]
 
 Comandos:
-  init <dir>          Gera projeto novo [--prisma] [--git [--branch <b>]]
+  init <dir>          Gera projeto novo [--prisma] [--git [--branch <b>]] [--bare]
   module <nome>       Scaffold de módulo [--with-prisma] [--with-http]
   task "<descrição>"  Cria task na queue com numeração automática e ## Escopo
   start <task>        Move queue/<task> → active/ com checagem de conflito de escopo
@@ -27,8 +28,9 @@ Comandos:
   history <task>      Mostra eventos e interações de uma task
   report              Métricas do banco [--format table|json|csv] [--module] [--days]
   kanban [--serve [porta] | --out <arquivo>]   Painel kanban (servidor ou HTML estático)
-  update [--source <cam>] Re-sincroniza a camada harness a partir da fonte (ou HARNESS_SOURCE)
+  update [--source <cam>] [--dry-run] Re-sincroniza a camada harness a partir da fonte (ou HARNESS_SOURCE)
   check [--json]      Valida o protocolo (pipeline, escopos, seções, módulos)
+  version             Mostra a versão do harness
   help                Mostra esta ajuda
 
 Flags do check: --json | --barrel | --lint | --typecheck | --db
@@ -37,6 +39,7 @@ Flags do finish: --handoff "<resumo>"
 `
 
 const [cmd, ...args] = process.argv.slice(2)
+const version = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version
 
 try {
   switch (cmd) {
@@ -75,6 +78,11 @@ try {
       break
     case 'update':
       await update(args)
+      break
+    case 'version':
+    case '--version':
+    case '-v':
+      process.stdout.write(`harness ${version}\n`)
       break
     case 'kanban':
       await kanban(args)

@@ -27,7 +27,7 @@ fastify.post('/webhooks/stripe', async (request, reply) => {
 ```
 Checkout → PaymentProvider → URL Stripe
 Stripe   → POST /webhooks/stripe → verifica assinatura → DomainEvents → eventBus
-eventBus → tenancy reage (ativa/suspende) via SubscriptionCanceledEvent de @saas/contracts
+eventBus → tenancy reage (ativa/suspende) via SubscriptionCanceledEvent de @<escopo>/contracts
 ```
 
 ## Checklist de segurança do webhook

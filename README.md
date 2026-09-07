@@ -2,6 +2,63 @@
 
 Camada de operação que padroniza como agentes de IA trabalham em um projeto de software. O AlterAI - Agentic OS define o **protocolo obrigatório**, mantém o **contexto vivo** e gerencia o **pipeline de tarefas** — de forma reutilizável em qualquer projeto, independente do domínio ou da stack.
 
+## Índice
+
+- [Começar agora (clonei este repo)](#começar-agora-clonei-este-repo)
+- [Visão geral do fluxo](#visão-geral-do-fluxo)
+- [Estrutura do AlterAI - Agentic OS](#estrutura-do-alterai---agentic-os)
+- [CLI do AlterAI - Agentic OS](#cli-do-alterai---agentic-os)
+- [Começando um projeto](#começando-um-projeto)
+- [Bootstrap de projeto novo](#bootstrap-de-projeto-novo)
+- [Pipeline de tarefas (queue → active → done)](#pipeline-de-tarefas-queue--active--done)
+- [Execução em paralelo (subagents)](#execução-em-paralelo-subagents)
+- [Agentes (subagents opencode)](#agentes-subagents-opencode)
+- [Banco de dados (memória, andamento e interações)](#banco-de-dados-memória-andamento-e-interações)
+- [Painel kanban](#painel-kanban)
+- [Protocolo de execução de tarefa](#protocolo-de-execução-de-tarefa)
+- [Planejamento de features](#planejamento-de-features)
+- [Exemplo de prompt](#exemplo-de-prompt)
+- [Geração de código](#geração-de-código)
+- [Guard rails — execução somente com consentimento](#guard-rails--execução-somente-com-consentimento)
+- [Checklist de conclusão de tarefa](#checklist-de-conclusão-de-tarefa)
+- [Índice de referências modulares](#índice-de-referências-modulares)
+
+## Começar agora (clonei este repo)
+
+**Pré-requisitos:** Node ≥ 22.5 e [pnpm](https://pnpm.io).
+
+Este repositório é a **fonte do AlterAI - Agentic OS** (a "camada harness"). Você o usa de duas formas:
+
+**1. Gerar um projeto novo** — cria um monorepo com a camada harness embutida:
+
+```bash
+pnpm harness init meu-projeto [--prisma] [--git] [--bare]
+cd meu-projeto && pnpm install
+```
+
+**2. Injetar num projeto existente** — sincroniza a camada (AGENTS.md, `.agents/`, `.opencode/`, `scripts/harness/`) dentro de outro projeto:
+
+```bash
+cd /caminho/do/meu-projeto
+node /caminho/deste/repo/scripts/harness/bin/harness.js update --source /caminho/deste/repo
+```
+
+A partir daí o projeto tem `pnpm harness start|finish|check|...`.
+
+**Comandos essenciais:**
+
+| Comando | O que faz |
+|---|---|
+| `pnpm harness init <dir>` | Gera projeto novo com a camada harness (`--bare` = sem módulos padrão) |
+| `pnpm harness module <nome>` | Cria um módulo (bounded context) |
+| `pnpm harness task "<desc>" --module <m>` | Planeja uma task na queue |
+| `pnpm harness start <task>` / `finish <task>` | Executa e finaliza a task (valida escopo) |
+| `pnpm harness check` | Valida o estado do pipeline |
+| `pnpm harness --version` | Mostra a versão do harness |
+| `pnpm test` | Roda os testes do próprio harness (`node:test`, zero deps) |
+
+O CLI também pode ser chamado direto com `node scripts/harness/bin/harness.js <comando>` — útil quando o repo ainda não tem `pnpm install`.
+
 ## Visão geral do fluxo
 
 ```
@@ -42,7 +99,7 @@ context/
 
 ## CLI do AlterAI - Agentic OS
 
-`scripts/harness` é um CLI em Node.js (zero dependências), invocado via `pnpm harness` a partir da raiz do projeto:
+`scripts/harness` é um CLI em Node.js (zero dependências), invocado via `pnpm harness` a partir da raiz do projeto (ou direto com `node scripts/harness/bin/harness.js`):
 
 | Comando | O que faz |
 |---|---|
@@ -250,7 +307,7 @@ Via `.agents/codegen.md` — 5 passos antes de gerar qualquer código:
 5. ANOTAR     → indicar o que foi reaproveitado vs criado
 ```
 
-Nunca pular para o passo 4 sem completar 1, 2 e 3. Priorizar reuso de `@saas/contracts` (erros, EventBus, eventos), `@saas/ui`, `@saas/ui-mobile` e `@saas/api-client` — nunca recriar o que já existe.
+Nunca pular para o passo 4 sem completar 1, 2 e 3. Priorizar reuso de `@<escopo>/contracts` (erros, EventBus, eventos), `@<escopo>/ui`, `@<escopo>/ui-mobile` e `@<escopo>/api-client` — nunca recriar o que já existe.
 
 ## Guard rails — execução somente com consentimento
 
@@ -271,7 +328,7 @@ Nunca pular para o passo 4 sem completar 1, 2 e 3. Priorizar reuso de `@saas/con
 - [ ] Decisão arquitetural nova registrada em `context/project/adr/` (se houver)
 - [ ] Barrel export (`index.ts`) atualizado com novos exports
 - [ ] Sem imports entre módulos diretos (ESLint boundaries)
-- [ ] Typecheck passando: `pnpm turbo typecheck --filter=@saas/<modulo>`
+- [ ] Typecheck passando: `pnpm turbo typecheck`
 
 ## Índice de referências modulares
 

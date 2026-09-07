@@ -20,7 +20,7 @@
 
 ## Critérios de aprovação
 
-- **Fronteiras:** nenhum import interno de outro módulo (`@saas/outro/src/...`); só barrel público
+- **Fronteiras:** nenhum import interno de outro módulo (`@<escopo>/outro/src/...`); só barrel público
 - **Multi-tenant:** toda query tenant-scoped tem o filtro; teste "tenant A não vê dado de B"
 - **MVVM:** View sem hooks de dados direto; ViewModel orquestra; Model sem JSX/hooks
 - **DIP:** use-cases recebem interfaces (repository/provider), nunca `PrismaClient` direto

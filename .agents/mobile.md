@@ -5,7 +5,7 @@
 
 View → React Native components (não HTML)
 ViewModel → mesma lógica, TanStack Query + MMKV + estado local
-Model → mesmo repository (usa @saas/api-client com interceptor mobile)
+Model → mesmo repository (usa @<escopo>/api-client com interceptor mobile)
 
 ## Estado mobile
 
