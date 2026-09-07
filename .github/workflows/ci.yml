@@ -42,4 +42,4 @@ jobs:
       - name: update --dry-run para injetar a camada num projeto
         run: |
           node scripts/harness/bin/harness.js init /tmp/demo-target --bare
-          cd /tmp/demo-target && node /repo/scripts/harness/bin/harness.js update --source /repo --dry-run
+          cd /tmp/demo-target && node "$GITHUB_WORKSPACE/scripts/harness/bin/harness.js" update --source "$GITHUB_WORKSPACE" --dry-run
