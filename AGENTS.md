@@ -124,6 +124,7 @@ Carregue o arquivo relevante de `.agents/` antes de iniciar a tarefa:
 | **Qualquer geração de código** | `.agents/codegen.md` (sempre) |
 | Tarefa de API (use-case, controller, repository) | `.agents/backend.md` |
 | Tarefa de UI (componente, view, viewmodel) | `.agents/frontend.md` |
+| Design, UI/UX, heurísticas de Nielsen, acessibilidade | `.agents/ui-ux.md` |
 | Tarefa mobile (screen, hook mobile, offline) | `.agents/mobile.md` |
 | Permissões, roles, CASL, abilities | `.agents/authorization.md` |
 | Stripe, planos, assinaturas, webhook | `.agents/billing.md` |
