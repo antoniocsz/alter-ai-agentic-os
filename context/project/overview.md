@@ -1,35 +1,40 @@
-# AlterAI - Agentic OS — Gerador de Projetos B2B/B2C
+# AlterAI - Agentic OS — Fonte do harness
 
 ## Problema
 
-Todo sistema B2B/B2C recomeça do zero na parte "chata": autenticação, autorização, tenancy multi-tenant e auditoria. Sem isso, cada projeto novo gasta semanas reimplementando a fundação.
+Agentes de IA precisam de uma camada de operação padronizada: um **protocolo obrigatório**,
+**contexto vivo** e um **pipeline de tarefas** rastreável. Sem isso, cada projeto adota
+convenções próprias e o trabalho dos agentes não é auditável nem seguro (quem tocou o quê,
+em que escopo, com qual consentimento).
 
 ## Produto
 
-O AlterAI - Agentic OS é um conjunto de convenções + CLI que gera a estrutura de um projeto full-stack com a fundação padrão já planejada:
+Este repositório é a **fonte** do AlterAI - Agentic OS: a camada harness (CLI Node.js zero
+deps + agents do opencode + referências modulares) que é **copiada** para N projetos via
+`harness init` e **sincronizada** via `harness update`. Desde v0.1.0, também opera
+**workspaces**: múltiplos projetos independentes gerenciados a partir de uma raiz, com
+isolamento validado.
 
-- **Monorepo** (Turborepo + pnpm): apps/api (Fastify), apps/web (Next.js), packages (contracts, api-client, modules)
-- **Módulos padrão** com contexto e fila de tasks prontas:
-  - `tenancy` — hierarquia Platform → Organization → ClientAccount, middleware de tenantId
-  - `auth` — register/login, JWT (15min) + refresh (7d rotation), perfil
-  - `authorization` — RBAC/ABAC (roles, modules, permissions, abilities CASL)
-  - `audit` — trilha append-only com retenção LGPD (5 anos)
-- **Pipeline de tasks** (queue → active → done) com validação de escopo, banco SQLite e kanban
-- **Agentes do opencode** prontos (coordinator, backend, frontend, mobile, reviewer)
+- **Pipeline queue → active → done** com validação de escopo (paralelismo seguro: N tasks ativas com `## Escopo` disjuntos)
+- **Banco SQLite** (`node:sqlite`, zero deps) para andamento/histórico — regenerável via `harness sync`
+- **Kanban agregado** multi-projeto com detalhamento (escopo, arquivo, timeline, interações)
+- **Workspaces**: `init/new/add/list/status/check/sync/report/update/run/kanban` + flag global `--project`
+- **Agents prontos** do opencode: coordinator, backend, frontend, mobile, reviewer
 
 ## Público
 
-Projetos B2B/B2C multi-tenant. Papéis base: platform-admin, org-owner, org-member, client-user. Módulos de negócio são adicionados conforme o domínio via `pnpm harness module <nome>`.
+Quem desenvolve software com agentes de IA (o harness roda dentro de cada projeto do usuário).
+O que o `harness init` gera (monorepo SaaS B2B/B2C com tenancy/auth/authorization/audit) é o
+**produto do harness**, não a identidade deste repositório.
 
-## Stack
+## Stack (deste repositório)
 
-Monorepo Turborepo | Fastify + Prisma + PostgreSQL + Redis | Next.js 16 | TanStack Query | Zod | Vitest | ESLint (formatador via @stylistic) | CASL | Stripe
+Node ≥ 22.5 (ESM) | zero dependências de runtime | `node:sqlite` | `node:test` | pnpm (só para o script `pnpm harness`)
 
 ## Princípios
 
-- Tenancy multi-tenant como fundação (tenantId em toda query)
-- RBAC baseline + ABAC conditions (`@saas/authorization`)
-- MVVM estrito no frontend e mobile
-- Comunicação entre módulos via eventos (`@saas/contracts`)
-- Dependency Inversion — use cases dependem de interfaces
-- Audit por padrão (append-only, fora do request path)
+- **Copy-per-project**: 1 fonte + N projetos independentes (cada um dono da própria camada, pode divergir)
+- **Markdown é a fonte da verdade** das tasks; o banco é índice/histórico
+- **Escopo estrito + consentimento**: guard rails aplicados em toda execução de agente
+- **Isolamento por padrão** entre projetos: cruzar exige `--project`/`workspace run` explícito
+- **Identidade de projeto em `context/project/`** — a camada do harness é uniforme entre projetos
