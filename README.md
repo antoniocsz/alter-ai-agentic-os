@@ -9,6 +9,7 @@ Camada de operação que padroniza como agentes de IA trabalham em um projeto de
 - [Estrutura do AlterAI - Agentic OS](#estrutura-do-alterai---agentic-os)
 - [CLI do AlterAI - Agentic OS](#cli-do-alterai---agentic-os)
 - [Começando um projeto](#começando-um-projeto)
+- [Usar em múltiplos projetos](#usar-em-múltiplos-projetos)
 - [Bootstrap de projeto novo](#bootstrap-de-projeto-novo)
 - [Pipeline de tarefas (queue → active → done)](#pipeline-de-tarefas-queue--active--done)
 - [Execução em paralelo (subagents)](#execução-em-paralelo-subagents)
@@ -117,6 +118,7 @@ context/
 | `harness report` | Métricas do banco (WIP, cycle time, aging, throughput). Flags: `--format`, `--module`, `--days` |
 | `harness kanban` | Painel kanban: `--serve [porta]` (drag&drop) ou `--out <arquivo>` (estático) |
 | `harness check [flags]` | Valida o protocolo (pipeline, escopos, seções, módulos). Flags: `--json`, `--barrel`, `--lint`, `--typecheck`, `--db` |
+| `harness workspace ...` | Opera sobre múltiplos projetos (ver "Workspaces" abaixo). Subcomandos: `init`, `new`, `add`, `list/status`, `check/sync/report/update [--all]`, `run`, `kanban` |
 
 `<task>` aceita o nome completo (`01-module-tenancy.md`) ou o prefixo numérico (`01`).
 
@@ -130,6 +132,97 @@ context/
 6. **Criar módulos:** `pnpm harness module <nome>` para cada bounded context; preencher `context.md` e `status.md`.
 7. **Planejar e executar:** criar tasks em `context/agents/queue/` (com `## Escopo`) e operar com `harness start` / `harness finish`.
 8. **Verificar:** `pnpm harness check` a qualquer momento — também útil no CI.
+
+## Usar em múltiplos projetos
+
+O AlterAI - Agentic OS segue o modelo **1 fonte + N projetos independentes**: a camada do harness é *copiada* para cada projeto (não compartilhada via import), então cada projeto é dono da própria camada e pode divergir quando quiser.
+
+```
+~/dev/
+├── harness/          ← FONTE (única): o repo onde o harness evolui
+│   ├── scripts/harness/   ← o produto (CLI, templates, agents)
+│   ├── .agents/ .opencode/ AGENTS.md
+│   └── context/           ← dogfood: só serve para desenvolver o harness
+│
+└── projetos/         ← N projetos independentes (git próprios)
+    ├── projeto-a/
+    ├── projeto-b/
+    └── ...
+```
+
+Cada projeto gerado é um monorepo próprio (pnpm/Turbo) que guarda a identidade em `context/project/` (overview, stack, ADRs). A camada do harness fica uniforme entre todos.
+
+**Regras de ouro:**
+
+1. **A fonte não é um projeto.** Mexe-se nela apenas para evoluir o harness e commitar; todo trabalho real acontece dentro de cada projeto.
+2. **A identidade do projeto vive em `context/project/`.** É ali que se lê "qual é esse projeto?"; a camada do harness é idêntica em todos.
+3. **Customizações de projeto ficam em `context/`, não na camada.** `harness update` sobrescreve `AGENTS.md`/`.agents/`/`.opencode/`/`scripts/` (com backup do AGENTS.md em `.harness/backups/`).
+4. **Para divergir de verdade**, o projeto deixa de rodar `update` e evolui a própria camada — ou você mantém uma fonte por família de projeto (ex: `~/dev/harness-web`, `~/dev/harness-mobile`).
+
+**Criar um projeto novo (a partir da fonte):**
+
+```bash
+node ~/dev/harness/scripts/harness/bin/harness.js init ~/dev/projetos/projeto-a [--prisma] [--git] [--bare]
+```
+
+**Atualizar a camada (de dentro de cada projeto):**
+
+```bash
+pnpm harness update --source ~/dev/harness                     # uma vez, ou
+echo 'export HARNESS_SOURCE=~/dev/harness' >> ~/.bashrc        # memorizar a fonte
+pnpm harness update                                            # daí em diante
+```
+
+O `update` traz CLI/agents/AGENTS.md novos com backup automático e registra a versão da fonte.
+
+## Workspaces (múltiplos projetos, operação unificada)
+
+Para operar **N projetos independentes** a partir de um único lugar, crie um **workspace**:
+um diretório que agrupa os projetos (cada um continua sendo um monorepo com git, `context/` e
+camada harness próprios) e oferece comandos agregados — mantendo **isolamento por padrão** entre
+os projetos.
+
+```
+~/dev/projetos/                      ← raiz do workspace (sem context/ próprio)
+├── AGENTS.md                        ← roteia para os projetos + comandos de workspace
+├── .agents/  .opencode/  scripts/harness/   ← camada harness (fonte p/ new e add)
+├── package.json                     ← pnpm harness
+├── .harness-workspace.json          ← registro (paths absolutos)
+└── projects/
+    ├── projeto-a/                   ← monorepo independente (git + context/ próprios)
+    └── projeto-b/
+```
+
+**Comandos:**
+
+| Comando | O que faz |
+|---|---|
+| `harness workspace init <dir>` | Cria o workspace (camada harness + registro + cache do AGENTS.md). Flags: `--source`, `--projects-dir`, `--dry-run` |
+| `harness workspace new <nome>` | Cria um projeto novo dentro do workspace. Flags: `--prisma`, `--git`, `--bare` |
+| `harness workspace add <path>` | Registra projeto existente; se não tiver a camada, faz **onboarding** (backup do AGENTS.md, instala camada + esqueleto `context/`). Flags: `--name`, `--sync`, `--dry-run` |
+| `harness workspace list` / `status` | Tabela: queue/active/done, versão do harness, onboarded |
+| `harness workspace check [--all]` | Valida o registro e o **isolamento** (duplicados, árvores aninhadas, raiz, paths inexistentes); `--all` também roda o check de cada projeto |
+| `harness workspace sync --all` | Reindexa o banco de cada projeto |
+| `harness workspace report --all` | Métricas de cada projeto |
+| `harness workspace update [--all]` | Atualiza a camada do workspace; `--all` também atualiza todos os projetos a partir da fonte |
+| `harness workspace run <projeto> <cmd...>` | Roda um comando harness dentro do projeto |
+| `harness workspace kanban [--serve [porta]]` | Kanban agregado dos projetos, com **detalhamento das tasks** (clique no card: escopo, arquivo, timeline, interações) |
+| `harness <cmd> ... --project <projeto>` | Qualquer comando roda no projeto do workspace (resolve o registro subindo de cwd; fallback `HARNESS_WORKSPACE`) |
+
+**Isolamento entre projetos (regras de ouro do workspace):**
+
+1. Comandos rodam no cwd; cruzar projetos exige `--project` ou `workspace run` **explícito**.
+2. Cada projeto tem git, `context/`, banco e camada harness próprios — nada compartilhado.
+3. No kanban agregado, cada card pertence ao projeto dono; mover um card só afeta ele.
+4. `harness workspace check` detecta violações de isolamento no registro (duplicado, aninhado,
+   raiz do workspace, path inexistente) e falha com exit code ≠ 0.
+5. Projeto fora da árvore do workspace (via `add` com path absoluto externo): `--project`
+   exige `HARNESS_WORKSPACE` apontando para a raiz, ou rodar a partir da raiz.
+
+**Adicionar projeto existente:** se o projeto já nasceu do `harness init`, `add` só registra.
+Se for um projeto real pré-existente (sem a camada), `add` faz o onboarding: backup do
+`AGENTS.md` em `.harness/backups/`, instala a camada, cria o esqueleto `context/` e registra —
+depois é só rodar a context-interview para preencher `context/project/*`.
 
 ## Bootstrap de projeto novo
 

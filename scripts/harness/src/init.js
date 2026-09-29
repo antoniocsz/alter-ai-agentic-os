@@ -18,31 +18,45 @@ export async function init(args) {
   const [dir] = args
   if (!dir) throw new Error('uso: harness init <dir> [--prisma] [--git [--branch <nome>]] [--bare]')
 
-  const withPrisma = args.includes('--prisma')
-  const withGit = args.includes('--git')
-  const withBare = args.includes('--bare')
   const branchIdx = args.indexOf('--branch')
-  const branch = branchIdx !== -1 ? args[branchIdx + 1] : null
-
+  const opts = {
+    prisma: args.includes('--prisma'),
+    git: args.includes('--git'),
+    branch: branchIdx !== -1 ? args[branchIdx + 1] : null,
+    bare: args.includes('--bare')
+  }
   const target = path.resolve(dir)
+
+  await createProject(target, opts, harnessRoot(), path.join(harnessRoot(), 'AGENTS.md'))
+}
+
+/**
+ * Gera um projeto novo (monorepo + camada harness) dentro de `target`.
+ *
+ * @param {string} target caminho absoluto do projeto (deve estar vazio)
+ * @param {{prisma?: boolean, git?: boolean, branch?: string|null, bare?: boolean}} opts flags
+ * @param {string} sourceRoot raiz que contém a camada harness (.agents, .opencode, scripts/harness)
+ * @param {string|null} agentsMdSource arquivo AGENTS.md a instalar no projeto (default: sourceRoot/AGENTS.md)
+ */
+export async function createProject(target, opts = {}, sourceRoot = harnessRoot(), agentsMdSource = null) {
   if (fs.existsSync(target) && fs.readdirSync(target).length > 0) {
     throw new Error(`diretório não está vazio: ${target}`)
   }
   ensureDir(target)
 
-  const root = harnessRoot()
   const name = sanitize(path.basename(target))
+  const agentsMd = agentsMdSource ?? path.join(sourceRoot, 'AGENTS.md')
 
-  fs.copyFileSync(path.join(root, 'AGENTS.md'), path.join(target, 'AGENTS.md'))
-  copyDir(path.join(root, '.agents'), path.join(target, '.agents'))
-  copyDir(path.join(root, '.opencode', 'agent'), path.join(target, '.opencode', 'agent'))
-  copyDir(path.join(root, 'scripts', 'harness'), path.join(target, 'scripts', 'harness'))
+  fs.copyFileSync(agentsMd, path.join(target, 'AGENTS.md'))
+  copyDir(path.join(sourceRoot, '.agents'), path.join(target, '.agents'))
+  copyDir(path.join(sourceRoot, '.opencode', 'agent'), path.join(target, '.opencode', 'agent'))
+  copyDir(path.join(sourceRoot, 'scripts', 'harness'), path.join(target, 'scripts', 'harness'))
   copyDir(path.join(templatesDir(), 'project'), target, {
-    vars: { NAME: name, DB_SCRIPTS: withPrisma ? DB_SCRIPTS : '' },
+    vars: { NAME: name, DB_SCRIPTS: opts.prisma ? DB_SCRIPTS : '' },
     renderAll: true
   })
 
-  if (withBare) {
+  if (opts.bare) {
     for (const m of ['tenancy', 'auth', 'authorization', 'audit']) {
       fs.rmSync(path.join(target, 'context', 'modules', m), { recursive: true, force: true })
     }
@@ -60,12 +74,12 @@ export async function init(args) {
     '  - context/ (overview.md, stack.md, adr/, modules/, agents/queue|active|done)',
     '  - Monorepo mínimo (turbo.json, pnpm-workspace.yaml, tsconfig.base.json, eslint.config.js)',
     '  - apps/api (Fastify) + apps/web (Next.js), packages/contracts + packages/api-client',
-    ...(withBare
+    ...(opts.bare
       ? ['  - Sem módulos padrão (--bare): crie do zero com `harness module <nome>`']
       : ['  - Módulos padrão (tenancy, auth, authorization, audit) + tasks de fundação na queue']),
     '  - Vitest configurado (turbo test) e opencode.json + CI (.github/workflows/ci.yml)'
   ]
-  if (withPrisma) {
+  if (opts.prisma) {
     copyDir(path.join(templatesDir(), 'prisma'), target, { vars: { NAME: name }, renderAll: true })
     const envExample = path.join(target, '.env.example')
     if (fs.existsSync(envExample) && !fs.existsSync(path.join(target, '.env'))) {
@@ -87,16 +101,16 @@ export async function init(args) {
     ''
   ]
 
-  if (withGit) {
+  if (opts.git) {
     try {
-      const initBranch = branch ? ` -b ${branch}` : ''
+      const initBranch = opts.branch ? ` -b ${opts.branch}` : ''
       execSync(`git init${initBranch}`, { cwd: target, stdio: 'ignore' })
       execSync(`git add -A`, { cwd: target, stdio: 'ignore' })
       execSync(
         `git -c user.name="harness" -c user.email="harness@local" commit -qm "chore: bootstrap harness"`,
         { cwd: target, stdio: 'ignore' }
       )
-      lines.push(`   git: repositório inicializado${branch ? ` na branch ${branch}` : ''} com commit inicial.`)
+      lines.push(`   git: repositório inicializado${opts.branch ? ` na branch ${opts.branch}` : ''} com commit inicial.`)
     } catch {
       lines.push('   git: repositório inicializado, mas o commit falhou — configure user.name/user.email e commite.')
     }
@@ -106,9 +120,9 @@ export async function init(args) {
   }
 
   lines.push(
-    `  1. ${withGit ? 'git commit já feito' : `cd ${dir} && git init && git add -A && git commit -m "chore: bootstrap harness"`}`,
+    `  1. ${opts.git ? 'git commit já feito' : `cd ${target} && git init && git add -A && git commit -m "chore: bootstrap harness"`}`,
     '  2. pnpm install',
-    ...(withPrisma ? ['  3. docker compose up -d (Postgres + Redis) — .env já copiado'] : ['  3. Rodar a context-interview (7 blocos) para preencher overview.md e stack.md']),
+    ...(opts.prisma ? ['  3. docker compose up -d (Postgres + Redis) — .env já copiado'] : ['  3. Rodar a context-interview (7 blocos) para preencher overview.md e stack.md']),
     '  4. pnpm harness module <nome> — criar o primeiro módulo',
     '  5. Criar tasks em context/agents/queue/ e executar com pnpm harness start/finish',
     '',
@@ -118,6 +132,6 @@ export async function init(args) {
   process.stdout.write(lines.join('\n') + '\n')
 }
 
-function sanitize(name) {
+export function sanitize(name) {
   return name.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '') || 'project'
 }

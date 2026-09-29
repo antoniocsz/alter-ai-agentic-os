@@ -16,6 +16,7 @@
     --active: #2563eb;
     --done: #16a34a;
     --card: #1e222c;
+    --danger: #f87171;
   }
   * { box-sizing: border-box; }
   body {
@@ -23,21 +24,52 @@
     font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   }
   header {
-    display: flex; align-items: center; gap: 12px; padding: 14px 20px;
-    border-bottom: 1px solid var(--border); background: var(--col);
+    display: flex; align-items: center; gap: 12px; padding: 12px 20px;
+    border-bottom: 1px solid var(--border); background: var(--col); flex-wrap: wrap;
   }
   header h1 { font-size: 16px; margin: 0; font-weight: 600; }
   header .mode { color: var(--muted); font-size: 12px; }
-  main { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; padding: 20px; }
+  header .spacer { flex: 1; }
+  button {
+    background: var(--bg); color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; padding: 6px 10px; font-size: 12px; cursor: pointer;
+  }
+  button:hover { border-color: var(--accent); }
+  .toolbar {
+    display: flex; align-items: center; gap: 8px; padding: 10px 20px; flex-wrap: wrap;
+    border-bottom: 1px solid var(--border); background: var(--col);
+  }
+  .toolbar input[type="text"], .toolbar select {
+    background: var(--bg); color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; padding: 6px 10px; font-size: 12px; outline: none;
+  }
+  .toolbar input[type="text"] { width: 220px; }
+  .toolbar select:focus, .toolbar input[type="text"]:focus { border-color: var(--accent); }
+  .chips { display: flex; gap: 6px; }
+  .chip {
+    font-size: 11px; border-radius: 999px; padding: 3px 10px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--bg); color: var(--muted);
+    user-select: none;
+  }
+  .chip.on { color: var(--text); border-color: var(--accent); }
+  .chip.queue.on { border-color: var(--queue); }
+  .chip.active.on { border-color: var(--active); }
+  .chip.done.on { border-color: var(--done); }
+  main {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; padding: 20px;
+    transition: grid-template-columns .2s;
+  }
   @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
   .col {
     background: var(--col); border: 1px solid var(--border); border-radius: 12px;
     padding: 12px; min-height: 200px;
   }
+  .col.collapsed { min-height: 0; }
   .col[data-over="true"] { border-color: var(--accent); }
   .col h2 {
     display: flex; align-items: center; gap: 8px; margin: 0 0 12px;
     font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted);
+    cursor: pointer; user-select: none;
   }
   .col h2 .dot { width: 8px; height: 8px; border-radius: 50%; }
   .col.queue h2 .dot { background: var(--queue); }
@@ -47,10 +79,14 @@
     margin-left: auto; background: var(--bg); border: 1px solid var(--border);
     border-radius: 999px; padding: 1px 8px; font-size: 11px;
   }
+  .col h2 .caret { font-size: 10px; opacity: .7; }
+  .cards { display: flex; flex-direction: column; gap: 10px; }
+  .col.collapsed .cards { display: none; }
   .card {
     background: var(--card); border: 1px solid var(--border); border-radius: 10px;
-    padding: 10px 12px; margin-bottom: 10px; cursor: grab;
+    padding: 10px 12px; cursor: grab;
   }
+  .card:hover { border-color: var(--accent); }
   .card.dragging { opacity: .4; }
   .card .title { font-size: 14px; font-weight: 600; margin: 0 0 6px; word-break: break-word; }
   .card .meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
@@ -59,29 +95,87 @@
     background: var(--bg); color: var(--muted); border: 1px solid var(--border);
   }
   .tag.module { color: var(--accent); }
+  .tag.project { color: #22d3ee; }
   .tag.baixa { color: #4ade80; }
   .tag.média, .tag.media { color: #facc15; }
   .tag.alta { color: #f87171; }
   .tag.dep { color: #f472b6; }
   .card .foot { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; margin-top: 8px; }
+  .empty { color: var(--muted); font-size: 12px; text-align: center; padding: 20px 0; }
   #toast {
     position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
     background: #7f1d1d; color: #fecaca; border: 1px solid #b91c1c; border-radius: 10px;
-    padding: 10px 16px; max-width: 80vw; font-size: 13px; display: none; z-index: 10;
+    padding: 10px 16px; max-width: 80vw; font-size: 13px; display: none; z-index: 30;
     white-space: pre-wrap;
   }
-  .empty { color: var(--muted); font-size: 12px; text-align: center; padding: 20px 0; }
+  /* modal */
+  #modal {
+    position: fixed; inset: 0; background: rgba(0,0,0,.6); display: none;
+    align-items: center; justify-content: center; z-index: 20; padding: 20px;
+  }
+  #modal.open { display: flex; }
+  .modal-box {
+    background: var(--col); border: 1px solid var(--border); border-radius: 14px;
+    width: min(860px, 100%); max-height: 86vh; overflow-y: auto; padding: 22px 24px;
+  }
+  .modal-box h2 { margin: 0 0 4px; font-size: 18px; }
+  .modal-box .sub { color: var(--muted); font-size: 12px; margin-bottom: 14px; word-break: break-all; }
+  .modal-box h3 {
+    font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted);
+    margin: 20px 0 8px; border-bottom: 1px solid var(--border); padding-bottom: 4px;
+  }
+  .modal-box .close {
+    float: right; background: transparent; border: 1px solid var(--border);
+    border-radius: 8px; color: var(--muted); font-size: 14px; padding: 2px 10px; cursor: pointer;
+  }
+  .scope-list { margin: 0; padding-left: 18px; font-size: 13px; }
+  .scope-list li { margin: 3px 0; font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 12px; }
+  pre.file {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px; font-size: 12px; line-height: 1.55; overflow-x: auto; white-space: pre-wrap;
+    word-break: break-word; max-height: 320px; overflow-y: auto;
+  }
+  .timeline { list-style: none; margin: 0; padding: 0; font-size: 12px; }
+  .timeline li {
+    display: flex; gap: 10px; padding: 5px 0; border-bottom: 1px dashed var(--border);
+  }
+  .timeline .at { color: var(--muted); white-space: nowrap; font-family: ui-monospace, Consolas, monospace; }
+  .timeline .ev { color: var(--accent); text-transform: uppercase; font-size: 11px; min-width: 70px; }
+  .inter { list-style: none; margin: 0; padding: 0; font-size: 12px; }
+  .inter li { padding: 6px 0; border-bottom: 1px dashed var(--border); }
+  .inter .who { color: var(--muted); font-size: 11px; }
+  .inter pre { margin: 4px 0 0; white-space: pre-wrap; word-break: break-word; font-family: inherit; }
 </style>
 </head>
 <body>
 <header>
-  <h1>AlterAI - Agentic OS — Tasks</h1>
+  <h1 id="title">AlterAI - Agentic OS — Tasks</h1>
   <span class="mode" id="mode"></span>
+  <span class="spacer"></span>
+  <button id="refreshBtn" style="display:none">↻ atualizar</button>
 </header>
+
+<div class="toolbar">
+  <input type="text" id="search" placeholder="buscar por título, id, módulo, agente..." />
+  <select id="fModule"><option value="">módulo: todos</option></select>
+  <select id="fAgent"><option value="">agente: todos</option></select>
+  <select id="fProject" style="display:none"><option value="">projeto: todos</option></select>
+  <select id="fSort">
+    <option value="id-asc">ordem: id ↑</option>
+    <option value="id-desc">ordem: id ↓</option>
+  </select>
+  <div class="chips" id="colToggles"></div>
+</div>
+
 <main id="board"></main>
 <div id="toast"></div>
 
+<div id="modal" role="dialog" aria-modal="true">
+  <div class="modal-box" id="modalBox"></div>
+</div>
+
 <script>
+const BOARD_TITLE = "__BOARD_TITLE__";
 const BOARD_DATA = __BOARD_DATA__;
 const IS_SERVER = window.location.protocol === 'http:' || window.location.protocol === 'https:';
 const COLUMNS = [
@@ -91,22 +185,76 @@ const COLUMNS = [
 ];
 
 let board = { queue: [], active: [], done: [] };
+let state = { q: '', module: '', agent: '', project: '', sort: 'id-asc', hidden: new Set(), collapsed: new Set() };
 const toast = document.getElementById('toast');
+const modal = document.getElementById('modal');
+const modalBox = document.getElementById('modalBox');
+document.getElementById('title').textContent = BOARD_TITLE;
 const mode = document.getElementById('mode');
-mode.textContent = IS_SERVER ? 'servidor local · drag&drop habilitado' : 'estático · rode `pnpm harness kanban --serve` para mover';
+mode.textContent = IS_SERVER ? 'servidor local · drag&drop + detalhes' : 'estático · rode `pnpm harness kanban --serve` para mover';
 
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
+function fmtDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
 
+/* ---------- helpers ---------- */
+function allCards() {
+  return COLUMNS.flatMap((c) => (board[c.key] || []));
+}
+function applyFilters() {
+  const q = state.q.trim().toLowerCase();
+  return allCards().filter((t) => {
+    if (state.module && t.module !== state.module) return false;
+    if (state.agent && t.agent !== state.agent) return false;
+    if (state.project && t.project !== state.project) return false;
+    if (q) {
+      const hay = [t.title, t.id, t.module, t.agent, t.complexity, t.depends_on].join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+function populateFilters() {
+  const cards = allCards();
+  const mods = [...new Set(cards.map((t) => t.module).filter(Boolean))].sort();
+  const agents = [...new Set(cards.map((t) => t.agent).filter(Boolean))].sort();
+  const projects = [...new Set(cards.map((t) => t.project).filter(Boolean))].sort();
+  fillSelect('fModule', mods, state.module);
+  fillSelect('fAgent', agents, state.agent);
+  const projSel = document.getElementById('fProject');
+  if (projects.length > 1) {
+    projSel.style.display = '';
+    fillSelect('fProject', projects, state.project);
+  } else {
+    projSel.style.display = 'none';
+    state.project = '';
+  }
+}
+function fillSelect(id, values, current) {
+  const sel = document.getElementById(id);
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">' + (id === 'fModule' ? 'módulo: todos' : id === 'fAgent' ? 'agente: todos' : 'projeto: todos') + '</option>' +
+    values.map((v) => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
+  sel.value = values.includes(current) ? current : '';
+  if (cur) sel.value = cur;
+}
+
+/* ---------- card ---------- */
 function cardHtml(t) {
   const comp = esc(t.complexity || '');
   const dep = t.depends_on ? `<span class="tag dep">depende: ${esc(t.depends_on)}</span>` : '';
-  const scope = `<span class="tag">escopo: ${t.scope_count}</span>`;
+  const scope = `<span class="tag">escopo: ${t.scope_count ?? (t.scope || []).length}</span>`;
+  const proj = t.project ? `<span class="tag project">${esc(t.project)}</span>` : '';
   return `
-    <div class="card" draggable="${IS_SERVER}" data-id="${esc(t.id)}" data-status="${esc(boardStatus(t.id))}">
+    <div class="card" draggable="${IS_SERVER}" data-id="${esc(t.id)}" data-status="${esc(boardStatus(t.id))}" title="clique para detalhes">
       <p class="title">${esc(t.title || t.id)}</p>
       <div class="meta">
+        ${proj}
         ${t.module ? `<span class="tag module">${esc(t.module)}</span>` : ''}
         ${comp ? `<span class="tag ${comp.toLowerCase()}">${comp}</span>` : ''}
         ${t.agent ? `<span class="tag">${esc(t.agent)}</span>` : ''}
@@ -115,7 +263,7 @@ function cardHtml(t) {
       </div>
       <div class="foot">
         <span>${esc(t.id)}</span>
-        <span>${t.started_at ? 'iniciada ' + new Date(t.started_at).toLocaleDateString() : ''}</span>
+        <span>${t.started_at ? 'iniciada ' + new Date(t.started_at).toLocaleDateString('pt-BR') : ''}</span>
       </div>
     </div>`;
 }
@@ -125,19 +273,40 @@ function boardStatus(id) {
   return '';
 }
 
+/* ---------- render ---------- */
 function render() {
   const main = document.getElementById('board');
+  const filtered = applyFilters();
   main.innerHTML = COLUMNS.map((col) => {
-    const items = board[col.key] || [];
+    const items = filtered.filter((t) => boardStatus(t.id) === col.key);
+    const hidden = state.hidden.has(col.key);
+    const collapsed = state.collapsed.has(col.key);
     return `
-      <section class="col ${col.key}" data-col="${col.key}" data-over="false">
-        <h2><span class="dot"></span>${col.label}<span class="count">${items.length}</span></h2>
-        ${items.length ? items.map(cardHtml).join('') : '<div class="empty">nenhuma task</div>'}
+      <section class="col ${col.key} ${collapsed ? 'collapsed' : ''}" data-col="${col.key}" data-over="false" ${hidden ? 'style="display:none"' : ''}>
+        <h2 data-toggle="collapse"><span class="dot"></span>${col.label}<span class="count">${items.length}</span><span class="caret">${collapsed ? '▸' : '▾'}</span></h2>
+        <div class="cards">
+          ${items.length ? items.map(cardHtml).join('') : '<div class="empty">nenhuma task</div>'}
+        </div>
       </section>`;
   }).join('');
   if (IS_SERVER) attachDnD();
+  attachCardClicks();
+  attachCollapse();
 }
 
+function attachCollapse() {
+  document.querySelectorAll('.col h2').forEach((h) => {
+    h.addEventListener('click', () => {
+      const col = h.closest('.col');
+      const key = col.dataset.col;
+      if (state.collapsed.has(key)) state.collapsed.delete(key); else state.collapsed.add(key);
+      render();
+    });
+  });
+}
+
+/* ---------- drag & drop ---------- */
+let lastDragEnd = 0;
 function attachDnD() {
   let draggedId = null;
   document.querySelectorAll('.card').forEach((card) => {
@@ -147,14 +316,12 @@ function attachDnD() {
     });
     card.addEventListener('dragend', () => {
       card.classList.remove('dragging');
+      lastDragEnd = Date.now();
       draggedId = null;
     });
   });
   document.querySelectorAll('.col').forEach((col) => {
-    col.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      col.dataset.over = 'true';
-    });
+    col.addEventListener('dragover', (e) => { e.preventDefault(); col.dataset.over = 'true'; });
     col.addEventListener('dragleave', () => (col.dataset.over = 'false'));
     col.addEventListener('drop', (e) => {
       e.preventDefault();
@@ -166,11 +333,13 @@ function attachDnD() {
 }
 
 async function moveTask(id, to) {
+  const card = allCards().find((t) => t.id === id);
+  const project = card ? card.project || '' : '';
   try {
     const res = await fetch(`/api/tasks/${encodeURIComponent(id)}/move`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ to })
+      body: JSON.stringify({ to, project })
     });
     const data = await res.json();
     if (!data.ok) return showToast(data.error || 'erro ao mover');
@@ -180,6 +349,84 @@ async function moveTask(id, to) {
   }
 }
 
+/* ---------- detalhes (modal) ---------- */
+function attachCardClicks() {
+  document.querySelectorAll('.card').forEach((card) => {
+    card.addEventListener('click', () => {
+      if (Date.now() - lastDragEnd < 300) return;
+      openDetail(card.dataset.id);
+    });
+  });
+}
+
+async function openDetail(id) {
+  const card = allCards().find((t) => t.id === id);
+  const project = card ? card.project || '' : '';
+  modalBox.innerHTML = '<p style="color:var(--muted)">carregando detalhes...</p>';
+  modal.classList.add('open');
+  if (!IS_SERVER && card && card.file !== undefined) {
+    renderDetail({
+      task: card,
+      file: card.file || '(sem arquivo no modo estático)',
+      events: card._events || [],
+      interactions: card._interactions || []
+    });
+    return;
+  }
+  try {
+    const res = await fetch(`/api/tasks/${encodeURIComponent(id)}/detail?project=${encodeURIComponent(project)}`);
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'erro ao carregar');
+    renderDetail(data);
+  } catch (err) {
+    renderDetail({ task: { id, title: id }, file: '', events: [], interactions: [], error: err.message });
+  }
+}
+
+function renderDetail(d) {
+  const t = d.task || {};
+  const meta = [];
+  if (t.project) meta.push(`<span class="tag project">${esc(t.project)}</span>`);
+  if (t.module) meta.push(`<span class="tag module">${esc(t.module)}</span>`);
+  if (t.complexity) meta.push(`<span class="tag ${esc(String(t.complexity).toLowerCase())}">${esc(t.complexity)}</span>`);
+  if (t.agent) meta.push(`<span class="tag">agente: ${esc(t.agent)}</span>`);
+  if (t.depends_on) meta.push(`<span class="tag dep">depende: ${esc(t.depends_on)}</span>`);
+  const dates = [
+    t.created_at ? `criada ${fmtDate(t.created_at)}` : '',
+    t.started_at ? `iniciada ${fmtDate(t.started_at)}` : '',
+    t.finished_at ? `concluída ${fmtDate(t.finished_at)}` : ''
+  ].filter(Boolean).join(' · ');
+
+  const scope = (t.scope || []).map((s) => `<li>${esc(s)}</li>`).join('');
+  const events = (d.events || []).map((e) =>
+    `<li><span class="at">${esc(fmtDate(e.at))}</span><span class="ev">${esc(e.event)}</span><span>${esc(e.message || '')}</span></li>`
+  ).join('');
+  const inters = (d.interactions || []).map((i) =>
+    `<li><span class="who">[${esc(fmtDate(i.at))}] ${esc(i.source)}/${esc(i.kind)}</span><pre>${esc(i.content)}</pre></li>`
+  ).join('');
+
+  modalBox.innerHTML = `
+    <button class="close" onclick="closeModal()">✕</button>
+    <h2>${esc(t.title || t.id)}</h2>
+    <div class="sub">${esc(t.id)}${meta.length ? ' · ' + meta.join(' ') : ''}${dates ? '<br/>' + esc(dates) : ''}</div>
+    ${d.error ? `<p style="color:var(--danger)">erro: ${esc(d.error)}</p>` : ''}
+    <h3>Escopo (${(t.scope || []).length})</h3>
+    ${scope ? `<ul class="scope-list">${scope}</ul>` : '<p class="empty">sem escopo declarado</p>'}
+    <h3>Arquivo da task</h3>
+    <pre class="file">${esc(d.file || '(sem conteúdo)')}</pre>
+    <h3>Timeline (${(d.events || []).length})</h3>
+    ${events ? `<ul class="timeline">${events}</ul>` : '<p class="empty">sem eventos</p>'}
+    <h3>Interações (${(d.interactions || []).length})</h3>
+    ${inters ? `<ul class="inter">${inters}</ul>` : '<p class="empty">sem interações</p>'}
+  `;
+}
+
+function closeModal() {
+  modal.classList.remove('open');
+  modalBox.innerHTML = '';
+}
+
+/* ---------- ui ---------- */
 function showToast(msg) {
   toast.textContent = msg;
   toast.style.display = 'block';
@@ -194,18 +441,56 @@ async function loadBoard() {
     const data = await res.json();
     if (data.ok) {
       board = data.board;
+      populateFilters();
       render();
     }
   } catch { /* servidor caiu — aguarda próximo poll */ }
 }
+
+/* ---------- init ---------- */
+function renderToggles() {
+  const wrap = document.getElementById('colToggles');
+  wrap.innerHTML = COLUMNS.map((c) =>
+    `<span class="chip ${c.key} ${state.hidden.has(c.key) ? '' : 'on'}" data-col="${c.key}">${c.label}</span>`
+  ).join('');
+  wrap.querySelectorAll('.chip').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      const key = chip.dataset.col;
+      if (state.hidden.has(key)) state.hidden.delete(key); else state.hidden.add(key);
+      renderToggles();
+      render();
+    });
+  });
+}
+
+document.getElementById('search').addEventListener('input', (e) => { state.q = e.target.value; render(); });
+document.getElementById('fModule').addEventListener('change', (e) => { state.module = e.target.value; render(); });
+document.getElementById('fAgent').addEventListener('change', (e) => { state.agent = e.target.value; render(); });
+document.getElementById('fProject').addEventListener('change', (e) => { state.project = e.target.value; render(); });
+document.getElementById('fSort').addEventListener('change', (e) => {
+  state.sort = e.target.value;
+  const order = state.sort === 'id-asc' ? 1 : -1;
+  for (const c of COLUMNS) {
+    board[c.key].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0) * order);
+  }
+  render();
+});
+document.getElementById('refreshBtn').addEventListener('click', loadBoard);
+document.getElementById('refreshBtn').style.display = IS_SERVER ? '' : 'none';
+
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+window.closeModal = closeModal;
 
 if (IS_SERVER) {
   loadBoard();
   setInterval(loadBoard, 3000);
 } else {
   board = BOARD_DATA;
+  populateFilters();
   render();
 }
+renderToggles();
 </script>
 </body>
 </html>

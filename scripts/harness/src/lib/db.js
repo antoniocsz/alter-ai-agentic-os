@@ -259,12 +259,24 @@ export function boardQuery(db) {
       agent: r.agent,
       complexity: r.complexity,
       depends_on: r.depends_on,
+      scope: scope,
       scope_count: scope.length,
       started_at: r.started_at,
       finished_at: r.finished_at
     })
   }
   return cols
+}
+
+export function taskDetails(db, taskId) {
+  const row = db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId)
+  if (!row) return null
+  let scope = []
+  try {
+    scope = JSON.parse(row.scope_json ?? '[]')
+  } catch {}
+  const { events, interactions } = taskHistory(db, taskId)
+  return { task: { ...row, scope }, events, interactions }
 }
 
 export function taskHistory(db, taskId) {

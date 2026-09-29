@@ -12,6 +12,8 @@ import { requeue, reopen } from '../src/requeue.js'
 import { task } from '../src/task.js'
 import { report } from '../src/report.js'
 import { update } from '../src/update.js'
+import { workspace } from '../src/workspace.js'
+import { findWorkspaceRoot, loadRegistry, resolveProject } from '../src/lib/workspace.js'
 
 const usage = `harness <comando> [args]
 
@@ -29,6 +31,7 @@ Comandos:
   report              Métricas do banco [--format table|json|csv] [--module] [--days]
   kanban [--serve [porta] | --out <arquivo>]   Painel kanban (servidor ou HTML estático)
   update [--source <cam>] [--dry-run] Re-sincroniza a camada harness a partir da fonte (ou HARNESS_SOURCE)
+  workspace ...       Opera sobre múltiplos projetos (ver "harness workspace help")
   check [--json]      Valida o protocolo (pipeline, escopos, seções, módulos)
   version             Mostra a versão do harness
   help                Mostra esta ajuda
@@ -36,9 +39,44 @@ Comandos:
 Flags do check: --json | --barrel | --lint | --typecheck | --db
 Flags do task:  --module <m> | --agent backend|frontend|mobile | --scope "p1,p2" | --dep <task> | --complexity
 Flags do finish: --handoff "<resumo>"
+Flag global:    --project <projeto> (ou -p) roda o comando dentro do projeto do workspace
 `
 
-const [cmd, ...args] = process.argv.slice(2)
+// --project <nome> | -p <nome> | --project=<nome> → chdir para o projeto do workspace
+function applyProjectFlag(rawArgs) {
+  const idx = rawArgs.findIndex(
+    (a) => a === '--project' || a === '-p' || a.startsWith('--project=')
+  )
+  if (idx === -1) return rawArgs
+
+  let name
+  if (rawArgs[idx].startsWith('--project=')) {
+    name = rawArgs[idx].slice('--project='.length)
+  } else {
+    name = rawArgs[idx + 1]
+    if (!name || name.startsWith('-')) {
+      throw new Error('uso: harness <comando> ... --project <projeto>')
+    }
+  }
+
+  const wsRoot = findWorkspaceRoot(process.cwd())
+  if (!wsRoot) {
+    throw new Error(
+      `não encontrei workspace para resolver o projeto "${name}".\n` +
+        '  Rode a partir do workspace ou defina HARNESS_WORKSPACE.'
+    )
+  }
+  const reg = loadRegistry(wsRoot)
+  const proj = resolveProject(reg, name)
+  process.chdir(proj.path)
+
+  const removeIdx = new Set([idx])
+  if (!rawArgs[idx].startsWith('--project=')) removeIdx.add(idx + 1)
+  return rawArgs.filter((a, i) => !removeIdx.has(i))
+}
+
+const rawArgs = process.argv.slice(2)
+const [cmd, ...args] = applyProjectFlag(rawArgs)
 const version = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version
 
 try {
@@ -86,6 +124,9 @@ try {
       break
     case 'kanban':
       await kanban(args)
+      break
+    case 'workspace':
+      await workspace(args)
       break
     case 'check':
       await check(args)
