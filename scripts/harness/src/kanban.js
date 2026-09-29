@@ -5,18 +5,20 @@ import { openDb, boardQuery, taskDetails, resolveTaskId, syncFromMarkdown } from
 import { startTask, finishTask, requeueTask, reopenTask } from './lib/pipeline.js'
 import { taskLocation, queueDir, activeDir, doneDir } from './lib/tasks.js'
 import { templatesDir } from './lib/paths.js'
+import { readWipConfig } from './lib/workspace.js'
 
 const DEFAULT_PORT = 4310
 const VALID_MOVES = { queue: ['active'], active: ['queue', 'done'], done: ['active'] }
 
 /**
  * Contexto do board: projeto único ({ kind: 'project', root }) ou
- * workspace ({ kind: 'workspace', projects: [{name, root}] }).
+ * workspace ({ kind: 'workspace', projects: [{name, root, wip}] }).
  */
 function ctxFromCwd() {
+  const root = process.cwd()
   return {
     kind: 'project',
-    projects: [{ name: '', root: process.cwd() }],
+    projects: [{ name: '', root, wip: readWipConfig(root) }],
     title: 'AlterAI - Agentic OS — Tasks'
   }
 }
@@ -39,6 +41,7 @@ export async function kanbanFor(ctx, args) {
 
 export function buildBoard(ctx) {
   const cols = { queue: [], active: [], done: [] }
+  const wip = {}
   for (const proj of ctx.projects) {
     const db = openDb(proj.root)
     try {
@@ -50,11 +53,26 @@ export function buildBoard(ctx) {
           cols[status].push({ ...t, project: proj.name || null })
         }
       }
+      wip[proj.name || ''] = proj.wip ?? { queue: null, active: null }
     } finally {
       db.close()
     }
   }
-  return cols
+  return { ...cols, wip }
+}
+
+/**
+ * Verifica limite de WIP para mover um card para a coluna `to` de `project`.
+ * Retorna null (ok) ou mensagem de bloqueio.
+ */
+export function wipViolation(board, project, to, wip) {
+  const limit = wip?.[to] ?? null
+  if (!limit) return null
+  const current = (board[to] || []).filter((t) => (t.project || '') === (project || '')).length
+  if (current >= limit) {
+    return `WIP limit atingido: ${to} já tem ${current}/${limit} (projeto ${project || 'projeto'}).`
+  }
+  return null
 }
 
 export function projectRoot(ctx, project) {
@@ -163,6 +181,14 @@ async function handleMove(req, res, ctx, id) {
   if (!from) return json(res, 404, { ok: false, error: `task não encontrada: ${id}` })
   if (!VALID_MOVES[from]?.includes(to)) {
     return json(res, 400, { ok: false, error: `movimento inválido: ${from} → ${to}` })
+  }
+
+  // A1: WIP limit por projeto/coluna (config .harness/kanban.json)
+  const projCfg = ctx.projects.find((p) => p.root === root)
+  if (projCfg?.wip) {
+    const board = buildBoard(ctx)
+    const violation = wipViolation(board, project, to, projCfg.wip)
+    if (violation) return json(res, 400, { ok: false, error: violation })
   }
 
   const res2 =

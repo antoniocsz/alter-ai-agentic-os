@@ -101,3 +101,38 @@ export function projectStats(root) {
     done: count(doneDir(root))
   }
 }
+
+export function readWipConfig(root) {
+  try {
+    const raw = JSON.parse(fs.readFileSync(path.join(root, '.harness', 'kanban.json'), 'utf8'))
+    return { queue: raw?.wip?.queue ?? null, active: raw?.wip?.active ?? null }
+  } catch {
+    return { queue: null, active: null }
+  }
+}
+
+export function isolationErrors(reg, root) {
+  const errors = []
+  const seenName = new Map()
+  const seenPath = new Map()
+  for (const p of reg.projects) {
+    const name = p.name.toLowerCase()
+    const px = path.resolve(p.path)
+    if (seenName.has(name)) errors.push(`nome duplicado no registro: "${p.name}" (${seenName.get(name)} e ${px})`)
+    else seenName.set(name, p.name)
+    if (seenPath.has(px)) errors.push(`path duplicado no registro: ${px}`)
+    else seenPath.set(px, p.name)
+    if (px === path.resolve(root)) errors.push(`projeto aponta para a raiz do workspace: ${p.name}`)
+    if (!fs.existsSync(px)) errors.push(`path de projeto não existe: ${p.name} → ${px}`)
+  }
+  for (let i = 0; i < reg.projects.length; i++) {
+    for (let j = i + 1; j < reg.projects.length; j++) {
+      const a = path.resolve(reg.projects[i].path)
+      const b = path.resolve(reg.projects[j].path)
+      if (a.startsWith(b + path.sep) || b.startsWith(a + path.sep)) {
+        errors.push(`árvores sobrepostas no registro: ${reg.projects[i].name} ↔ ${reg.projects[j].name}`)
+      }
+    }
+  }
+  return errors
+}

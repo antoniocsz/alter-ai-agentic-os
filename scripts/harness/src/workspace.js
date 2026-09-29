@@ -6,6 +6,8 @@ import { copyDir, renderTemplateFile, ensureDir } from './lib/templates.js'
 import { createProject, sanitize } from './init.js'
 import { isGitRepo } from './lib/git.js'
 import { kanbanFor } from './kanban.js'
+import { computeMetrics } from './lib/metrics.js'
+import { task as createTask } from './task.js'
 import {
   WORKSPACE_FILE,
   findWorkspaceRoot,
@@ -16,7 +18,9 @@ import {
   projectExists,
   isHarnessProject,
   harnessVersion,
-  projectStats
+  projectStats,
+  isolationErrors,
+  readWipConfig
 } from './lib/workspace.js'
 
 export async function workspace(args) {
@@ -56,6 +60,8 @@ async function dispatchWorkspace(root, sub, rest) {
       return updateWorkspace(root, rest)
     case 'run':
       return runProject(root, rest)
+    case 'task':
+      return taskInProject(root, rest)
     case 'kanban':
       return kanbanWorkspace(root, rest)
     case 'help':
@@ -82,6 +88,7 @@ Subcomandos:
   report --all              Métricas de cada projeto [--format] [--module] [--days]
   update [--all]            Atualiza a camada do workspace; com --all, também de cada projeto [--source]
   run <projeto> <cmd...>    Roda um comando harness dentro do projeto
+  task <projeto> "<desc>"   Cria uma task no projeto [--module] [--agent] [--scope] [--dep] [--complexity]
   kanban [--serve [porta]]  Kanban agregado do workspace (com detalhes das tasks)
 `
 }
@@ -387,32 +394,6 @@ export function listWorkspace(root, args, detailed) {
 
 /* ------------------------------ check ------------------------------ */
 
-function isolationErrors(reg, root) {
-  const errors = []
-  const seenName = new Map()
-  const seenPath = new Map()
-  for (const p of reg.projects) {
-    const name = p.name.toLowerCase()
-    const px = path.resolve(p.path)
-    if (seenName.has(name)) errors.push(`nome duplicado no registro: "${p.name}" (${seenName.get(name)} e ${px})`)
-    else seenName.set(name, p.name)
-    if (seenPath.has(px)) errors.push(`path duplicado no registro: ${px}`)
-    else seenPath.set(px, p.name)
-    if (px === path.resolve(root)) errors.push(`projeto aponta para a raiz do workspace: ${p.name}`)
-    if (!fs.existsSync(px)) errors.push(`path de projeto não existe: ${p.name} → ${px}`)
-  }
-  for (let i = 0; i < reg.projects.length; i++) {
-    for (let j = i + 1; j < reg.projects.length; j++) {
-      const a = path.resolve(reg.projects[i].path)
-      const b = path.resolve(reg.projects[j].path)
-      if (a.startsWith(b + path.sep) || b.startsWith(a + path.sep)) {
-        errors.push(`árvores sobrepostas no registro: ${reg.projects[i].name} ↔ ${reg.projects[j].name}`)
-      }
-    }
-  }
-  return errors
-}
-
 export async function checkWorkspace(root, args) {
   const reg = loadRegistry(root)
   const json = args.includes('--json')
@@ -458,8 +439,22 @@ export async function syncWorkspace(root, args) {
 }
 
 export async function reportWorkspace(root, args) {
-  if (!args.includes('--all')) throw new Error('uso: harness workspace report --all [--format] [--module] [--days]')
+  if (!args.includes('--all')) throw new Error('uso: harness workspace report --all [--format table|json|csv] [--module] [--days]')
   const reg = loadRegistry(root)
+  const format = flag(args, ['--format']) ?? 'table'
+  const module = flag(args, ['--module'])
+  const days = flag(args, ['--days']) ? Number(flag(args, ['--days'])) : null
+
+  if (format === 'json') {
+    // agregação estruturada: um JSON único com as métricas de todos os projetos
+    const out = {}
+    for (const p of reg.projects) {
+      out[p.name] = computeMetrics(p.path, { module, days })
+    }
+    process.stdout.write(JSON.stringify(out, null, 2) + '\n')
+    return
+  }
+
   const keep = []
   for (let i = 0; i < args.length; i++) {
     if (['--format', '--module', '--days'].includes(args[i]) && args[i + 1]) {
@@ -511,7 +506,7 @@ export async function updateWorkspace(root, args) {
   }
 }
 
-/* ------------------------------ run / kanban ------------------------------ */
+/* ------------------------------ run / task / kanban ------------------------------ */
 
 export async function runProject(root, args) {
   const [name, ...cmdArgs] = args
@@ -522,6 +517,17 @@ export async function runProject(root, args) {
   process.exit(status ?? 0)
 }
 
+export async function taskInProject(root, args) {
+  const [name, ...taskArgs] = args
+  if (!name || taskArgs.length === 0) {
+    throw new Error('uso: harness workspace task <projeto> "<descrição>" [--module] [--agent] [--scope] [--dep] [--complexity]')
+  }
+  const reg = loadRegistry(root)
+  const p = resolveProject(reg, name)
+  process.chdir(p.path)
+  await createTask(taskArgs)
+}
+
 export async function kanbanWorkspace(root, args) {
   const reg = loadRegistry(root)
   if (reg.projects.length === 0) {
@@ -529,7 +535,7 @@ export async function kanbanWorkspace(root, args) {
   }
   const ctx = {
     kind: 'workspace',
-    projects: reg.projects.map((p) => ({ name: p.name, root: p.path })),
+    projects: reg.projects.map((p) => ({ name: p.name, root: p.path, wip: readWipConfig(p.path) })),
     title: `Workspace ${path.basename(root)} — Tasks`
   }
   await kanbanFor(ctx, args)

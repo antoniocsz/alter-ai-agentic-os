@@ -16,9 +16,26 @@
 - [x] Testes de workspace + kanban (`tests/workspace.test.js`, `tests/kanban.test.js`)
 - [x] Correções da revisão (P1–P4): docs de paths relativos, erro de `--project` tratado, status.md real, `handleDetail` com prefixo ambíguo → 400
 
-## Handoff (lote 1 — task 08 + limpeza 09)
-- Feito: camada de workspaces (init/new/add/list/status/check/sync/report/update/run/kanban),
-  flag global `--project`, isolamento validado no check, kanban agregado com modal de detalhes.
-- Pendências: nenhuma. Testes 59/59, `harness check` ok.
-- Decisões: copy-per-project mantido; cache do AGENTS.md em `.harness/workspace/`;
-  registro com paths relativos (absoluto em memória); kanban lê markdown como fonte da verdade.
+## Fase 3 — Limpeza de dogfood
+- [x] Removidas tasks de exemplo do template (queue 03–06, active 02, done 01)
+- [x] Removidos módulos padrão do template (tenancy, auth, authorization, audit, analytics)
+- [x] `context/project/overview.md` e `stack.md` reescritos com a identidade do repo-fonte
+- [x] `harness sync` (órfãos 01–06 removidos do banco)
+
+## Fase 4 — Evolução (lote B1+B2+B3+C1+A1)
+- [x] B1 — `harness workspace task <projeto> "<desc>"` cria task direto no projeto
+- [x] B2 — `harness workspace report --all --format json` agrega métricas num JSON único
+- [x] B3 — `harness check` na raiz do workspace valida isolamento automaticamente
+- [x] C1 — ADR-004 (copy-per-project) e ADR-005 (workspaces)
+- [x] A1 — WIP limits no kanban (`.harness/kanban.json`, move bloqueado com 400, badges no header)
+- [x] `computeMetrics` sincroniza do markdown (fonte da verdade)
+
+## Handoff (lote 2 — tasks 10, 11 e 12)
+- Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do
+  repo-fonte em overview/stack) e evolução (B1 `workspace task`, B2 `report --all --format json`,
+  B3 `check` na raiz do workspace, C1 ADRs 004/005, A1 WIP limits no kanban) + correções da
+  revisão (openDb morto removido, computeMetrics fecha o banco, handoff renovado).
+- Pendências: nenhuma. Testes 67/67, `harness check` ok.
+- Decisões: computeMetrics sincroniza do markdown (fonte da verdade); WIP via
+  `.harness/kanban.json` avaliado por projeto dono do card; `check` na raiz do workspace
+  valida isolamento sem afetar o check de projeto.

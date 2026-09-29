@@ -1,65 +1,71 @@
-import { openDb } from './db.js'
+import { openDb, syncFromMarkdown } from './db.js'
 
 export function computeMetrics(root, { module, days } = {}) {
   const db = openDb(root)
-  const where = module ? 'WHERE module LIKE ?' : ''
-  const params = module ? [`%${module}%`] : []
+  try {
+    // markdown é a fonte da verdade — garante métricas atualizadas mesmo sem `harness sync`
+    syncFromMarkdown(db, root)
+    const where = module ? 'WHERE module LIKE ?' : ''
+    const params = module ? [`%${module}%`] : []
 
-  const counts = {}
-  for (const status of ['queue', 'active', 'done']) {
-    const r = db
-      .prepare(`SELECT COUNT(*) AS n FROM tasks WHERE status = ?${where}`)
-      .get(status, ...params)
-    counts[status] = Number(r.n)
-  }
+    const counts = {}
+    for (const status of ['queue', 'active', 'done']) {
+      const r = db
+        .prepare(`SELECT COUNT(*) AS n FROM tasks WHERE status = ?${where}`)
+        .get(status, ...params)
+      counts[status] = Number(r.n)
+    }
 
-  const cycleRows = db
-    .prepare(
-      `SELECT started_at, finished_at FROM tasks
-       WHERE status = 'done' AND started_at IS NOT NULL AND finished_at IS NOT NULL${where}`
-    )
-    .all(...params)
+    const cycleRows = db
+      .prepare(
+        `SELECT started_at, finished_at FROM tasks
+         WHERE status = 'done' AND started_at IS NOT NULL AND finished_at IS NOT NULL${where}`
+      )
+      .all(...params)
 
-  const cycles = []
-  const cutoff = days ? new Date(Date.now() - days * 86400000).toISOString() : null
-  let throughput = 0
-  for (const r of cycleRows) {
-    const ms = new Date(r.finished_at).getTime() - new Date(r.started_at).getTime()
-    if (ms >= 0) cycles.push(ms / 3600000)
-    if (cutoff && r.finished_at >= cutoff) throughput++
-  }
-  cycles.sort((a, b) => a - b)
-  const avg = cycles.length ? cycles.reduce((a, b) => a + b, 0) / cycles.length : 0
-  const median = cycles.length ? cycles[Math.floor(cycles.length / 2)] : 0
+    const cycles = []
+    const cutoff = days ? new Date(Date.now() - days * 86400000).toISOString() : null
+    let throughput = 0
+    for (const r of cycleRows) {
+      const ms = new Date(r.finished_at).getTime() - new Date(r.started_at).getTime()
+      if (ms >= 0) cycles.push(ms / 3600000)
+      if (cutoff && r.finished_at >= cutoff) throughput++
+    }
+    cycles.sort((a, b) => a - b)
+    const avg = cycles.length ? cycles.reduce((a, b) => a + b, 0) / cycles.length : 0
+    const median = cycles.length ? cycles[Math.floor(cycles.length / 2)] : 0
 
-  const agingRows = db
-    .prepare(
-      `SELECT id, started_at FROM tasks WHERE status = 'active' AND started_at IS NOT NULL${where}`
-    )
-    .all(...params)
-  const aging = agingRows
-    .map((r) => ({
-      id: r.id,
-      days: Math.floor((Date.now() - new Date(r.started_at).getTime()) / 86400000)
-    }))
-    .sort((a, b) => b.days - a.days)
+    const agingRows = db
+      .prepare(
+        `SELECT id, started_at FROM tasks WHERE status = 'active' AND started_at IS NOT NULL${where}`
+      )
+      .all(...params)
+    const aging = agingRows
+      .map((r) => ({
+        id: r.id,
+        days: Math.floor((Date.now() - new Date(r.started_at).getTime()) / 86400000)
+      }))
+      .sort((a, b) => b.days - a.days)
 
-  const byModule = db
-    .prepare(`SELECT module, COUNT(*) AS n FROM tasks WHERE module IS NOT NULL GROUP BY module ORDER BY n DESC`)
-    .all()
+    const byModule = db
+      .prepare(`SELECT module, COUNT(*) AS n FROM tasks WHERE module IS NOT NULL GROUP BY module ORDER BY n DESC`)
+      .all()
 
-  const byAgent = db
-    .prepare(`SELECT agent, COUNT(*) AS n FROM tasks WHERE agent IS NOT NULL GROUP BY agent ORDER BY n DESC`)
-    .all()
+    const byAgent = db
+      .prepare(`SELECT agent, COUNT(*) AS n FROM tasks WHERE agent IS NOT NULL GROUP BY agent ORDER BY n DESC`)
+      .all()
 
-  return {
-    counts,
-    wip: counts.active,
-    cycleHours: { count: cycles.length, avg: round(avg, 1), median: round(median, 1) },
-    aging,
-    throughput: cutoff ? { days, count: throughput } : null,
-    byModule,
-    byAgent
+    return {
+      counts,
+      wip: counts.active,
+      cycleHours: { count: cycles.length, avg: round(avg, 1), median: round(median, 1) },
+      aging,
+      throughput: cutoff ? { days, count: throughput } : null,
+      byModule,
+      byAgent
+    }
+  } finally {
+    db.close()
   }
 }
 

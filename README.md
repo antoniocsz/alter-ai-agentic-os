@@ -203,11 +203,15 @@ os projetos.
 | `harness workspace list` / `status` | Tabela: queue/active/done, versão do harness, onboarded |
 | `harness workspace check [--all]` | Valida o registro e o **isolamento** (duplicados, árvores aninhadas, raiz, paths inexistentes); `--all` também roda o check de cada projeto |
 | `harness workspace sync --all` | Reindexa o banco de cada projeto |
-| `harness workspace report --all` | Métricas de cada projeto |
+| `harness workspace report --all` | Métricas de cada projeto (`--format json` agrega tudo num JSON único) |
 | `harness workspace update [--all]` | Atualiza a camada do workspace; `--all` também atualiza todos os projetos a partir da fonte |
 | `harness workspace run <projeto> <cmd...>` | Roda um comando harness dentro do projeto |
+| `harness workspace task <projeto> "<desc>"` | Cria uma task direto no projeto (flags do `harness task`) |
 | `harness workspace kanban [--serve [porta]]` | Kanban agregado dos projetos, com **detalhamento das tasks** (clique no card: escopo, arquivo, timeline, interações) |
 | `harness <cmd> ... --project <projeto>` | Qualquer comando roda no projeto do workspace (resolve o registro subindo de cwd; fallback `HARNESS_WORKSPACE`) |
+
+**Dica:** `harness check` executado **na raiz do workspace** valida o isolamento do registro
+automaticamente (equivale ao `workspace check` sem `--all`).
 
 **Isolamento entre projetos (regras de ouro do workspace):**
 
@@ -319,6 +323,11 @@ pnpm harness check --db                 # detecta drift entre markdown e banco
 
 - **Servidor com drag&drop:** `pnpm harness kanban --serve [porta]` (padrão 4310) sobe um servidor HTTP nativo. Arrastar um card dispara o mesmo pipeline do CLI — mover para `active` valida conflito de escopo; mover para `done` valida o `git diff`. Erros aparecem como toast. Auto-atualiza a cada 3s.
 - **Estático:** `pnpm harness kanban` gera `kanban.html` auto-contido (sem drag&drop).
+- **Detalhamento:** clique num card para ver escopo, arquivo da task, timeline de eventos e interações (funciona também no modo estático).
+- **WIP limits (por projeto):** crie `.harness/kanban.json` no projeto com
+  `{ "wip": { "active": 3, "queue": 8 } }`. O board mostra badges `count/limite` no header das
+  colunas (vermelho quando no limite) e o servidor **bloqueia** o move que estoure o limite
+  (toast com o motivo). No kanban agregado, o limite é avaliado por projeto dono do card.
 
 ## Protocolo de execução de tarefa
 

@@ -5,7 +5,7 @@ import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { initWorkspace, newProject, addProject, listWorkspace, checkWorkspace } from '../src/workspace.js'
 import { createProject } from '../src/init.js'
-import { loadRegistry, saveRegistry } from '../src/lib/workspace.js'
+import { loadRegistry, saveRegistry, readWipConfig } from '../src/lib/workspace.js'
 import { tmpdir, write } from './helpers.js'
 
 const TASK = `# Task: Foo
@@ -235,9 +235,9 @@ test('--project: roda o comando no projeto certo (chdir)', async () => {
   const ws = await makeWorkspace()
   await newProject(ws, ['projeto-a'])
 
-  // sem --project, check na raiz do workspace falha (não é projeto)
-  const fail = run(ws, ['check'])
-  assert.notEqual(fail.status, 0)
+  // B3: check na raiz do workspace agora valida isolamento (registro válido → ok)
+  const wsCheck = run(ws, ['check'])
+  assert.equal(wsCheck.status, 0, wsCheck.stdout + wsCheck.stderr)
 
   // com --project, check roda dentro do projeto e passa
   const ok = run(ws, ['check', '--project', 'projeto-a'])
@@ -258,4 +258,58 @@ test('--project: projeto inexistente falha com mensagem limpa (sem stack trace)'
   assert.notEqual(res.status, 0)
   assert.ok(res.stderr.includes('erro:'), `stderr deveria começar com "erro:": ${res.stderr}`)
   assert.ok(!res.stderr.includes(' at '), `stack trace vazou para o usuário: ${res.stderr}`)
+})
+
+test('workspace task: cria task direto no projeto certo (B1)', async () => {
+  const ws = await makeWorkspace()
+  await newProject(ws, ['projeto-a'])
+  await newProject(ws, ['projeto-b'])
+
+  const res = run(ws, ['workspace', 'task', 'projeto-a', 'fazer algo no modulo X', '--module', 'packages/modules/x'])
+  assert.equal(res.status, 0, res.stdout + res.stderr)
+
+  const queueA = fs.readdirSync(path.join(ws, 'projects', 'projeto-a', 'context', 'agents', 'queue'))
+  const queueB = fs.readdirSync(path.join(ws, 'projects', 'projeto-b', 'context', 'agents', 'queue'))
+  assert.ok(queueA.some((f) => f.endsWith('.md')), 'task deveria existir em projeto-a')
+  // projeto-b continua com as tasks de fundação do template apenas (mesma contagem de antes)
+  assert.equal(queueB.length, 4, 'projeto-b não deveria receber a task')
+})
+
+test('workspace report --all --format json: agrega todos os projetos num JSON (B2)', async () => {
+  const ws = await makeWorkspace()
+  await newProject(ws, ['projeto-a'])
+  await newProject(ws, ['projeto-b'])
+
+  const res = run(ws, ['workspace', 'report', '--all', '--format', 'json'])
+  assert.equal(res.status, 0, res.stderr)
+  const data = JSON.parse(res.stdout)
+  assert.ok(data['projeto-a'], 'faltou projeto-a no JSON')
+  assert.ok(data['projeto-b'], 'faltou projeto-b no JSON')
+  assert.equal(data['projeto-a'].counts.queue, 4)
+  assert.equal(data['projeto-b'].counts.queue, 4)
+})
+
+test('harness check na raiz do workspace valida isolamento (B3)', async () => {
+  const ws = await makeWorkspace()
+  await newProject(ws, ['projeto-a'])
+
+  // registro válido → exit 0
+  const ok = run(ws, ['check'])
+  assert.equal(ok.status, 0, ok.stdout + ok.stderr)
+
+  // registro corrompido (duplicado) → exit != 0
+  const reg = loadRegistry(ws)
+  reg.projects.push({ name: 'projeto-a', path: reg.projects[0].path })
+  saveRegistry(ws, reg)
+  const fail = run(ws, ['check'])
+  assert.notEqual(fail.status, 0)
+  assert.ok(fail.stdout.includes('duplicado'))
+})
+
+test('readWipConfig: lê .harness/kanban.json com fallback vazio', () => {
+  const root = tmpdir()
+  assert.deepEqual(readWipConfig(root), { queue: null, active: null })
+
+  write(root, '.harness/kanban.json', JSON.stringify({ wip: { active: 3, queue: 8 } }))
+  assert.deepEqual(readWipConfig(root), { queue: 8, active: 3 })
 })

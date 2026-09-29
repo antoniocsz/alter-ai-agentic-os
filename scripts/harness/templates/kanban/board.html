@@ -79,6 +79,11 @@
     margin-left: auto; background: var(--bg); border: 1px solid var(--border);
     border-radius: 999px; padding: 1px 8px; font-size: 11px;
   }
+  .col h2 .wip {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 999px;
+    padding: 1px 8px; font-size: 11px; color: var(--muted);
+  }
+  .col h2 .wip.over { color: var(--danger); border-color: var(--danger); }
   .col h2 .caret { font-size: 10px; opacity: .7; }
   .cards { display: flex; flex-direction: column; gap: 10px; }
   .col.collapsed .cards { display: none; }
@@ -273,6 +278,18 @@ function boardStatus(id) {
   return '';
 }
 
+function wipBadges(colKey) {
+  const wip = board.wip || {};
+  const entries = Object.entries(wip).filter(([, w]) => w && w[colKey]);
+  if (!entries.length) return '';
+  return entries.map(([proj, w]) => {
+    const limit = w[colKey];
+    const count = (board[colKey] || []).filter((t) => (t.project || '') === proj).length;
+    const over = count >= limit;
+    return `<span class="wip ${over ? 'over' : ''}" title="WIP ${colKey}">${proj ? esc(proj) + ' ' : ''}${count}/${limit}</span>`;
+  }).join('');
+}
+
 /* ---------- render ---------- */
 function render() {
   const main = document.getElementById('board');
@@ -283,7 +300,7 @@ function render() {
     const collapsed = state.collapsed.has(col.key);
     return `
       <section class="col ${col.key} ${collapsed ? 'collapsed' : ''}" data-col="${col.key}" data-over="false" ${hidden ? 'style="display:none"' : ''}>
-        <h2 data-toggle="collapse"><span class="dot"></span>${col.label}<span class="count">${items.length}</span><span class="caret">${collapsed ? '▸' : '▾'}</span></h2>
+        <h2 data-toggle="collapse"><span class="dot"></span>${col.label}<span class="count">${items.length}</span>${wipBadges(col.key)}<span class="caret">${collapsed ? '▸' : '▾'}</span></h2>
         <div class="cards">
           ${items.length ? items.map(cardHtml).join('') : '<div class="empty">nenhuma task</div>'}
         </div>

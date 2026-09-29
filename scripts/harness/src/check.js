@@ -3,6 +3,7 @@ import path from 'node:path'
 import { execSync } from 'node:child_process'
 import { queueDir, activeDir, doneDir, listTasks, parseTask, findConflicts } from './lib/tasks.js'
 import { tryOpenDb, logEvent, recordInteraction, findDrift } from './lib/db.js'
+import { findWorkspaceRoot, loadRegistry, isolationErrors } from './lib/workspace.js'
 
 const NAME_RE = /^\d{2,}-.+\.md$/
 const REQUIRED_SECTIONS = ['agente', 'módulo', 'escopo', 'critério de conclusão']
@@ -125,6 +126,12 @@ export async function check(args) {
   const root = process.cwd()
   const json = args.includes('--json')
 
+  // B3: `harness check` executado na raiz do workspace valida o isolamento do registro
+  const wsRoot = findWorkspaceRoot(root)
+  if (wsRoot && path.resolve(wsRoot) === path.resolve(root)) {
+    return checkWorkspaceMode(root, args, json)
+  }
+
   const res = validate(root, {
     barrel: args.includes('--barrel'),
     lint: args.includes('--lint'),
@@ -142,6 +149,24 @@ export async function check(args) {
   }
 
   process.exit(res.ok ? 0 : 1)
+}
+
+function checkWorkspaceMode(root, args, json) {
+  const reg = loadRegistry(root)
+  const errors = isolationErrors(reg, root)
+  const ok = errors.length === 0
+  if (json) {
+    process.stdout.write(JSON.stringify({ ok, errors }, null, 2) + '\n')
+  } else if (ok) {
+    process.stdout.write(
+      `✅ workspace ok — registro válido (${reg.projects.length} projeto(s)).\n` +
+        '   Para validar também os projetos: `harness workspace check --all`\n'
+    )
+  } else {
+    process.stdout.write(`❌ ${errors.length} violação(ões) de isolamento no registro:\n`)
+    for (const e of errors) process.stdout.write(`  - ${e}\n`)
+  }
+  process.exit(ok ? 0 : 1)
 }
 
 function taskDir(root, dir) {

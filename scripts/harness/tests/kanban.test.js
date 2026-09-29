@@ -4,7 +4,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { once } from 'node:events'
 import { openDb, syncFromMarkdown, boardQuery, taskDetails, resolveTaskId } from '../src/lib/db.js'
-import { buildBoard, renderPage, kanbanFor, projectRoot, readTaskFile, serveBoard } from '../src/kanban.js'
+import { buildBoard, renderPage, kanbanFor, projectRoot, readTaskFile, serveBoard, wipViolation } from '../src/kanban.js'
 import { createProject } from '../src/init.js'
 import { tmpdir, write } from './helpers.js'
 
@@ -140,6 +140,70 @@ test('servidor kanban: prefixo ambíguo no detail responde 400 sem derrubar o se
     // id exato resolve (detalhe real)
     const res3 = await fetch(`${base}/api/tasks/${encodeURIComponent('01-foo.md')}/detail?project=A`)
     assert.equal(res3.status, 200)
+  } finally {
+    server.close()
+  }
+})
+
+test('wipViolation: bloqueia move que estoura o limite da coluna (A1)', () => {
+  const board = {
+    queue: [
+      { id: '01.md', project: 'A' },
+      { id: '02.md', project: 'A' }
+    ],
+    active: [{ id: '03.md', project: 'A' }],
+    done: [],
+    wip: { A: { queue: 2, active: 1 } }
+  }
+
+  // dentro do limite → null
+  assert.equal(wipViolation(board, 'A', 'active', { queue: 2, active: 2 }), null)
+  assert.equal(wipViolation(board, 'A', 'done', { queue: 2, active: 2 }), null)
+
+  // no limite de active (1/1) → bloqueia
+  const err = wipViolation(board, 'A', 'active', { queue: 2, active: 1 })
+  assert.ok(err && err.includes('WIP'))
+
+  // limite de queue (2/2) ao mover para queue → bloqueia
+  const errQ = wipViolation(board, 'A', 'queue', { queue: 2, active: 1 })
+  assert.ok(errQ && errQ.includes('WIP'))
+
+  // sem limite configurado → null
+  assert.equal(wipViolation(board, 'A', 'active', { queue: null, active: null }), null)
+
+  // projetos diferentes não se misturam
+  assert.equal(wipViolation(board, 'B', 'active', { queue: null, active: 1 }), null)
+})
+
+test('servidor kanban: WIP bloqueia move no projeto dono (A1)', async () => {
+  const a = await makeProject('proj-e')
+  write(a, '.harness/kanban.json', JSON.stringify({ wip: { active: 1 } }))
+  write(a, 'context/agents/queue/01-foo.md', TASK)
+  write(a, 'context/agents/queue/02-bar.md', TASK)
+  syncProject(a)
+
+  const server = serveBoard({ projects: [{ name: 'A', root: a, wip: { queue: null, active: 1 } }], title: 't' }, 0)
+  await once(server, 'listening')
+  const base = `http://localhost:${server.address().port}`
+
+  try {
+    // move 01 para active → ok (fica 1/1)
+    const m1 = await fetch(`${base}/api/tasks/${encodeURIComponent('01-foo.md')}/move`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ to: 'active', project: 'A' })
+    })
+    assert.equal(m1.status, 200, await m1.text())
+
+    // move 02 para active → bloqueado pelo WIP (1/1)
+    const m2 = await fetch(`${base}/api/tasks/${encodeURIComponent('02-bar.md')}/move`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ to: 'active', project: 'A' })
+    })
+    assert.equal(m2.status, 400)
+    const body = await m2.json()
+    assert.ok(body.error.includes('WIP'))
   } finally {
     server.close()
   }
