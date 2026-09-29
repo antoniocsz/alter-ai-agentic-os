@@ -29,7 +29,7 @@ v0.1.0, a camada de **workspaces** para operar N projetos independentes com isol
 ## Repositórios / Fontes da verdade
 - Markdown das tasks (`context/agents/`) — fonte da verdade
 - `.harness/harness.db` — índice/histórico (regenerável via `harness sync`)
-- `.harness-workspace.json` — registro de projetos do workspace (paths absolutos)
+- `.harness-workspace.json` — registro de projetos do workspace (paths relativos à raiz, resolvidos para absoluto em memória)
 
 ## Regras de isolamento (workspaces)
 - Comandos rodam no cwd; cruzar projetos exige `--project`/`workspace run` explícito

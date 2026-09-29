@@ -10,7 +10,8 @@ Workspace: `{{NAME}}` · projetos em: `{{PROJECTS_DIR}}/`
 ## Descobrir os projetos
 
 - `pnpm harness workspace list` (ou `status`) — tabela com queue/active/done, versão do harness e onboarded.
-- O registro vive em `.harness-workspace.json` (paths absolutos).
+- O registro vive em `.harness-workspace.json` (paths relativos à raiz do workspace, resolvidos
+  para absoluto em memória).
 
 ## Comandos de workspace
 

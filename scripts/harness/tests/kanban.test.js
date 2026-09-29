@@ -2,8 +2,9 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
-import { openDb, syncFromMarkdown, boardQuery, taskDetails } from '../src/lib/db.js'
-import { buildBoard, renderPage, kanbanFor, projectRoot, readTaskFile } from '../src/kanban.js'
+import { once } from 'node:events'
+import { openDb, syncFromMarkdown, boardQuery, taskDetails, resolveTaskId } from '../src/lib/db.js'
+import { buildBoard, renderPage, kanbanFor, projectRoot, readTaskFile, serveBoard } from '../src/kanban.js'
 import { createProject } from '../src/init.js'
 import { tmpdir, write } from './helpers.js'
 
@@ -113,4 +114,33 @@ test('renderPage: substitui título e dados sem quebrar JSON', () => {
   const html = renderPage({ queue: [], active: [], done: [] }, 'Meu Board <x>')
   assert.ok(html.includes('Meu Board &lt;x&gt;'))
   assert.ok(html.includes('"queue":[]'))
+})
+
+test('servidor kanban: prefixo ambíguo no detail responde 400 sem derrubar o servidor', async () => {
+  const a = await makeProject('proj-d')
+  write(a, 'context/agents/queue/01-foo.md', TASK)
+  write(a, 'context/agents/queue/01-foo-bar.md', TASK) // compartilha o prefixo "01"
+  syncProject(a)
+
+  const server = serveBoard({ projects: [{ name: 'A', root: a }], title: 't' }, 0)
+  await once(server, 'listening')
+  const base = `http://localhost:${server.address().port}`
+
+  try {
+    // prefixo ambíguo → 400 (e não derruba o processo)
+    const res = await fetch(`${base}/api/tasks/01/detail?project=A`)
+    assert.equal(res.status, 400)
+    const body = await res.json()
+    assert.ok(body.error.includes('ambíguo'))
+
+    // servidor continua vivo
+    const res2 = await fetch(`${base}/api/board`)
+    assert.equal(res2.status, 200)
+
+    // id exato resolve (detalhe real)
+    const res3 = await fetch(`${base}/api/tasks/${encodeURIComponent('01-foo.md')}/detail?project=A`)
+    assert.equal(res3.status, 200)
+  } finally {
+    server.close()
+  }
 })

@@ -14,7 +14,11 @@
 - [x] `harness workspace run <projeto> <cmd>` + flag global `--project <projeto>`
 - [x] Kanban agregado multi-projeto com detalhamento (modal: escopo, arquivo, timeline, interações)
 - [x] Testes de workspace + kanban (`tests/workspace.test.js`, `tests/kanban.test.js`)
-- [ ] Typecheck: [ ]
+- [x] Correções da revisão (P1–P4): docs de paths relativos, erro de `--project` tratado, status.md real, `handleDetail` com prefixo ambíguo → 400
 
-## Handoff
-- [x] Preenchido ao finalizar cada task: feito / pendências / decisões
+## Handoff (lote 1 — task 08 + limpeza 09)
+- Feito: camada de workspaces (init/new/add/list/status/check/sync/report/update/run/kanban),
+  flag global `--project`, isolamento validado no check, kanban agregado com modal de detalhes.
+- Pendências: nenhuma. Testes 59/59, `harness check` ok.
+- Decisões: copy-per-project mantido; cache do AGENTS.md em `.harness/workspace/`;
+  registro com paths relativos (absoluto em memória); kanban lê markdown como fonte da verdade.

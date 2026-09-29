@@ -250,3 +250,12 @@ test('workspace run: executa comando dentro do projeto', async () => {
   const res = run(ws, ['workspace', 'run', 'projeto-a', 'check'])
   assert.equal(res.status, 0, res.stdout + res.stderr)
 })
+
+test('--project: projeto inexistente falha com mensagem limpa (sem stack trace)', async () => {
+  const ws = await makeWorkspace()
+  await newProject(ws, ['projeto-a'])
+  const res = run(ws, ['check', '--project', 'nao-existe'])
+  assert.notEqual(res.status, 0)
+  assert.ok(res.stderr.includes('erro:'), `stderr deveria começar com "erro:": ${res.stderr}`)
+  assert.ok(!res.stderr.includes(' at '), `stack trace vazou para o usuário: ${res.stderr}`)
+})

@@ -76,7 +76,17 @@ function applyProjectFlag(rawArgs) {
 }
 
 const rawArgs = process.argv.slice(2)
-const [cmd, ...args] = applyProjectFlag(rawArgs)
+
+let cmd, args
+try {
+  const [parsedCmd, ...parsedArgs] = applyProjectFlag(rawArgs)
+  cmd = parsedCmd
+  args = parsedArgs
+} catch (err) {
+  process.stderr.write(`erro: ${err.message}\n`)
+  process.exit(1)
+}
+
 const version = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version
 
 try {

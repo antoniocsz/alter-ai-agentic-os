@@ -99,7 +99,7 @@ export function readTaskFile(ctx, project, id) {
   }
 }
 
-function serveBoard(ctx, port) {
+export function serveBoard(ctx, port) {
   const page = renderPage(null, ctx.title)
   const server = http.createServer((req, res) => {
     const url = new URL(req.url, `http://${req.headers.host ?? 'localhost'}`)
@@ -132,11 +132,13 @@ function serveBoard(ctx, port) {
   })
 
   server.listen(port, () => {
+    const actual = server.address()?.port ?? port
     process.stdout.write(
-      `📋 kanban em http://localhost:${port}\n` +
+      `📋 kanban em http://localhost:${actual}\n` +
         `   drag&drop move tasks (valida escopo). Clique num card para ver o detalhamento. Ctrl+C para parar.\n`
     )
   })
+  return server
 }
 
 async function handleMove(req, res, ctx, id) {
@@ -183,7 +185,12 @@ function handleDetail(res, ctx, id, project) {
   } catch (err) {
     return json(res, 400, { ok: false, error: err.message })
   }
-  const resolved = resolveTaskId(root, id)
+  let resolved
+  try {
+    resolved = resolveTaskId(root, id)
+  } catch (err) {
+    return json(res, 400, { ok: false, error: err.message })
+  }
   const db = openDb(root)
   try {
     syncFromMarkdown(db, root)

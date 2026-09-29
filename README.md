@@ -187,7 +187,7 @@ os projetos.
 ├── AGENTS.md                        ← roteia para os projetos + comandos de workspace
 ├── .agents/  .opencode/  scripts/harness/   ← camada harness (fonte p/ new e add)
 ├── package.json                     ← pnpm harness
-├── .harness-workspace.json          ← registro (paths absolutos)
+├── .harness-workspace.json          ← registro (paths relativos à raiz; resolvidos p/ absoluto em memória)
 └── projects/
     ├── projeto-a/                   ← monorepo independente (git + context/ próprios)
     └── projeto-b/
@@ -216,8 +216,10 @@ os projetos.
 3. No kanban agregado, cada card pertence ao projeto dono; mover um card só afeta ele.
 4. `harness workspace check` detecta violações de isolamento no registro (duplicado, aninhado,
    raiz do workspace, path inexistente) e falha com exit code ≠ 0.
-5. Projeto fora da árvore do workspace (via `add` com path absoluto externo): `--project`
-   exige `HARNESS_WORKSPACE` apontando para a raiz, ou rodar a partir da raiz.
+5. O registro `.harness-workspace.json` guarda paths **relativos à raiz do workspace** (portável);
+   `loadRegistry` resolve para absoluto em memória. Projeto fora da árvore do workspace
+   (via `add` com path absoluto externo): `--project` exige `HARNESS_WORKSPACE` apontando
+   para a raiz, ou rodar a partir da raiz.
 
 **Adicionar projeto existente:** se o projeto já nasceu do `harness init`, `add` só registra.
 Se for um projeto real pré-existente (sem a camada), `add` faz o onboarding: backup do
