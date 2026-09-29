@@ -108,6 +108,7 @@ test('kanbanFor estático: gera HTML com título, card e conteúdo do arquivo em
   assert.ok(html.includes('01-foo.md')) // card
   assert.ok(html.includes('packages/modules/foo/src/repo.ts')) // escopo no BOARD_DATA
   assert.ok(html.includes('Task: Foo')) // conteúdo do arquivo embutido (modal estático)
+  assert.ok(html.includes('agrupar por módulo')) // toggle de agrupamento presente
 })
 
 test('renderPage: substitui título e dados sem quebrar JSON', () => {

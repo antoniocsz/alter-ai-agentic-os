@@ -13,12 +13,14 @@ import { task } from '../src/task.js'
 import { report } from '../src/report.js'
 import { update } from '../src/update.js'
 import { workspace } from '../src/workspace.js'
+import { versionCmd, changelogCmd } from '../src/version.js'
 import { findWorkspaceRoot, loadRegistry, resolveProject } from '../src/lib/workspace.js'
 
 const usage = `harness <comando> [args]
 
 Comandos:
   init <dir>          Gera projeto novo [--prisma] [--git [--branch <b>]] [--bare]
+                      ou, com --workspace <dir>: gera um workspace (delega p/ workspace init)
   module <nome>       Scaffold de módulo [--with-prisma] [--with-http]
   task "<descrição>"  Cria task na queue com numeração automática e ## Escopo
   start <task>        Move queue/<task> → active/ com checagem de conflito de escopo
@@ -33,6 +35,8 @@ Comandos:
   update [--source <cam>] [--dry-run] Re-sincroniza a camada harness a partir da fonte (ou HARNESS_SOURCE)
   workspace ...       Opera sobre múltiplos projetos (ver "harness workspace help")
   check [--json]      Valida o protocolo (pipeline, escopos, seções, módulos)
+  version [--bump patch|minor|major]  Mostra ou incrementa a versão do harness
+  changelog [--out <arquivo>]  Gera CHANGELOG.md a partir dos handoffs registrados
   version             Mostra a versão do harness
   help                Mostra esta ajuda
 
@@ -92,7 +96,12 @@ const version = JSON.parse(readFileSync(new URL('../package.json', import.meta.u
 try {
   switch (cmd) {
     case 'init':
-      await init(args)
+      if (args.includes('--workspace')) {
+        // harness init --workspace <dir> → delega para workspace init
+        await workspace(['init', ...args.filter((a) => a !== '--workspace')])
+      } else {
+        await init(args)
+      }
       break
     case 'module':
       await moduleCmd(args)
@@ -130,7 +139,14 @@ try {
     case 'version':
     case '--version':
     case '-v':
-      process.stdout.write(`harness ${version}\n`)
+      if (args.includes('--bump')) {
+        versionCmd(args)
+      } else {
+        process.stdout.write(`harness ${version}\n`)
+      }
+      break
+    case 'changelog':
+      changelogCmd(args)
       break
     case 'kanban':
       await kanban(args)

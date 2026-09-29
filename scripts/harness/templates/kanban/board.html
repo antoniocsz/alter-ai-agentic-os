@@ -107,6 +107,16 @@
   .tag.dep { color: #f472b6; }
   .card .foot { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; margin-top: 8px; }
   .empty { color: var(--muted); font-size: 12px; text-align: center; padding: 20px 0; }
+  .mod-group { margin-bottom: 10px; }
+  .mod-head {
+    display: flex; align-items: center; gap: 6px; margin: 4px 0 8px;
+    font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--accent);
+    border-bottom: 1px dashed var(--border); padding-bottom: 4px;
+  }
+  .mod-head .count {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 999px;
+    padding: 0 6px; font-size: 10px; color: var(--muted);
+  }
   #toast {
     position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
     background: #7f1d1d; color: #fecaca; border: 1px solid #b91c1c; border-radius: 10px;
@@ -170,6 +180,7 @@
     <option value="id-desc">ordem: id ↓</option>
   </select>
   <div class="chips" id="colToggles"></div>
+  <span class="chip" id="groupToggle" title="agrupar cards por módulo dentro das colunas">agrupar por módulo</span>
 </div>
 
 <main id="board"></main>
@@ -190,7 +201,7 @@ const COLUMNS = [
 ];
 
 let board = { queue: [], active: [], done: [] };
-let state = { q: '', module: '', agent: '', project: '', sort: 'id-asc', hidden: new Set(), collapsed: new Set() };
+let state = { q: '', module: '', agent: '', project: '', sort: 'id-asc', hidden: new Set(), collapsed: new Set(), groupByModule: false };
 const toast = document.getElementById('toast');
 const modal = document.getElementById('modal');
 const modalBox = document.getElementById('modalBox');
@@ -278,6 +289,19 @@ function boardStatus(id) {
   return '';
 }
 
+function renderCards(items) {
+  if (!state.groupByModule) return items.map(cardHtml).join('');
+  const groups = new Map();
+  for (const t of items) {
+    const k = t.module || '(sem módulo)';
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(t);
+  }
+  return [...groups.entries()].map(([k, arr]) =>
+    `<div class="mod-group"><div class="mod-head">${esc(k)}<span class="count">${arr.length}</span></div>${arr.map(cardHtml).join('')}</div>`
+  ).join('');
+}
+
 function wipBadges(colKey) {
   const wip = board.wip || {};
   const entries = Object.entries(wip).filter(([, w]) => w && w[colKey]);
@@ -302,7 +326,7 @@ function render() {
       <section class="col ${col.key} ${collapsed ? 'collapsed' : ''}" data-col="${col.key}" data-over="false" ${hidden ? 'style="display:none"' : ''}>
         <h2 data-toggle="collapse"><span class="dot"></span>${col.label}<span class="count">${items.length}</span>${wipBadges(col.key)}<span class="caret">${collapsed ? '▸' : '▾'}</span></h2>
         <div class="cards">
-          ${items.length ? items.map(cardHtml).join('') : '<div class="empty">nenhuma task</div>'}
+          ${items.length ? renderCards(items) : '<div class="empty">nenhuma task</div>'}
         </div>
       </section>`;
   }).join('');
@@ -494,6 +518,12 @@ document.getElementById('fSort').addEventListener('change', (e) => {
 });
 document.getElementById('refreshBtn').addEventListener('click', loadBoard);
 document.getElementById('refreshBtn').style.display = IS_SERVER ? '' : 'none';
+
+document.getElementById('groupToggle').addEventListener('click', () => {
+  state.groupByModule = !state.groupByModule;
+  document.getElementById('groupToggle').classList.toggle('on', state.groupByModule);
+  render();
+});
 
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
 modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });

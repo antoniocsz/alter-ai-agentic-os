@@ -30,6 +30,13 @@
 - [x] A1 — WIP limits no kanban (`.harness/kanban.json`, move bloqueado com 400, badges no header)
 - [x] `computeMetrics` sincroniza do markdown (fonte da verdade)
 
+## Fase 5 — Ergonomia (init --workspace, grupo por módulo, version/changelog)
+- [x] `harness init --workspace <dir>` delega para `workspace init`
+- [x] Kanban: toggle "agrupar por módulo" nas colunas
+- [x] `harness version [--bump patch|minor|major]` (incrementa + registra interação)
+- [x] `harness changelog [--out CHANGELOG.md]` (gera a partir dos handoffs)
+- [x] Testes 69/69
+
 ## Handoff (lote 2 — tasks 10, 11 e 12)
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do
   repo-fonte em overview/stack) e evolução (B1 `workspace task`, B2 `report --all --format json`,

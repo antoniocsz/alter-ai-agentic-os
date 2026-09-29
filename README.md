@@ -51,6 +51,7 @@ A partir daí o projeto tem `pnpm harness start|finish|check|...`.
 | Comando | O que faz |
 |---|---|
 | `pnpm harness init <dir>` | Gera projeto novo com a camada harness (`--bare` = sem módulos padrão) |
+| `pnpm harness init --workspace <dir>` | Gera um **workspace** (equivale a `harness workspace init`) |
 | `pnpm harness module <nome>` | Cria um módulo (bounded context) |
 | `pnpm harness task "<desc>" --module <m>` | Planeja uma task na queue |
 | `pnpm harness start <task>` / `finish <task>` | Executa e finaliza a task (valida escopo) |
@@ -118,6 +119,8 @@ context/
 | `harness report` | Métricas do banco (WIP, cycle time, aging, throughput). Flags: `--format`, `--module`, `--days` |
 | `harness kanban` | Painel kanban: `--serve [porta]` (drag&drop) ou `--out <arquivo>` (estático) |
 | `harness check [flags]` | Valida o protocolo (pipeline, escopos, seções, módulos). Flags: `--json`, `--barrel`, `--lint`, `--typecheck`, `--db` |
+| `harness version [--bump patch\|minor\|major]` | Mostra ou incrementa a versão do harness (registra a mudança no banco) |
+| `harness changelog [--out <arquivo>]` | Gera `CHANGELOG.md` a partir dos handoffs (`harness finish --handoff`) |
 | `harness workspace ...` | Opera sobre múltiplos projetos (ver "Workspaces" abaixo). Subcomandos: `init`, `new`, `add`, `list/status`, `check/sync/report/update [--all]`, `run`, `kanban` |
 
 `<task>` aceita o nome completo (`01-module-tenancy.md`) ou o prefixo numérico (`01`).
