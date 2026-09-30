@@ -6,7 +6,7 @@ import { once } from 'node:events'
 import { openDb, syncFromMarkdown, boardQuery, taskDetails, resolveTaskId } from '../src/lib/db.js'
 import { buildBoard, renderPage, kanbanFor, projectRoot, readTaskFile, serveBoard, wipViolation } from '../src/kanban.js'
 import { createProject } from '../src/init.js'
-import { tmpdir, write } from './helpers.js'
+import { tmpdir, write, withSilentStdout } from './helpers.js'
 
 const TASK = `# Task: Foo
 ## Agente: \`backend\`
@@ -93,22 +93,24 @@ test('buildBoard: cards multi-projeto carregam o projeto dono', async () => {
 })
 
 test('kanbanFor estático: gera HTML com título, card e conteúdo do arquivo embutido', async () => {
-  const a = await makeProject('proj-c')
-  write(a, 'context/agents/queue/01-foo.md', TASK)
-  syncProject(a)
+  await withSilentStdout(async () => {
+    const a = await makeProject('proj-c')
+    write(a, 'context/agents/queue/01-foo.md', TASK)
+    syncProject(a)
 
-  const out = path.join(tmpdir(), 'kanban-out.html')
-  await kanbanFor(
-    { kind: 'workspace', projects: [{ name: 'A', root: a }], title: 'Workspace teste' },
-    ['--out', out]
-  )
+    const out = path.join(tmpdir(), 'kanban-out.html')
+    await kanbanFor(
+      { kind: 'workspace', projects: [{ name: 'A', root: a }], title: 'Workspace teste' },
+      ['--out', out]
+    )
 
-  const html = fs.readFileSync(out, 'utf8')
-  assert.ok(html.includes('Workspace teste')) // título renderizado
-  assert.ok(html.includes('01-foo.md')) // card
-  assert.ok(html.includes('packages/modules/foo/src/repo.ts')) // escopo no BOARD_DATA
-  assert.ok(html.includes('Task: Foo')) // conteúdo do arquivo embutido (modal estático)
-  assert.ok(html.includes('agrupar por módulo')) // toggle de agrupamento presente
+    const html = fs.readFileSync(out, 'utf8')
+    assert.ok(html.includes('Workspace teste')) // título renderizado
+    assert.ok(html.includes('01-foo.md')) // card
+    assert.ok(html.includes('packages/modules/foo/src/repo.ts')) // escopo no BOARD_DATA
+    assert.ok(html.includes('Task: Foo')) // conteúdo do arquivo embutido (modal estático)
+    assert.ok(html.includes('agrupar por módulo')) // toggle de agrupamento presente
+  })
 })
 
 test('renderPage: substitui título e dados sem quebrar JSON', () => {
@@ -118,32 +120,34 @@ test('renderPage: substitui título e dados sem quebrar JSON', () => {
 })
 
 test('servidor kanban: prefixo ambíguo no detail responde 400 sem derrubar o servidor', async () => {
-  const a = await makeProject('proj-d')
-  write(a, 'context/agents/queue/01-foo.md', TASK)
-  write(a, 'context/agents/queue/01-foo-bar.md', TASK) // compartilha o prefixo "01"
-  syncProject(a)
+  await withSilentStdout(async () => {
+    const a = await makeProject('proj-d')
+    write(a, 'context/agents/queue/01-foo.md', TASK)
+    write(a, 'context/agents/queue/01-foo-bar.md', TASK) // compartilha o prefixo "01"
+    syncProject(a)
 
-  const server = serveBoard({ projects: [{ name: 'A', root: a }], title: 't' }, 0)
-  await once(server, 'listening')
-  const base = `http://localhost:${server.address().port}`
+    const server = serveBoard({ projects: [{ name: 'A', root: a }], title: 't' }, 0)
+    await once(server, 'listening')
+    const base = `http://localhost:${server.address().port}`
 
-  try {
-    // prefixo ambíguo → 400 (e não derruba o processo)
-    const res = await fetch(`${base}/api/tasks/01/detail?project=A`)
-    assert.equal(res.status, 400)
-    const body = await res.json()
-    assert.ok(body.error.includes('ambíguo'))
+    try {
+      // prefixo ambíguo → 400 (e não derruba o processo)
+      const res = await fetch(`${base}/api/tasks/01/detail?project=A`)
+      assert.equal(res.status, 400)
+      const body = await res.json()
+      assert.ok(body.error.includes('ambíguo'))
 
-    // servidor continua vivo
-    const res2 = await fetch(`${base}/api/board`)
-    assert.equal(res2.status, 200)
+      // servidor continua vivo
+      const res2 = await fetch(`${base}/api/board`)
+      assert.equal(res2.status, 200)
 
-    // id exato resolve (detalhe real)
-    const res3 = await fetch(`${base}/api/tasks/${encodeURIComponent('01-foo.md')}/detail?project=A`)
-    assert.equal(res3.status, 200)
-  } finally {
-    server.close()
-  }
+      // id exato resolve (detalhe real)
+      const res3 = await fetch(`${base}/api/tasks/${encodeURIComponent('01-foo.md')}/detail?project=A`)
+      assert.equal(res3.status, 200)
+    } finally {
+      server.close()
+    }
+  })
 })
 
 test('wipViolation: bloqueia move que estoura o limite da coluna (A1)', () => {
@@ -177,35 +181,37 @@ test('wipViolation: bloqueia move que estoura o limite da coluna (A1)', () => {
 })
 
 test('servidor kanban: WIP bloqueia move no projeto dono (A1)', async () => {
-  const a = await makeProject('proj-e')
-  write(a, '.harness/kanban.json', JSON.stringify({ wip: { active: 1 } }))
-  write(a, 'context/agents/queue/01-foo.md', TASK)
-  write(a, 'context/agents/queue/02-bar.md', TASK)
-  syncProject(a)
+  await withSilentStdout(async () => {
+    const a = await makeProject('proj-e')
+    write(a, '.harness/kanban.json', JSON.stringify({ wip: { active: 1 } }))
+    write(a, 'context/agents/queue/01-foo.md', TASK)
+    write(a, 'context/agents/queue/02-bar.md', TASK)
+    syncProject(a)
 
-  const server = serveBoard({ projects: [{ name: 'A', root: a, wip: { queue: null, active: 1 } }], title: 't' }, 0)
-  await once(server, 'listening')
-  const base = `http://localhost:${server.address().port}`
+    const server = serveBoard({ projects: [{ name: 'A', root: a, wip: { queue: null, active: 1 } }], title: 't' }, 0)
+    await once(server, 'listening')
+    const base = `http://localhost:${server.address().port}`
 
-  try {
-    // move 01 para active → ok (fica 1/1)
-    const m1 = await fetch(`${base}/api/tasks/${encodeURIComponent('01-foo.md')}/move`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ to: 'active', project: 'A' })
-    })
-    assert.equal(m1.status, 200, await m1.text())
+    try {
+      // move 01 para active → ok (fica 1/1)
+      const m1 = await fetch(`${base}/api/tasks/${encodeURIComponent('01-foo.md')}/move`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ to: 'active', project: 'A' })
+      })
+      assert.equal(m1.status, 200, await m1.text())
 
-    // move 02 para active → bloqueado pelo WIP (1/1)
-    const m2 = await fetch(`${base}/api/tasks/${encodeURIComponent('02-bar.md')}/move`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ to: 'active', project: 'A' })
-    })
-    assert.equal(m2.status, 400)
-    const body = await m2.json()
-    assert.ok(body.error.includes('WIP'))
-  } finally {
-    server.close()
-  }
+      // move 02 para active → bloqueado pelo WIP (1/1)
+      const m2 = await fetch(`${base}/api/tasks/${encodeURIComponent('02-bar.md')}/move`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ to: 'active', project: 'A' })
+      })
+      assert.equal(m2.status, 400)
+      const body = await m2.json()
+      assert.ok(body.error.includes('WIP'))
+    } finally {
+      server.close()
+    }
+  })
 })

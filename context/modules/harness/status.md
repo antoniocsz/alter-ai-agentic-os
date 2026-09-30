@@ -37,7 +37,23 @@
 - [x] `harness changelog [--out CHANGELOG.md]` (gera a partir dos handoffs)
 - [x] Testes 69/69
 
-## Handoff (lote 2 — tasks 10, 11 e 12)
+## Fase 6 — Estabilidade dos testes (flake de IPC do node --test)
+- [x] `helpers.withSilentStdout` silencia banners do produto nos testes ruidosos
+- [x] 3 testes ruidosos de `kanban.test.js` envolvidos (kanbanFor estático, prefixo ambíguo, WIP bloqueia)
+- [x] Testes 69/69 estáveis (3 execuções consecutivas)
+
+## Handoff (lote 3 — task 15: flake de IPC do kanban.test.js)
+- Feito: helper `withSilentStdout` em `tests/helpers.js` + 3 testes ruidosos de
+  `kanban.test.js` envolvidos. Suíte 69/69 estável em 3 execuções consecutivas;
+  `harness check` ok. Nenhuma mudança no produto (`kanban.js`) nem no script de testes.
+- Pendências: nenhuma.
+- Decisões: no-op cego de `process.stdout.write` engoliria o reporte do runner do
+  `node --test` (que trafega no stdout do subprocesso como Buffers v8-serializados,
+  nodejs/node#56802) e os testes "sumiriam" do resultado — por isso o helper engole
+  apenas strings (banners do produto) e repassa Buffers (protocolo do runner).
+
+## Histórico de handoffs
+### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do
   repo-fonte em overview/stack) e evolução (B1 `workspace task`, B2 `report --all --format json`,
   B3 `check` na raiz do workspace, C1 ADRs 004/005, A1 WIP limits no kanban) + correções da
