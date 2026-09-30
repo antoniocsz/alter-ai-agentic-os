@@ -9,9 +9,9 @@ const DB_SCRIPTS =
   [
     '    "db:up": "docker compose up -d postgres redis",',
     '    "db:down": "docker compose down",',
-    '    "db:migrate": "pnpm --filter @saas/prisma migrate",',
-    '    "db:deploy": "pnpm --filter @saas/prisma deploy",',
-    '    "db:generate": "pnpm --filter @saas/prisma generate"'
+    '    "db:migrate": "pnpm --filter @saas/database migrate",',
+    '    "db:deploy": "pnpm --filter @saas/database deploy",',
+    '    "db:generate": "pnpm --filter @saas/database generate"'
   ].join('\n')
 
 export async function init(args) {
@@ -88,7 +88,7 @@ export async function createProject(target, opts = {}, sourceRoot = harnessRoot(
     }
     gerado.push(
       '  - docker-compose.yml (Postgres + Redis, limites de memória/CPU)',
-      '  - packages/prisma (schema + client) e .env.example'
+      '  - packages/database (schema + client) e .env.example'
     )
   }
 

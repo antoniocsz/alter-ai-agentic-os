@@ -67,3 +67,30 @@ test('init: rejeita diretório não vazio', async () => {
   write(root, 'algum-arquivo.txt', 'x')
   await assert.rejects(() => init([root]), /não está vazio/)
 })
+
+test('init: --prisma gera packages/database no padrão diasbellazzi', () => {
+  const target = path.join(tmpdir(), 'prisma-projeto')
+  init([target, '--prisma'])
+
+  const pkgPath = path.join(target, 'packages', 'database', 'package.json')
+  assert.ok(fs.existsSync(pkgPath), 'faltou packages/database/package.json')
+  const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'))
+  assert.equal(pkg.name, '@saas/database')
+
+  for (const rel of [
+    'packages/database/src/config.ts',
+    'packages/database/src/client.ts',
+    'packages/database/src/index.ts',
+    'packages/database/prisma.config.ts',
+    'packages/database/prisma/seed.ts'
+  ]) {
+    assert.ok(fs.existsSync(path.join(target, rel)), `faltou: ${rel}`)
+  }
+
+  // Renomeado (git mv), não duplicado: o path antigo não pode existir.
+  assert.ok(!fs.existsSync(path.join(target, 'packages', 'prisma')), 'pasta antiga ainda existe')
+
+  const cfg = fs.readFileSync(path.join(target, 'packages', 'database', 'prisma.config.ts'), 'utf8')
+  assert.ok(cfg.includes('databaseUrl()'), 'prisma.config.ts não usa databaseUrl()')
+  assert.ok(cfg.includes('import.meta.dirname'), 'prisma.config.ts não usa import.meta.dirname')
+})

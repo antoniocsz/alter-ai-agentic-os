@@ -105,7 +105,7 @@ context/
 
 | Comando | O que faz |
 |---|---|
-| `harness init <dir>` | Gera projeto novo. Flags: `--prisma` (docker-compose Postgres+Redis, `packages/prisma`, `.env.example`), `--git [--branch <b>]` (git init + commit inicial) |
+| `harness init <dir>` | Gera projeto novo. Flags: `--prisma` (docker-compose Postgres+Redis, `packages/database`, `.env.example`), `--git [--branch <b>]` (git init + commit inicial) |
 | `harness module <nome>` | Scaffold de módulo. Flags: `--with-prisma`, `--with-http` |
 | `harness update [--source <cam>]` | Re-sincroniza a camada harness a partir do harness-fonte (ou `HARNESS_SOURCE`) |
 | `harness task "<desc>"` | Cria task na queue com numeração automática e `## Escopo`. Flags: `--module`, `--agent`, `--scope`, `--dep`, `--complexity` |
@@ -127,7 +127,7 @@ context/
 
 ## Começando um projeto
 
-1. **Inicializar:** `pnpm harness init <nome-do-projeto> [--prisma] [--git]` — gera AGENTS.md, `.agents/`, `.opencode/agent/` (agents prontos), `scripts/harness/`, `context/` e o esqueleto do monorepo (turbo.json, pnpm-workspace.yaml, tsconfig.base.json, eslint.config.js, `apps/api`, `apps/web`, `packages/contracts`, `packages/api-client`, Vitest, `opencode.json`, CI). Já vem com os **módulos padrão** (tenancy, auth, authorization, audit) e suas tasks de fundação na queue. `--prisma` adiciona `docker-compose.yml` (Postgres + Redis com limites de memória/CPU), `packages/prisma` (schema + client) e `.env.example`; `--git` inicializa o repositório com commit inicial.
+1. **Inicializar:** `pnpm harness init <nome-do-projeto> [--prisma] [--git]` — gera AGENTS.md, `.agents/`, `.opencode/agent/` (agents prontos), `scripts/harness/`, `context/` e o esqueleto do monorepo (turbo.json, pnpm-workspace.yaml, tsconfig.base.json, eslint.config.js, `apps/api`, `apps/web`, `packages/contracts`, `packages/api-client`, Vitest, `opencode.json`, CI). Já vem com os **módulos padrão** (tenancy, auth, authorization, audit) e suas tasks de fundação na queue. `--prisma` adiciona `docker-compose.yml` (Postgres + Redis com limites de memória/CPU), `packages/database` (schema + client) e `.env.example`; `--git` inicializa o repositório com commit inicial.
 2. **Versionar:** `cd <nome-do-projeto> && git init && git add -A && git commit -m "chore: bootstrap harness"` (já feito com `--git`).
 3. **Instalar:** `pnpm install` (configs e dependências iniciais).
 4. **Banco local (com `--prisma`):** `docker compose up -d` e `cp .env.example .env`; scripts em `apps/api`: `db:up`, `db:migrate`, `db:deploy`.

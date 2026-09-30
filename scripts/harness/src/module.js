@@ -21,7 +21,7 @@ export async function moduleCmd(args) {
   const withHttp = args.includes('--with-http')
 
   const deps = { '@saas/contracts': 'workspace:*' }
-  if (withPrisma) deps['@saas/prisma'] = 'workspace:*'
+  if (withPrisma) deps['@saas/database'] = 'workspace:*'
   if (withHttp) deps.fastify = '^5.0.0'
 
   const tpl = path.join(templatesDir(), 'module')

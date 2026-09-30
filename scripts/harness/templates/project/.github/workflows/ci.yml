@@ -18,6 +18,6 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm harness sync
       - run: pnpm harness check --barrel --db
-      - run: pnpm --filter @saas/prisma generate
+      - run: pnpm --filter @saas/database generate
       - run: pnpm turbo typecheck
       - run: pnpm turbo lint
