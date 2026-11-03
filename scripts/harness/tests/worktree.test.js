@@ -82,3 +82,15 @@ test('worktree: exige task ativa e prune limpa registro órfão', async () => {
   assert.equal(removed.length, 1)
   assert.equal(listWorktrees(root).length, 0)
 })
+
+test('worktree: arquivo fora do escopo bloqueia o merge', async () => {
+  const root = await makeProject()
+  const started = startWorktree(root, '01')
+
+  fs.writeFileSync(path.join(started.dir, 'fora-do-escopo.js'), 'x\n')
+  assert.throws(() => finishWorktree(root, '01', { skipGates: true }), /fora do escopo/)
+
+  assert.ok(!fs.existsSync(path.join(root, 'fora-do-escopo.js')), 'não deveria mergear')
+  assert.ok(fs.existsSync(path.join(root, 'tasks/active/01-ajustar-main.md')), 'task deve seguir ativa')
+  assert.ok(fs.existsSync(started.dir), 'worktree deve ser preservada')
+})

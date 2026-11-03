@@ -50,3 +50,13 @@ test('modifiedFiles: lista untracked e modificados', () => {
   assert.ok(files.includes('base.txt'), JSON.stringify(files))
   assert.ok(files.includes('novo.txt'), JSON.stringify(files))
 })
+test('modifiedFiles: preserva acentos (quotePath=false)', () => {
+  const root = tmpdir()
+  write(root, 'src/café.ts', 'x\n')
+  gitInit(root)
+  write(root, 'src/café.ts', 'y\n')
+
+  const files = modifiedFiles(root)
+  assert.ok(files.includes('src/café.ts'), files.join(', '))
+  assert.deepEqual(outOfScopeFiles(root, [], ['src/café.ts']), [])
+})

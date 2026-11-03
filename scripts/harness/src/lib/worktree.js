@@ -5,7 +5,8 @@ import { activeDir, queueDir, resolveTaskName, norm, parseTask } from './tasks.j
 import { resolveConfig } from './config.js'
 import { runGates, firstFailure } from './gates.js'
 import { tryOpenDb, logEvent } from './db.js'
-import { finishTask } from './pipeline.js'
+import { finishTask, parseBaseline } from './pipeline.js'
+import { diffNames, outOfScopeFromFiles } from './git.js'
 import { withLock } from './lock.js'
 import { commitForTask, normalizeCommitType } from './commits.js'
 
@@ -169,6 +170,31 @@ function finishWorktreeUnlocked(root, arg, opts = {}) {
   }
 
   const base = entry.base
+
+  // Valida o escopo da worktree ANTES de rebase/merge (commit local não pode
+  // esconder arquivos fora do ## Escopo).
+  const activePath = path.join(activeDir(root), entry.task)
+  let taskMeta = null
+  try {
+    taskMeta = parseTask(activePath)
+  } catch {}
+  if (taskMeta) {
+    const taskBaseline = parseBaseline(taskMeta)
+    const out = outOfScopeFromFiles(diffNames(wt, base, 'HEAD'), taskBaseline, [
+      ...taskMeta.scope,
+      'context/',
+      'tasks/',
+      '.worktrees/',
+      '.tmp/'
+    ])
+    if (out.length > 0) {
+      throw new Error(
+        `fora do escopo na worktree (merge bloqueado):\n  ${out.join('\n  ')}\n` +
+          `a worktree ${entry.path} foi preservada para inspeção.`
+      )
+    }
+  }
+
   try {
     git(wt, ['rebase', base])
   } catch (err) {

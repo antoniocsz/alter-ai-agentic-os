@@ -1,3 +1,5 @@
+import { createRequire } from 'node:module'
+const require = createRequire(import.meta.url)
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
@@ -100,4 +102,26 @@ test('requeueTask e reopenTask', () => {
   const ro = reopenTask(root, '01')
   assert.equal(ro.ok, true)
   assert.ok(fs.existsSync(path.join(activeDir(root), '01-foo.md')))
+})
+test('finish: commit de arquivo fora do escopo bloqueia (baseline por HEAD)', () => {
+  const { execFileSync } = require('node:child_process')
+  const root = tmpdir()
+  write(root, 'context/agents/queue/01-foo.md', taskMd('foo'))
+  write(root, 'packages/modules/foo/src/index.ts', 'export {}\n')
+  for (const f of ['context/project/overview.md', 'context/project/stack.md']) {
+    write(root, f, '# ok\n')
+  }
+  fs.mkdirSync(path.join(root, 'context/project/adr'), { recursive: true })
+  gitInit(root)
+
+  assert.equal(startTask(root, '01').ok, true)
+
+  write(root, 'fora-do-escopo.js', 'x\n')
+  execFileSync('git', ['add', '-A'], { cwd: root, stdio: 'ignore' })
+  execFileSync('git', ['commit', '-qm', 'fora'], { cwd: root, stdio: 'ignore' })
+
+  const res = finishTask(root, '01')
+  assert.equal(res.ok, false)
+  assert.match(res.error, /fora do escopo/)
+  assert.ok(fs.existsSync(path.join(root, 'context/agents/active/01-foo.md')))
 })

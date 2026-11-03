@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { queueDir, activeDir, doneDir, listTasks, parseTask, findConflicts, moveTask, resolveTaskName, pipelineRoot, norm } from './tasks.js'
-import { captureBaseline, isGitRepo, outOfScopeFiles } from './git.js'
+import { captureBaseline, isGitRepo, modifiedFiles, diffNames, outOfScopeFromFiles, headSha } from './git.js'
 import { tryOpenDb, upsertTask, logEvent, taskFromMarkdown, recordInteraction } from './db.js'
 import { resolveConfig } from './config.js'
 import { runGates, firstFailure } from './gates.js'
@@ -95,7 +95,12 @@ function startTaskUnlocked(root, arg) {
   if (db) {
     try {
       upsertTask(db, taskFromMarkdown(aDir, name))
-      logEvent(db, name, 'started', `escopo: ${task.scope.length} arquivo(s)`)
+      logEvent(
+        db,
+        name,
+        'started',
+        `escopo: ${task.scope.length} arquivo(s) | head:${headSha(root) ?? '-'}`
+      )
     } catch {}
   }
 
@@ -122,6 +127,22 @@ function finishTaskUnlocked(root, arg, opts = {}) {
   const baseline = parseBaseline(task)
   const activeTasks = listTasks(aDir).map((n) => parseTask(path.join(aDir, n)))
 
+  // HEAD no momento do start: commits feitos durante a task também contam no escopo.
+  let startHead = null
+  {
+    const db0 = tryOpenDb(root)
+    if (db0) {
+      try {
+        const row = db0
+          .prepare(
+            "SELECT message FROM task_events WHERE task_id = ? AND event = 'started' ORDER BY at DESC LIMIT 1"
+          )
+          .get(name)
+        startHead = row?.message?.match(/head:([0-9a-f]{7,40})/i)?.[1] ?? null
+      } catch {}
+    }
+  }
+
   if (isGitRepo(root)) {
     // Apenas tasks ATIVAS liberam escopo: escopos de tasks concluídas não podem
     // alargar a permissão para sempre (ex.: uma task antiga com escopo de diretório).
@@ -132,7 +153,10 @@ function finishTaskUnlocked(root, arg, opts = {}) {
       '.worktrees/',
       '.tmp/'
     ]
-    const out = outOfScopeFiles(root, baseline, allowedScopes)
+    const changed = [
+      ...new Set([...modifiedFiles(root), ...(startHead ? diffNames(root, startHead, 'HEAD') : [])])
+    ]
+    const out = outOfScopeFromFiles(changed, baseline, allowedScopes)
     if (out.length > 0) {
       const db = tryOpenDb(root)
       if (db) {
@@ -246,7 +270,7 @@ function reopenTaskUnlocked(root, arg) {
   return { ok: true, name }
 }
 
-function parseBaseline(task) {
+export function parseBaseline(task) {
   const key = Object.keys(task.sections).find((k) => k.toLowerCase().includes('baseline'))
   if (!key) return []
   return task.sections[key]
