@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
 import { init } from '../src/init.js'
-import { sessionEnd, listSessions, recall, statusReport } from '../src/lib/memory.js'
+import { sessionEnd, listSessions, recall, statusReport, pruneSessions } from '../src/lib/memory.js'
 import { tmpdir, write } from './helpers.js'
 
 async function makeProject() {
@@ -49,4 +49,29 @@ test('status resume contagens, ativas e sessões', async () => {
   assert.equal(s.counts.active, 0)
   assert.equal(s.sessions.length, 1)
   assert.equal(s.name, path.basename(root))
+})
+
+test('memory prune: dry-run lista, apply arquiva e recall continua achando', async () => {
+  const root = await makeProject()
+  const old = sessionEnd(root, 'sessao antiga sobre o enricher')
+  sessionEnd(root, 'sessao nova')
+
+  const oldFile = path.join(root, old.file)
+  const past = new Date(Date.now() - 200 * 86_400_000)
+  fs.utimesSync(oldFile, past, past)
+
+  const dry = pruneSessions(root, { days: 90 })
+  assert.equal(dry.length, 1)
+  assert.ok(fs.existsSync(oldFile), 'dry-run não deveria mover')
+
+  const applied = pruneSessions(root, { days: 90, apply: true })
+  assert.equal(applied.length, 1)
+  assert.ok(!fs.existsSync(oldFile), 'arquivo deveria sair de sessions/')
+
+  const archived = fs.readdirSync(path.join(root, 'context/sessions/archive'), { recursive: true })
+  assert.ok(archived.some((f) => String(f).endsWith('.md')))
+  assert.equal(listSessions(root).length, 1)
+
+  const hits = recall(root, 'enricher')
+  assert.ok(hits.some((h) => h.source.includes('archive')), hits.map((h) => h.source).join('\n'))
 })

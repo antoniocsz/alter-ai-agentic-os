@@ -122,6 +122,7 @@ O harness não depende de memória externa. O protocolo de sessão é:
 pnpm harness status                          # ao iniciar: WIP, ativas, worktrees, últimas sessões
 pnpm harness session end "<resumo do que foi feito>"   # ao encerrar
 pnpm harness recall "<termo>"                # quando precisar lembrar de algo
+pnpm harness memory prune --days 90 --apply # arquiva sessões antigas (não apaga)
 ```
 
 - `status` evita "recomeçar do zero": mostra o que está ativo e o último handoff.

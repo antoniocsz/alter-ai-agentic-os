@@ -386,7 +386,11 @@ pnpm harness session end "implementei o webhook; falta idempotência"
 pnpm harness session list --limit 5
 pnpm harness recall "webhook"              # busca em sessões, tasks, notas e docs
 pnpm harness recall "webhook" --json
+pnpm harness memory prune --days 90         # dry-run: sessões antigas
+pnpm harness memory prune --days 90 --apply # arquiva em context/sessions/archive/AAAA-MM
 ```
+
+- Sessões arquivadas **não são apagadas**; continuam encontráveis pelo `recall`.
 
 - `status` na raiz de um workspace lista os projetos (sem entrar em loop).
 - `recall` agrega resultados de todos os projetos quando rodado na raiz do workspace.

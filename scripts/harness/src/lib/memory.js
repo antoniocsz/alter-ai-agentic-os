@@ -57,8 +57,44 @@ export function sessionEnd(root, summary, opts = {}) {
   return { id, file: norm(path.relative(root, file)), date, summary: text }
 }
 
-export function listSessions(root, limit = 10) {
+export function pruneSessions(root, opts = {}) {
+  const days = Number(opts.days ?? 90)
+  const apply = Boolean(opts.apply)
+  const dir = path.join(root, 'context', 'sessions')
+  if (!fs.existsSync(dir)) return []
+
+  const cutoff = Date.now() - days * 86_400_000
+  const entries = fs
+    .readdirSync(dir)
+    .filter((f) => f.endsWith('.md'))
+    .map((f) => ({ id: f.replace(/\.md$/, ''), file: f, path: path.join(dir, f) }))
+    .filter((e) => {
+      try {
+        return fs.statSync(e.path).mtimeMs < cutoff
+      } catch {
+        return false
+      }
+    })
+
+  if (!apply || entries.length === 0) return entries
+
+  const month = new Date().toISOString().slice(0, 7)
+  const archive = path.join(dir, 'archive', month)
+  fs.mkdirSync(archive, { recursive: true })
+
   const db = tryOpenDb(root)
+  for (const entry of entries) {
+    fs.renameSync(entry.path, path.join(archive, entry.file))
+    if (db) {
+      try {
+        db.prepare('DELETE FROM sessions WHERE id = ?').run(entry.id)
+      } catch {}
+    }
+  }
+  return entries
+}
+
+export function listSessions(root, limit = 10) {  const db = tryOpenDb(root)
   if (db) {
     try {
       return db

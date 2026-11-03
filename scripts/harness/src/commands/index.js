@@ -19,6 +19,7 @@ import { worktreeCmd } from '../worktree.js'
 import { gatesCmd } from '../gates.js'
 import { sessionCmd } from '../session.js'
 import { recallCmd } from '../recall.js'
+import { memoryCmd } from '../memory.js'
 import { statusCmd } from '../status.js'
 import { adapterCmd } from '../adapter.js'
 
@@ -35,6 +36,7 @@ Comandos:
   gates [--phase finish|merge] [--json]   Roda os gates do harness.json
   status              WIP, ativas, worktrees, próximas e últimas sessões (prime de sessão)
   session <end|list>  Memória local: end "<resumo>" | list [--limit n]
+  memory <list|prune> Memória local: list | prune [--days n] [--apply] (arquiva antigas)
   recall "<termo>"    Busca em sessões, tasks, notas e docs [--limit n] [--json]
   module <nome>       Scaffold de módulo [--with-prisma] [--with-http]
   task "<descrição>"  Cria task na queue com numeração automática e ## Escopo
@@ -81,6 +83,7 @@ export const commands = {
   gates: gatesCmd,
   status: statusCmd,
   session: sessionCmd,
+  memory: memoryCmd,
   recall: recallCmd,
   task,
   start,
