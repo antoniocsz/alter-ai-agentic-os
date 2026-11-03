@@ -1,7 +1,9 @@
 # ADR-000: [Título]
 
 **Data:** YYYY-MM-DD
-**Status:** proposed | accepted | superseded
+**Status:** proposed | accepted | superseded | deprecated
+**Supersede / Superseded by:** —
+**Decisores:** [quem decidiu]
 
 ## Contexto
 
@@ -21,4 +23,8 @@
 
 ## Alternativas descartadas
 
-- **[Alternativa]:** [motivo da descarta]
+- **[Alternativa]:** [motivo da descarte]
+
+## Referências
+
+- [links, issues, specs]

@@ -12,7 +12,9 @@ Antes de qualquer tarefa, leia o contexto do projeto em `context/project/`:
 - `overview.md` — produto e problema
 - `domain-model.md` — domínio e módulos (bounded contexts)
 - `stack.md` — stack técnica decidida
-- `adr/` — decisões arquiteturais
+- `glossary.md` — linguagem ubíqua (termos do domínio)
+- `runbook.md` — operação: ambientes, deploy, rollback, backup
+- `adr/` — decisões arquiteturais (índice e ciclo de vida em `adr/README.md`)
 
 Este `AGENTS.md` é a **base genérica do harness** (protocolo + guard rails), reutilizável em
 qualquer projeto, independente do domínio ou da stack. As especificidades do projeto — stack,
