@@ -45,6 +45,19 @@ node /caminho/deste/repo/scripts/harness/bin/harness.js update --source /caminho
 
 A partir daí o projeto tem `pnpm harness start|finish|check|...`.
 
+### Comando global `harness`
+
+O kit instala wrappers em `harness/bin/` (`harness` para bash, `harness.cmd` para Windows) e o
+`harness/bin` já está no PATH do usuário e no `~/.bashrc`. Em um terminal novo:
+
+```bash
+harness version          # 0.3.0
+harness status           # de qualquer projeto
+harness workspace list   # da raiz do workspace
+```
+
+Se o PATH ainda não estiver ativo na sessão atual: `export PATH="/d/projetos/harness/bin:$PATH"`.
+
 **Comandos essenciais:**
 
 | Comando | O que faz |
