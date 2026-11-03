@@ -168,6 +168,12 @@ export function validate(root, opts = {}) {
     } catch {}
   }
 
+  if (db) {
+    try {
+      db.close()
+    } catch {}
+  }
+
   return {
     ok: errors.length === 0,
     errors,

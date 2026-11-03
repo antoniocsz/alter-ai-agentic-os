@@ -34,6 +34,7 @@ export function openDb(root) {
   fs.mkdirSync(dir, { recursive: true })
   const db = new DatabaseSync(path.join(dir, DB_FILE))
   db.exec('PRAGMA journal_mode = WAL')
+  db.exec('PRAGMA busy_timeout = 5000')
   db.exec('PRAGMA foreign_keys = ON')
   migrate(db)
   return db

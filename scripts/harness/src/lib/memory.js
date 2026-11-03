@@ -48,6 +48,9 @@ export function sessionEnd(root, summary, opts = {}) {
         'INSERT INTO sessions (id, project, date, summary, created_at) VALUES (?, ?, ?, ?, ?)'
       ).run(id, project, date, text, createdAt)
     } catch {}
+    try {
+      db.close()
+    } catch {}
   }
 
   const file = path.join(dir, `${id}.md`)
@@ -93,15 +96,22 @@ export function pruneSessions(root, opts = {}) {
       } catch {}
     }
   }
+  if (db) {
+    try {
+      db.close()
+    } catch {}
+  }
   return entries
 }
 
 export function listSessions(root, limit = 10) {  const db = tryOpenDb(root)
   if (db) {
     try {
-      return db
+      const rows = db
         .prepare('SELECT id, date, summary, created_at FROM sessions ORDER BY created_at DESC LIMIT ?')
         .all(limit)
+      db.close()
+      return rows
     } catch {}
   }
   const dir = path.join(root, 'context', 'sessions')
@@ -124,13 +134,14 @@ export function lastHandoff(root) {
   const db = tryOpenDb(root)
   if (!db) return null
   try {
-    return (
+    const row =
       db
         .prepare(
           "SELECT task_id, content, at FROM interactions WHERE content LIKE 'handoff:%' ORDER BY at DESC LIMIT 1"
         )
         .get() ?? null
-    )
+    db.close()
+    return row
   } catch {
     return null
   }
