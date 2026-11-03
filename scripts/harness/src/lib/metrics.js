@@ -55,6 +55,13 @@ export function computeMetrics(root, { module, days } = {}) {
       .prepare(`SELECT agent, COUNT(*) AS n FROM tasks WHERE agent IS NOT NULL GROUP BY agent ORDER BY n DESC`)
       .all()
 
+    const gateFailures = Number(
+      db.prepare("SELECT COUNT(*) AS n FROM task_events WHERE event = 'gate_failed'").get().n
+    )
+    const worktreeFinishes = Number(
+      db.prepare("SELECT COUNT(*) AS n FROM task_events WHERE event = 'worktree_finished'").get().n
+    )
+
     return {
       counts,
       wip: counts.active,
@@ -62,7 +69,9 @@ export function computeMetrics(root, { module, days } = {}) {
       aging,
       throughput: cutoff ? { days, count: throughput } : null,
       byModule,
-      byAgent
+      byAgent,
+      gateFailures,
+      worktreeFinishes
     }
   } finally {
     db.close()
@@ -79,6 +88,7 @@ export function formatTable(metrics) {
     `tasks: ${c.queue} queue / ${c.active} active / ${c.done} done   (WIP: ${metrics.wip})`,
     `cycle time (h): média ${metrics.cycleHours.avg} · mediana ${metrics.cycleHours.median} (${metrics.cycleHours.count} concluídas)`,
     metrics.throughput ? `throughput: ${metrics.throughput.count} concluída(s) nos últimos ${metrics.throughput.days} dia(s)` : '',
+    `qualidade: ${metrics.gateFailures} gate(s) falho(s) · ${metrics.worktreeFinishes} worktree(s) finalizada(s)`,
     '',
     'aging (dias em active):'
   ]
@@ -101,7 +111,9 @@ export function toCsv(metrics) {
     ['metric', 'value'],
     ['wip', metrics.wip],
     ['cycle_avg_h', metrics.cycleHours.avg],
-    ['cycle_median_h', metrics.cycleHours.median]
+    ['cycle_median_h', metrics.cycleHours.median],
+    ['gate_failures', metrics.gateFailures],
+    ['worktree_finishes', metrics.worktreeFinishes]
   ]
   for (const a of metrics.aging) rows.push(['aging_days', `${a.id}=${a.days}`])
   for (const m of metrics.byModule) rows.push(['module', `${m.module}=${m.n}`])

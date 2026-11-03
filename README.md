@@ -416,6 +416,11 @@ pnpm harness history 05-events.md       # eventos + interações da task
 pnpm harness check --db                 # detecta drift entre markdown e banco
 ```
 
+## Métricas e observabilidade
+
+`harness report` (table/json/csv) mostra WIP, cycle time, aging, throughput, distribuição por
+módulo/agente, **gates falhos** (`gate_failed`) e **worktrees finalizadas** (`worktree_finished`).
+
 ## Painel kanban
 
 `harness kanban` visualiza o andamento em colunas queue/active/done.
