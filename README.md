@@ -204,7 +204,7 @@ D:\projetos\                        ← raiz do workspace
 └── projeto-b\
 ```
 
-> Projetos direto na raiz: crie o workspace com `--projects-dir .`. O padrão (`projects/`) também funciona; este workspace usa a raiz.
+> Projetos direto na raiz: crie o workspace com `--projects-dir .`. O padrão (`projects/`) também funciona; este workspace usa a raiz. O kit pode ficar fora da raiz do workspace via `harnessSource` no registro (ex.: `"harnessSource": "../harness"`).
 
 **Comandos:**
 
