@@ -1,6 +1,6 @@
 {
   "name": "harness",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "description": "CLI do harness: scaffold de projetos/módulos e verificação do pipeline queue→active→done",
   "type": "module",

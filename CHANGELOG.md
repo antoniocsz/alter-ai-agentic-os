@@ -1,12 +1,48 @@
 # Changelog
 
+## 2026-11-03 — 47-observabilidade.md
+
+- report inclui gate_failed e worktree_finished em table/json/csv; teste novo; 115 testes verdes.
+
+## 2026-11-03 — 46-rastreabilidade-ac.md
+
+- task --acs + ## ACs; check valida cada AC na spec da feature; feature-planning, usage e README atualizados; 114 testes verdes.
+
+## 2026-11-03 — 45-memory-prune.md
+
+- memory prune (dry-run/apply) arquiva sessoes antigas em context/sessions/archive/AAAA-MM e remove do indice; recall continua achando; 114 testes verdes.
+
+## 2026-11-03 — 44-doc-runbook-base.md
+
+- README base cita context/project/runbook.md.
+
+## 2026-11-03 — 43-runbook-assets.md
+
+- Template base inclui context/project/runbook.md; perfil game documenta assets e LFS com .gitattributes; README atualizado.
+
+## 2026-11-03 — 42-conventional-commits.md
+
+- Conventional Commits: task --type valida tipos e grava ## Tipo; squash merge usa type(task-N): subject; builder em lib/commits.js; teste de worktree valida a mensagem.
+
+## 2026-11-03 — 41-alias-harness.md
+
+- Wrappers harness/harness.cmd em bin/; PATH do usuario e ~/.bashrc apontando para D:/projetos/harness/bin; comando harness global validado; README documentado.
+
+## 2026-11-03 — 40-doc-workspace-layout.md
+
+- README documenta projectsDir . e harnessSource ../harness (kit fora da raiz do workspace).
+
+## 2026-11-03 — 39-release-v03.md
+
+- Release v0.3.0: bump minor e CHANGELOG gerado dos 19 handoffs do pipeline.
+
 ## 2026-11-03 — 38-workspace-check-bin.md
 
-- workspace check --all resolve o CLI do projeto (projeto -> raiz legado -> harnessSource); teste cobre workspace sem scripts na raiz; 110 testes verdes.
+- workspace check --all resolve o CLI do projeto (projeto -> raiz legado -> harnessSource); teste cobre workspace sem scripts na raiz; 113 testes verdes.
 
 ## 2026-11-03 — 37-gates-artefatos.md
 
-- runGates limpa pnpm-lock.yaml criado como efeito colateral (preserva lockfile real); 109 testes verdes.
+- runGates limpa pnpm-lock.yaml criado como efeito colateral (preserva lockfile real); 112 testes verdes.
 
 ## 2026-11-03 — 36-prefixo-numerico.md
 
