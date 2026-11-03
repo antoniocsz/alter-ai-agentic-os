@@ -129,3 +129,9 @@ test('init: perfil inválido e --prisma fora de web/api falham', async () => {
     /--prisma só é válido/
   )
 })
+
+test('init: --dry-run não escreve nada no disco', () => {
+  const target = path.join(tmpdir(), 'dry-run-projeto')
+  init([target, '--profile', 'cli', '--dry-run'])
+  assert.ok(!fs.existsSync(target), 'dry-run criou o diretório')
+})

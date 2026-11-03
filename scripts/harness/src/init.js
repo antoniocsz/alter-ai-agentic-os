@@ -32,7 +32,30 @@ export async function init(args) {
   }
   const target = path.resolve(dir)
 
+  if (args.includes('--dry-run')) {
+    if (fs.existsSync(target) && fs.readdirSync(target).length > 0) {
+      throw new Error(`diretório não está vazio: ${target}`)
+    }
+    process.stdout.write(
+      `🔎 dry-run: ${target}\n` +
+        `  perfil: ${profile}\n` +
+        `  base:   ${countFiles(baseTemplateDir())} arquivo(s)\n` +
+        `  perfil: ${countFiles(profileTemplateDir(profile))} arquivo(s)\n` +
+        '  nada foi criado.\n'
+    )
+    return
+  }
+
   await createProject(target, opts, harnessRoot(), path.join(harnessRoot(), 'AGENTS.md'))
+}
+
+function countFiles(dir) {
+  if (!fs.existsSync(dir)) return 0
+  let total = 0
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    total += entry.isDirectory() ? countFiles(path.join(dir, entry.name)) : 1
+  }
+  return total
 }
 
 /**
