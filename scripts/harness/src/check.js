@@ -80,6 +80,13 @@ export function validate(root, opts = {}) {
           add(`[${dir}/${n}] módulo sem status.md: ${modName}`, n)
         }
       }
+      const feature = (task.values?.['Feature'] ?? '').trim()
+      if (feature && feature !== '—' && feature !== '-') {
+        const slug = feature.replace(/`/g, '').trim()
+        if (!fs.existsSync(path.join(root, 'context', 'features', slug, 'spec.md'))) {
+          add(`[${dir}/${n}] feature sem spec.md: ${slug}`, n)
+        }
+      }
     }
   }
 

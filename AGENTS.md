@@ -42,7 +42,8 @@ Se o perfil não estiver claro, leia `harness.json` e `context/project/stack.md`
 
 ```
 1. Ler este arquivo (AGENTS.md) e o Perfil do projeto (context/project/*)
-2. Ler context/modules/<modulo>/context.md e status.md do módulo alvo
+2. Ler context/modules/<modulo>/context.md e status.md do módulo alvo; se a task declarar
+   `## Feature: <slug>`, ler context/features/<slug>/spec.md (critérios de aceitação)
 3. Carregar a referência modular relevante de .agents/<especialidade>.md
 4. Carregar .agents/codegen.md ANTES de gerar qualquer código
 5. Executar a tarefa

@@ -1,6 +1,7 @@
 # Task: {{DESCRIPTION}}
 ## Agente: `{{AGENT}}`
 ## Módulo: `{{MODULE}}`
+## Feature: {{FEATURE}}
 ## Escopo (arquivos que esta task vai tocar):
 {{SCOPE}}
 ## Depende de: [ ] `{{DEP}}`

@@ -3,6 +3,7 @@ import path from 'node:path'
 import { queueDir, activeDir, doneDir, listTasks } from './lib/tasks.js'
 import { templatesDir } from './lib/paths.js'
 import { render } from './lib/templates.js'
+import { slugifyFeature } from './feature.js'
 
 const AGENT_REF = {
   backend: 'backend.md',
@@ -31,6 +32,8 @@ export async function task(args) {
   const dep = flag(['--dep']) ?? '-'
   const complexity = flag(['--complexity']) ?? 'baixa'
   const scopeRaw = flag(['--scope']) ?? ''
+  const featureRaw = flag(['--feature'])
+  const feature = featureRaw ? slugifyFeature(featureRaw) : '—'
 
   const moduleName = module.match(/modules\/([a-z0-9-]+)/)?.[1] ?? module.replace(/^@saas\//, '')
   const displayModule = module || (moduleName ? `packages/modules/${moduleName}` : 'packages/modules/<modulo>')
@@ -64,10 +67,16 @@ export async function task(args) {
       MODULE_NAME: moduleName || '<modulo>',
       AGENT_REF: ref,
       FILE: file,
+      FEATURE: feature,
       COMPLEXITY: complexity
     })
   )
 
+  if (feature !== '—' && !fs.existsSync(path.join(root, 'context', 'features', feature, 'spec.md'))) {
+    process.stdout.write(
+      `   ⚠️  spec da feature ausente: context/features/${feature}/spec.md — rode \`pnpm harness feature ${feature}\`\n`
+    )
+  }
   if (moduleName && !fs.existsSync(path.join(root, 'context', 'modules', moduleName, 'context.md'))) {
     process.stdout.write(`   ⚠️  contexto do módulo ausente: context/modules/${moduleName}/ — rode \`pnpm harness module ${moduleName}\`\n`)
   }

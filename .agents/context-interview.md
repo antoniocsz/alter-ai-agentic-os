@@ -16,8 +16,19 @@ Bloco 3 → Multi-tenancy e hierarquia → condicional: só se o produto for mul
 Bloco 4 → Permissões e papéis        → impacta authorization/ (simplificado se não multi-tenant)
 Bloco 5 → Apps e superfícies         → impacta estrutura de apps/
 Bloco 6 → Stack e restrições         → gera context/project/stack.md
-Bloco 7 → Prioridades                → gera tasks/queue/ com tasks iniciais
+Bloco 7 → Prioridades                → gera context/features/ (specs) e tasks/queue/ com tasks iniciais
 ```
+
+## Peso por perfil
+
+Nem todo perfil precisa dos 7 blocos. Consulte `harness.json`:
+
+| Perfil | Blocos essenciais |
+|---|---|
+| `web`/`api`/`game` | 1, 2, 6, 7 (3–5 conforme multi-tenant/superfícies) |
+| `cli`/`script` | 1, 6, 7 (domínio/módulos opcional) |
+| `docs`/`design` | 1, 6, 7 (adaptados: público, referências, entregáveis) |
+| `bare` | 1, 6, 7 |
 
 ## Regras do protocolo
 

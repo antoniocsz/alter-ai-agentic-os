@@ -1,13 +1,14 @@
 # .agents/feature-planning.md
 # Carregar para planejar novas features
 
-## Protocolo — 4 fases em ordem
+## Protocolo — 5 fases em ordem
 
 ```
 1. CLARIFICAR  → entender o requisito com o humano (uma pergunta por vez)
 2. MAPEAR      → identificar módulos, camadas e agentes necessários
 3. CONFIRMAR   → apresentar plano e aguardar confirmação
-4. GERAR TASKS → criar arquivos em tasks/queue/
+4. SPEC        → criar context/features/<slug>/{spec.md,plan.md} (critérios AC-N)
+5. GERAR TASKS → criar arquivos em tasks/queue/ com `## Feature: <slug>`
 ```
 
 ## Fase 1 — Perguntas de clarificação (uma por vez)
@@ -61,7 +62,17 @@ Tasks:
 Ficou correto?"
 ```
 
-## Fase 4 — Template de task (tasks/queue/)
+## Fase 4 — Spec da feature
+
+```bash
+pnpm harness feature <slug>     # cria context/features/<slug>/spec.md + plan.md
+```
+
+Preencha a spec ANTES das tasks: problema, comportamento e critérios de aceitação com IDs
+(`AC-1`, `AC-2`). O `plan.md` guarda decisões técnicas e ordem de tasks. Toda task da feature
+referencia `## Feature: <slug>`; o `check` reprova task com feature sem spec.
+
+## Fase 5 — Template de task (tasks/queue/)
 
 Nome: `<prefixo>-<agente>-<descricao>.md`
 Ex: `01-backend-domain-ocorrencia.md`, `06a-frontend-viewmodel-ocorrencias.md`
@@ -70,6 +81,7 @@ Ex: `01-backend-domain-ocorrencia.md`, `06a-frontend-viewmodel-ocorrencias.md`
 # Task: [descrição em 1 linha]
 ## Agente: `agente-<especialidade>`
 ## Módulo: `packages/modules/<modulo>`
+## Feature: <slug>
 ## Escopo (arquivos que esta task vai tocar):
 - `packages/modules/<modulo>/src/...`
 ## Depende de: [ ] `<arquivo-da-task-anterior>.md`
@@ -83,6 +95,6 @@ Ex: `01-backend-domain-ocorrencia.md`, `06a-frontend-viewmodel-ocorrencias.md`
 - [ ] [verificação objetiva]
 - [ ] Typecheck passando
 - [ ] Lint passando
-## Ao terminar: atualizar status.md, rodar `pnpm harness finish <task>`, mover para agents/done/
+## Ao terminar: atualizar status.md, rodar `pnpm harness finish <task>`
 ## Complexidade: baixa | média | alta
 ```

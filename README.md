@@ -109,6 +109,7 @@ tasks/
 | `harness init <dir>` | Gera projeto novo. Flags: `--profile <p>` (web default), `--prisma` (web/api), `--git [--branch <b>]` |
 | `harness module <nome>` | Scaffold de módulo. Flags: `--with-prisma`, `--with-http` |
 | `harness update [--source <cam>]` | Re-sincroniza a camada harness a partir do harness-fonte (ou `HARNESS_SOURCE`) |
+| `harness feature <slug>` | Cria `context/features/<slug>/` com `spec.md` (critérios AC-N) e `plan.md` |
 | `harness task "<desc>"` | Cria task na queue com numeração automática e `## Escopo`. Flags: `--module`, `--agent`, `--scope`, `--dep`, `--complexity` |
 | `harness start <task>` | Move `queue/` → `active/`, bloqueando conflito de escopo com tasks ativas |
 | `harness finish <task>` | Valida `git diff` contra o `## Escopo` e move `active/` → `done/`. Flag: `--handoff "<resumo>"` |
@@ -379,12 +380,14 @@ executa com escopo estrito → atualiza `status.md` → conclui com `harness fin
 
 ## Planejamento de features
 
-Via `.agents/feature-planning.md` — 4 fases em ordem:
+Via `.agents/feature-planning.md` — 5 fases em ordem:
 
 1. **Clarificar** — entender o requisito com o humano (uma pergunta por vez).
 2. **Mapear** — identificar módulos, camadas e agentes necessários.
 3. **Confirmar** — apresentar plano e aguardar confirmação.
-4. **Gerar tasks** — criar arquivos em `tasks/queue/`.
+4. **Spec** — `harness feature <slug>` cria `context/features/<slug>/{spec.md,plan.md}`; a spec
+   é a fonte da verdade, com critérios de aceitação (`AC-1`...).
+5. **Gerar tasks** — criar arquivos em `tasks/queue/` com `## Feature: <slug>`.
 
 Ordem padrão de dependências:
 
