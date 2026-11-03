@@ -1,12 +1,13 @@
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
-import { activeDir, queueDir, resolveTaskName, norm } from './tasks.js'
+import { activeDir, queueDir, resolveTaskName, norm, parseTask } from './tasks.js'
 import { resolveConfig } from './config.js'
 import { runGates, firstFailure } from './gates.js'
 import { tryOpenDb, logEvent } from './db.js'
 import { finishTask } from './pipeline.js'
 import { withLock } from './lock.js'
+import { commitForTask, normalizeCommitType } from './commits.js'
 
 export const worktreesDir = (root) => path.join(root, '.worktrees')
 export const registryPath = (root) => path.join(root, '.harness', 'worktrees.json')
@@ -202,6 +203,11 @@ function finishWorktreeUnlocked(root, arg, opts = {}) {
     hasStaged = false
   } catch {}
   if (hasStaged) {
+    let commitType = 'feat'
+    try {
+      const activeTask = parseTask(path.join(activeDir(root), entry.task))
+      commitType = normalizeCommitType(activeTask.values?.['Tipo'] ?? 'feat')
+    } catch {}
     git(root, [
       '-c',
       'user.name=harness',
@@ -209,7 +215,7 @@ function finishWorktreeUnlocked(root, arg, opts = {}) {
       'user.email=harness@local',
       'commit',
       '-m',
-      `feat(${entry.branch}): ${taskSlug(entry.task).replace(/-/g, ' ')}`
+      commitForTask(entry.task, commitType)
     ])
   }
 

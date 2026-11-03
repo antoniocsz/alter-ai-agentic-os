@@ -312,6 +312,8 @@ pnpm harness worktree finish 12 --handoff "..." # rebase + gates.merge + squash 
   com N agentes, só um merge acontece por vez (rebase → gates → squash). `check` detecta lock órfão.
 - **Paridade CI**: o workflow gerado roda `harness check` + `harness gates --phase merge` — o mesmo
   comando do fluxo local, sem definição duplicada de qualidade.
+- **Commits**: o squash merge usa Conventional Commits (`feat|fix|docs|refactor|test|chore|perf|build|ci`),
+  com escopo `task-<n>`; o tipo vem de `## Tipo` na task (`task --type`).
 - `git.model: "trunk"` (default): branches curtas + squash merge; sem `develop` permanente.
 
 ## Execução em paralelo (subagents)
@@ -432,7 +434,7 @@ Perfis disponíveis (`harness profile` lista):
 | `api` | Monorepo: `apps/api` (Fastify) + `packages/contracts` |
 | `cli` | CLI Node.js: `bin/cli.js` + `src/index.js` + testes |
 | `script` | Script Node.js: `src/main.js` + testes |
-| `game` | `src/scenes`, `src/systems`, `assets/` (engine a definir) |
+| `game` | `src/scenes`, `src/systems`, `assets/` (engine a definir; LFS documentado em `game/README.md`) |
 | `docs` | `docs/` em markdown, sem código de aplicação |
 | `design` | `assets/` + `BRIEF.md` |
 | `bare` | Só contexto + pipeline |

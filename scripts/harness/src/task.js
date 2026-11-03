@@ -4,6 +4,7 @@ import { queueDir, activeDir, doneDir, listTasks } from './lib/tasks.js'
 import { templatesDir } from './lib/paths.js'
 import { render } from './lib/templates.js'
 import { slugifyFeature } from './feature.js'
+import { normalizeCommitType } from './lib/commits.js'
 
 const AGENT_REF = {
   backend: 'backend.md',
@@ -36,6 +37,7 @@ export async function task(args) {
   if (!/^P[0-3]$/.test(priorityRaw)) {
     throw new Error(`prioridade inválida: ${priorityRaw} (use P0 | P1 | P2 | P3)`)
   }
+  const commitType = normalizeCommitType(flag(['--type']) ?? 'feat')
   const featureRaw = flag(['--feature'])
   const feature = featureRaw ? slugifyFeature(featureRaw) : '—'
 
@@ -73,6 +75,7 @@ export async function task(args) {
       FILE: file,
       FEATURE: feature,
       PRIORITY: priorityRaw,
+      TYPE: commitType,
       COMPLEXITY: complexity
     })
   )

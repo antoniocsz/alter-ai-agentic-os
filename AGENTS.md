@@ -78,6 +78,7 @@ O pipeline é operado pelo CLI: `pnpm harness start <task> | finish <task> | req
 6. **Toda task declara `## Escopo`** — lista dos arquivos que vai tocar. `harness start` bloqueia tasks ativas com escopo sobreposto (paralelismo seguro); `harness finish` valida via git diff que só foram tocados arquivos do escopo.
 7. **Prioridade** — tasks novas declaram `## Prioridade` (`P0`..`P3`, default `P2`); `harness status` ordena a fila.
 8. **Definition of Ready** — `harness start` exige escopo, critério de conclusão, spec da feature (se declarada) e dependência concluída.
+9. **Tipo de commit** — tasks novas declaram `## Tipo` (`feat` default); o `worktree finish` usa esse tipo no squash merge (`feat(task-<n>): ...`).
 
 ---
 

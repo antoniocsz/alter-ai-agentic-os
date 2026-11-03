@@ -11,6 +11,7 @@ import {
   pruneWorktrees
 } from '../src/lib/worktree.js'
 import { tmpdir } from './helpers.js'
+import { execFileSync } from 'node:child_process'
 
 const TASK = `# Task: Ajustar main
 ## Agente: \`coordinator\`
@@ -57,6 +58,12 @@ test('worktree: start cria árvore e branch; finish mergeia, conclui e limpa', a
 
   const merged = fs.readFileSync(path.join(root, 'src', 'main.js'), 'utf8')
   assert.match(merged, /ajuste da task/)
+
+  const subject = execFileSync('git', ['log', '-1', '--format=%s'], {
+    cwd: root,
+    encoding: 'utf8'
+  }).trim()
+  assert.equal(subject, 'feat(task-01): ajustar main')
 })
 
 test('worktree: exige task ativa e prune limpa registro órfão', async () => {

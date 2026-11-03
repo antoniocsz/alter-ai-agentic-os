@@ -3,6 +3,7 @@
 ## Módulo: `{{MODULE}}`
 ## Feature: {{FEATURE}}
 ## Prioridade: {{PRIORITY}}
+## Tipo: {{TYPE}}
 ## Escopo (arquivos que esta task vai tocar):
 {{SCOPE}}
 ## Depende de: [ ] `{{DEP}}`
