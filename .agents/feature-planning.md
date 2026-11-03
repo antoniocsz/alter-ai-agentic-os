@@ -7,7 +7,7 @@
 1. CLARIFICAR  → entender o requisito com o humano (uma pergunta por vez)
 2. MAPEAR      → identificar módulos, camadas e agentes necessários
 3. CONFIRMAR   → apresentar plano e aguardar confirmação
-4. GERAR TASKS → criar arquivos em context/agents/queue/
+4. GERAR TASKS → criar arquivos em tasks/queue/
 ```
 
 ## Fase 1 — Perguntas de clarificação (uma por vez)
@@ -61,7 +61,7 @@ Tasks:
 Ficou correto?"
 ```
 
-## Fase 4 — Template de task (context/agents/queue/)
+## Fase 4 — Template de task (tasks/queue/)
 
 Nome: `<prefixo>-<agente>-<descricao>.md`
 Ex: `01-backend-domain-ocorrencia.md`, `06a-frontend-viewmodel-ocorrencias.md`

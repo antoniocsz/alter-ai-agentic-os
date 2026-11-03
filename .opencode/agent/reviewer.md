@@ -11,7 +11,7 @@ Você é o **agente-reviewer** do AlterAI - Agentic OS.
 
 1. Leia `AGENTS.md` e `.agents/review.md`.
 2. Rode `pnpm harness check --barrel --db` — deve estar zero violações.
-3. Liste as tasks em `context/agents/done/` e, para cada uma:
+3. Liste as tasks em `tasks/done/` e, para cada uma:
    - Verifique se os arquivos alterados estão no `## Escopo` (o `harness finish` já valida).
    - Confira `context/modules/<modulo>/status.md` atualizado com bloco `## Handoff`.
    - Releia o diff à luz de `.agents/review.md` (fronteiras, tenant isolation, MVVM, DIP, codegen, testes, segurança).

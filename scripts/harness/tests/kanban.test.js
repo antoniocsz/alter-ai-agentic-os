@@ -29,7 +29,7 @@ async function makeProject(name) {
   await createProject(root, {}, wsSource, path.join(wsSource, 'AGENTS.md'))
   // limpa as tasks de fundação do template
   for (const sub of ['queue', 'active', 'done']) {
-    const dir = path.join(root, 'context', 'agents', sub)
+    const dir = path.join(root, 'tasks', sub)
     if (fs.existsSync(dir)) {
       for (const f of fs.readdirSync(dir)) fs.rmSync(path.join(dir, f))
     }
@@ -39,7 +39,7 @@ async function makeProject(name) {
 
 test('boardQuery: inclui o escopo completo (não só a contagem)', () => {
   const root = tmpdir()
-  write(root, 'context/agents/queue/01-foo.md', TASK)
+  write(root, 'tasks/queue/01-foo.md', TASK)
   const db = openDb(root)
   syncFromMarkdown(db, root)
   const board = boardQuery(db)
@@ -50,7 +50,7 @@ test('boardQuery: inclui o escopo completo (não só a contagem)', () => {
 
 test('taskDetails: retorna task + escopo + histórico', () => {
   const root = tmpdir()
-  write(root, 'context/agents/queue/01-foo.md', TASK)
+  write(root, 'tasks/queue/01-foo.md', TASK)
   const db = openDb(root)
   syncFromMarkdown(db, root)
   const d = taskDetails(db, '01-foo.md')
@@ -68,8 +68,8 @@ function syncProject(root) {
 test('buildBoard: cards multi-projeto carregam o projeto dono', async () => {
   const a = await makeProject('proj-a')
   const b = await makeProject('proj-b')
-  write(a, 'context/agents/queue/01-foo.md', TASK)
-  write(b, 'context/agents/queue/01-foo.md', TASK) // mesmo id em ambos — não pode misturar
+  write(a, 'tasks/queue/01-foo.md', TASK)
+  write(b, 'tasks/queue/01-foo.md', TASK) // mesmo id em ambos — não pode misturar
   syncProject(a)
   syncProject(b)
 
@@ -95,7 +95,7 @@ test('buildBoard: cards multi-projeto carregam o projeto dono', async () => {
 test('kanbanFor estático: gera HTML com título, card e conteúdo do arquivo embutido', async () => {
   await withSilentStdout(async () => {
     const a = await makeProject('proj-c')
-    write(a, 'context/agents/queue/01-foo.md', TASK)
+    write(a, 'tasks/queue/01-foo.md', TASK)
     syncProject(a)
 
     const out = path.join(tmpdir(), 'kanban-out.html')
@@ -122,8 +122,8 @@ test('renderPage: substitui título e dados sem quebrar JSON', () => {
 test('servidor kanban: prefixo ambíguo no detail responde 400 sem derrubar o servidor', async () => {
   await withSilentStdout(async () => {
     const a = await makeProject('proj-d')
-    write(a, 'context/agents/queue/01-foo.md', TASK)
-    write(a, 'context/agents/queue/01-foo-bar.md', TASK) // compartilha o prefixo "01"
+    write(a, 'tasks/queue/01-foo.md', TASK)
+    write(a, 'tasks/queue/01-foo-bar.md', TASK) // compartilha o prefixo "01"
     syncProject(a)
 
     const server = serveBoard({ projects: [{ name: 'A', root: a }], title: 't' }, 0)
@@ -184,8 +184,8 @@ test('servidor kanban: WIP bloqueia move no projeto dono (A1)', async () => {
   await withSilentStdout(async () => {
     const a = await makeProject('proj-e')
     write(a, '.harness/kanban.json', JSON.stringify({ wip: { active: 1 } }))
-    write(a, 'context/agents/queue/01-foo.md', TASK)
-    write(a, 'context/agents/queue/02-bar.md', TASK)
+    write(a, 'tasks/queue/01-foo.md', TASK)
+    write(a, 'tasks/queue/02-bar.md', TASK)
     syncProject(a)
 
     const server = serveBoard({ projects: [{ name: 'A', root: a, wip: { queue: null, active: 1 } }], title: 't' }, 0)

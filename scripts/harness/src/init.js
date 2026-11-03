@@ -60,7 +60,7 @@ export async function createProject(target, opts = {}, sourceRoot = harnessRoot(
     for (const m of ['tenancy', 'auth', 'authorization', 'audit']) {
       fs.rmSync(path.join(target, 'context', 'modules', m), { recursive: true, force: true })
     }
-    const qDir = path.join(target, 'context', 'agents', 'queue')
+    const qDir = path.join(target, 'tasks', 'queue')
     if (fs.existsSync(qDir)) {
       for (const f of fs.readdirSync(qDir)) {
         fs.rmSync(path.join(qDir, f), { recursive: true, force: true })
@@ -71,7 +71,7 @@ export async function createProject(target, opts = {}, sourceRoot = harnessRoot(
   const gerado = [
     '  - AGENTS.md + .agents/ (camada harness)',
     '  - .opencode/agent/ (agents prontos) + scripts/harness (CLI)',
-    '  - context/ (overview.md, stack.md, adr/, modules/, agents/queue|active|done)',
+    '  - context/ (overview.md, stack.md, adr/, modules/) + tasks/queue|active|done',
     '  - Monorepo mínimo (turbo.json, pnpm-workspace.yaml, tsconfig.base.json, eslint.config.js)',
     '  - apps/api (Fastify) + apps/web (Next.js), packages/contracts + packages/api-client',
     ...(opts.bare
@@ -124,7 +124,7 @@ export async function createProject(target, opts = {}, sourceRoot = harnessRoot(
     '  2. pnpm install',
     ...(opts.prisma ? ['  3. docker compose up -d (Postgres + Redis) — .env já copiado'] : ['  3. Rodar a context-interview (7 blocos) para preencher overview.md e stack.md']),
     '  4. pnpm harness module <nome> — criar o primeiro módulo',
-    '  5. Criar tasks em context/agents/queue/ e executar com pnpm harness start/finish',
+    '  5. Criar tasks em tasks/queue/ e executar com pnpm harness start/finish',
     '',
     'Guia completo: ver seção "Começando um projeto" no README.md.'
   )

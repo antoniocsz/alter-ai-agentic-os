@@ -27,7 +27,7 @@ const TASK = `# Task: Foo
 
 test('parseTask: extrai seções, valores e escopo', () => {
   const root = tmpdir()
-  const f = write(root, 'context/agents/queue/01-foo.md', TASK)
+  const f = write(root, 'tasks/queue/01-foo.md', TASK)
   const t = parseTask(f)
   assert.equal(t.name, '01-foo.md')
   assert.deepEqual(t.scope, [
@@ -86,7 +86,7 @@ test('moveTask: move arquivo e lança se destino existe', () => {
   const root = tmpdir()
   const from = queueDir(root)
   const to = activeDir(root)
-  write(root, 'context/agents/queue/01-foo.md', TASK)
+  write(root, 'tasks/queue/01-foo.md', TASK)
   moveTask(root, '01-foo.md', from, to)
   assert.ok(!fs.existsSync(path.join(from, '01-foo.md')))
   assert.ok(fs.existsSync(path.join(to, '01-foo.md')))
@@ -96,9 +96,9 @@ test('moveTask: move arquivo e lança se destino existe', () => {
 test('resolveTaskName: nome completo, prefixo, ambíguo e ausente', () => {
   const root = tmpdir()
   const q = queueDir(root)
-  write(root, 'context/agents/queue/01-foo.md', TASK)
-  write(root, 'context/agents/queue/01-bar.md', TASK.replace('Foo', 'Bar'))
-  write(root, 'context/agents/queue/02-x.md', TASK.replace('Foo', 'X'))
+  write(root, 'tasks/queue/01-foo.md', TASK)
+  write(root, 'tasks/queue/01-bar.md', TASK.replace('Foo', 'Bar'))
+  write(root, 'tasks/queue/02-x.md', TASK.replace('Foo', 'X'))
   assert.equal(resolveTaskName(q, '01-foo.md'), '01-foo.md')
   assert.equal(resolveTaskName(q, '02'), '02-x.md')
   assert.throws(() => resolveTaskName(q, '01'), /ambíguo/)

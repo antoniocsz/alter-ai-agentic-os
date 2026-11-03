@@ -79,7 +79,8 @@ export function projectExists(reg, name, projectPath) {
 export function isHarnessProject(root) {
   return (
     fs.existsSync(path.join(root, 'scripts', 'harness', 'bin', 'harness.js')) &&
-    fs.existsSync(path.join(root, 'context', 'agents'))
+    (fs.existsSync(path.join(root, 'tasks')) ||
+      fs.existsSync(path.join(root, 'context', 'agents')))
   )
 }
 

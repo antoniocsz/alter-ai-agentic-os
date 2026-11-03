@@ -14,7 +14,7 @@ Você é o **agente-mobile** do AlterAI - Agentic OS.
 
 ## Execução da task
 
-- Você recebeu a task `context/agents/active/<arquivo>` (ou foi iniciada com `pnpm harness start <task>`).
+- Você recebeu a task `tasks/active/<arquivo>` (ou foi iniciada com `pnpm harness start <task>`).
 - Respeite estritamente o `## Escopo` — toque apenas nesses arquivos.
 - MVVM igual ao web com componentes React Native; token/sessão/tenant no MMKV criptografado (nunca AsyncStorage); TanStack Query com MMKV persister para offline.
 

@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { queueDir, activeDir, doneDir, listTasks, parseTask, findConflicts, moveTask, resolveTaskName } from './tasks.js'
+import { queueDir, activeDir, doneDir, listTasks, parseTask, findConflicts, moveTask, resolveTaskName, pipelineRoot, norm } from './tasks.js'
 import { captureBaseline, isGitRepo, outOfScopeFiles } from './git.js'
 import { tryOpenDb, upsertTask, logEvent, taskFromMarkdown, recordInteraction } from './db.js'
 
@@ -73,7 +73,8 @@ export function finishTask(root, arg, opts = {}) {
     const allowedScopes = [
       ...activeTasks.flatMap((t) => t.scope),
       ...doneTasks.flatMap((t) => t.scope),
-      'context/'
+      'context/',
+      norm(path.relative(root, pipelineRoot(root))) + '/'
     ]
     const out = outOfScopeFiles(root, baseline, allowedScopes)
     if (out.length > 0) {

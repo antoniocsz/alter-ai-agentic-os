@@ -18,9 +18,9 @@ test('init: gera projeto com a camada harness genérica', () => {
     'context/project/overview.md',
     'context/project/stack.md',
     'context/project/adr/ADR-000-template.md',
-    'context/agents/queue',
-    'context/agents/active',
-    'context/agents/done',
+    'tasks/queue',
+    'tasks/active',
+    'tasks/done',
     'turbo.json',
     'pnpm-workspace.yaml',
     'package.json',
@@ -41,7 +41,7 @@ test('init: gera projeto com a camada harness genérica', () => {
   assert.ok(agents.includes('@<escopo>'))
 
   assert.ok(fs.existsSync(path.join(target, 'context', 'modules', 'tenancy', 'context.md')))
-  assert.ok(fs.existsSync(path.join(target, 'context', 'agents', 'queue', '01-module-tenancy.md')))
+  assert.ok(fs.existsSync(path.join(target, 'tasks', 'queue', '01-module-tenancy.md')))
 })
 
 test('init: --bare remove módulos e tasks padrão', () => {
@@ -51,7 +51,7 @@ test('init: --bare remove módulos e tasks padrão', () => {
   for (const m of ['tenancy', 'auth', 'authorization', 'audit']) {
     assert.ok(!fs.existsSync(path.join(target, 'context', 'modules', m)), `módulo padrão presente: ${m}`)
   }
-  const queue = fs.readdirSync(path.join(target, 'context', 'agents', 'queue'))
+  const queue = fs.readdirSync(path.join(target, 'tasks', 'queue'))
   assert.deepEqual(queue.filter((f) => f.endsWith('.md')), [])
 })
 

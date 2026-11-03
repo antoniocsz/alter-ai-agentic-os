@@ -9,7 +9,7 @@ v0.1.0, a camada de **workspaces** para operar N projetos independentes com isol
 ## Entidades
 - **Workspace** — diretório raiz com `.harness-workspace.json` (registro: `version`, `harnessSource`, `projectsDir`, `projects[]`)
 - **Projeto** — monorepo independente (git, `context/` e camada harness próprios), registrado no workspace
-- **Task** — arquivo em `context/agents/{queue,active,done}/<nn>-descricao.md` com `## Escopo` declarado
+- **Task** — arquivo em `tasks/{queue,active,done}/<nn>-descricao.md` com `## Escopo` declarado
 
 ## Use Cases (CLI)
 - `harness workspace init|new|add|list|status|check|sync|report|update|run|kanban`
@@ -27,7 +27,7 @@ v0.1.0, a camada de **workspaces** para operar N projetos independentes com isol
 - Node ≥ 22.5 (`node:sqlite`), pnpm (só para o script `pnpm harness`)
 
 ## Repositórios / Fontes da verdade
-- Markdown das tasks (`context/agents/`) — fonte da verdade
+- Markdown das tasks (`tasks/`) — fonte da verdade
 - `.harness/harness.db` — índice/histórico (regenerável via `harness sync`)
 - `.harness-workspace.json` — registro de projetos do workspace (paths relativos à raiz, resolvidos para absoluto em memória)
 

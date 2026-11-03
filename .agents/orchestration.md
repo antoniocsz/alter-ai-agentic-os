@@ -10,7 +10,7 @@
 ## Protocolo do coordenador
 
 ```
-1. LER queue (context/agents/queue/) e agrupar tasks por módulo
+1. LER queue (tasks/queue/) e agrupar tasks por módulo
 2. FORMAR lotes paralelos → tasks com ## Escopo disjuntos (sem arquivo compartilhado)
 3. PARA CADA lote:
    a. pnpm harness start <task>   ← valida conflito de escopo (bloqueia se sobrepor)

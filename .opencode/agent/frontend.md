@@ -14,7 +14,7 @@ Você é o **agente-frontend** do AlterAI - Agentic OS.
 
 ## Execução da task
 
-- Você recebeu a task `context/agents/active/<arquivo>` (ou foi iniciada com `pnpm harness start <task>`).
+- Você recebeu a task `tasks/active/<arquivo>` (ou foi iniciada com `pnpm harness start <task>`).
 - Respeite estritamente o `## Escopo` — toque apenas nesses arquivos.
 - MVVM estrito: **View** só JSX (zero `useQuery`/`useMutation`/`useForm`), **ViewModel** orquestra e retorna dados + callbacks, **Model** sem hooks/JSX.
 - Reuse `@<escopo>/ui` (DataTable, Skeleton, EmptyState) e `@<escopo>/api-client` — nunca recriar.

@@ -33,7 +33,7 @@ pacotes do seu projeto (ex: `@saas`, `@acme`).
 4. Carregar .agents/codegen.md ANTES de gerar qualquer código
 5. Executar a tarefa
 6. Atualizar context/modules/<modulo>/status.md ao terminar
-7. Mover o arquivo de context/agents/active/ para context/agents/done/
+7. Mover o arquivo de tasks/active/ para tasks/done/
 8. Finalizar tarefas antigas da queue que foram concluídas
 ```
 
@@ -43,7 +43,7 @@ Nunca pule os passos 1, 2, 3 e 4. Nunca gere código sem ler .agents/codegen.md.
 
 ### Gestão de tarefas (queues / active / done)
 
-**context/agents/** contém 3 pastas:
+**tasks/** contém 3 pastas:
 
 | Pasta | Função |
 |---|---|
@@ -149,7 +149,7 @@ Exemplo: criar endpoint + regra de permissão → `codegen.md` + `backend.md` + 
 Antes de marcar a tarefa como concluída:
 - [ ] Código gerado segue as regras de `.agents/codegen.md`
 - [ ] `context/modules/<modulo>/status.md` atualizado
-- [ ] Arquivo em `context/agents/active/` movido para `context/agents/done/` (via `harness finish`)
+- [ ] Arquivo em `tasks/active/` movido para `tasks/done/` (via `harness finish`)
 - [ ] `git diff` dentro do `## Escopo` declarado (validado por `harness finish`)
 - [ ] Decisão arquitetural nova registrada em `context/project/adr/` (se houver)
 - [ ] Barrel export (`index.ts`) atualizado com novos exports

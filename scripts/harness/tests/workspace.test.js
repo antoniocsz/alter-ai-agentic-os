@@ -95,7 +95,7 @@ test('workspace new: cria projeto e registra no workspace', async () => {
 
   const target = path.join(ws, 'projects', 'projeto-a')
   assert.ok(fs.existsSync(path.join(target, 'AGENTS.md')))
-  assert.ok(fs.existsSync(path.join(target, 'context', 'agents', 'queue')))
+  assert.ok(fs.existsSync(path.join(target, 'tasks', 'queue')))
   assert.ok(fs.existsSync(path.join(target, 'scripts', 'harness', 'bin', 'harness.js')))
 
   const reg = loadRegistry(ws)
@@ -133,7 +133,7 @@ test('workspace add: onboarding de projeto pré-existente (backup + camada + con
   // AGENTS.md agora é o do harness
   assert.ok(fs.readFileSync(path.join(existing, 'AGENTS.md'), 'utf8').includes('## Perfil do projeto'))
   // esqueleto context/
-  for (const d of ['context/project/adr', 'context/modules', 'context/agents/queue', 'context/agents/active', 'context/agents/done']) {
+  for (const d of ['context/project/adr', 'context/modules', 'tasks/queue', 'tasks/active', 'tasks/done']) {
     assert.ok(fs.existsSync(path.join(existing, d)), `faltou: ${d}`)
   }
   // registrado
@@ -192,13 +192,13 @@ test('workspace list: conta queue/active/done por projeto', async () => {
   const p = path.join(ws, 'projects', 'projeto-a')
   // limpa as tasks de fundação do template para contar só as nossas
   for (const sub of ['queue', 'active', 'done']) {
-    const dir = path.join(p, 'context', 'agents', sub)
+    const dir = path.join(p, 'tasks', sub)
     for (const f of fs.readdirSync(dir)) fs.rmSync(path.join(dir, f))
   }
-  write(p, 'context/agents/queue/01-foo.md', TASK)
-  write(p, 'context/agents/queue/02-bar.md', TASK)
-  write(p, 'context/agents/active/03-baz.md', TASK)
-  write(p, 'context/agents/done/04-qux.md', TASK)
+  write(p, 'tasks/queue/01-foo.md', TASK)
+  write(p, 'tasks/queue/02-bar.md', TASK)
+  write(p, 'tasks/active/03-baz.md', TASK)
+  write(p, 'tasks/done/04-qux.md', TASK)
 
   const out = await capture(() => listWorkspace(ws, [], false))
   const line = out.split(/\r?\n/).find((l) => l.startsWith('projeto-a'))
@@ -268,8 +268,8 @@ test('workspace task: cria task direto no projeto certo (B1)', async () => {
   const res = run(ws, ['workspace', 'task', 'projeto-a', 'fazer algo no modulo X', '--module', 'packages/modules/x'])
   assert.equal(res.status, 0, res.stdout + res.stderr)
 
-  const queueA = fs.readdirSync(path.join(ws, 'projects', 'projeto-a', 'context', 'agents', 'queue'))
-  const queueB = fs.readdirSync(path.join(ws, 'projects', 'projeto-b', 'context', 'agents', 'queue'))
+  const queueA = fs.readdirSync(path.join(ws, 'projects', 'projeto-a', 'tasks', 'queue'))
+  const queueB = fs.readdirSync(path.join(ws, 'projects', 'projeto-b', 'tasks', 'queue'))
   assert.ok(queueA.some((f) => f.endsWith('.md')), 'task deveria existir em projeto-a')
   // projeto-b continua com as tasks de fundação do template apenas (mesma contagem de antes)
   assert.equal(queueB.length, 4, 'projeto-b não deveria receber a task')

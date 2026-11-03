@@ -69,7 +69,7 @@ Bootstrap (projeto novo)
         │
         ▼
 Planejamento (por feature)
-  └─ feature-planning → tasks geradas em context/agents/queue/
+  └─ feature-planning → tasks geradas em tasks/queue/
         │
         ▼
 Pipeline de tarefas
@@ -92,11 +92,11 @@ AGENTS.md            — arquivo base: protocolo, regras inegociáveis, guard ra
 scripts/harness/     — CLI do harness (init, module, start, finish, check)
 context/
 ├── project/         — visão do projeto (overview, domain-model, stack, ADRs)
-├── modules/         — contexto e status por módulo (context.md + status.md)
-└── agents/
-    ├── queue/       — tarefas planejadas, não iniciadas
-    ├── active/      — tarefa em execução AGORA (N, com escopos disjuntos)
-    └── done/        — tarefas concluídas (histórico)
+└── modules/         — contexto e status por módulo (context.md + status.md)
+tasks/
+├── queue/           — tarefas planejadas, não iniciadas
+├── active/          — tarefa em execução AGORA (N, com escopos disjuntos)
+└── done/            — tarefas concluídas (histórico)
 ```
 
 ## CLI do AlterAI - Agentic OS
@@ -133,7 +133,7 @@ context/
 4. **Banco local (com `--prisma`):** `docker compose up -d` e `cp .env.example .env`; scripts em `apps/api`: `db:up`, `db:migrate`, `db:deploy`.
 5. **Onboarding:** rodar a context-interview (7 blocos, abaixo) para preencher `context/project/overview.md` e `stack.md` e definir os ADRs iniciais.
 6. **Criar módulos:** `pnpm harness module <nome>` para cada bounded context; preencher `context.md` e `status.md`.
-7. **Planejar e executar:** criar tasks em `context/agents/queue/` (com `## Escopo`) e operar com `harness start` / `harness finish`.
+7. **Planejar e executar:** criar tasks em `tasks/queue/` (com `## Escopo`) e operar com `harness start` / `harness finish`.
 8. **Verificar:** `pnpm harness check` a qualquer momento — também útil no CI.
 
 ## Usar em múltiplos projetos
@@ -246,7 +246,7 @@ Via `.agents/context-interview.md` — 7 blocos, um por vez, confirmando antes d
 | 4 | Permissões e papéis | authorization |
 | 5 | Apps e superfícies | estrutura de `apps/` |
 | 6 | Stack e restrições | `context/project/stack.md` |
-| 7 | Prioridades | `context/agents/queue/` com tasks iniciais |
+| 7 | Prioridades | `tasks/queue/` com tasks iniciais |
 
 Ao final, criar os ADRs iniciais com base nas decisões tomadas.
 
@@ -344,7 +344,7 @@ Toda tarefa segue esta ordem:
 4. Carregar .agents/codegen.md ANTES de gerar qualquer código
 5. Executar a tarefa
 6. Atualizar context/modules/<modulo>/status.md ao terminar
-7. Mover o arquivo de context/agents/active/ para context/agents/done/
+7. Mover o arquivo de tasks/active/ para tasks/done/
 8. Finalizar tarefas antigas da queue que foram concluídas
 ```
 
@@ -357,7 +357,7 @@ Via `.agents/feature-planning.md` — 4 fases em ordem:
 1. **Clarificar** — entender o requisito com o humano (uma pergunta por vez).
 2. **Mapear** — identificar módulos, camadas e agentes necessários.
 3. **Confirmar** — apresentar plano e aguardar confirmação.
-4. **Gerar tasks** — criar arquivos em `context/agents/queue/`.
+4. **Gerar tasks** — criar arquivos em `tasks/queue/`.
 
 Ordem padrão de dependências:
 
@@ -431,7 +431,7 @@ Nunca pular para o passo 4 sem completar 1, 2 e 3. Priorizar reuso de `@<escopo>
 
 - [ ] Código gerado segue as regras de `.agents/codegen.md`
 - [ ] `context/modules/<modulo>/status.md` atualizado
-- [ ] Arquivo em `context/agents/active/` movido para `context/agents/done/` (via `harness finish`)
+- [ ] Arquivo em `tasks/active/` movido para `tasks/done/` (via `harness finish`)
 - [ ] `git diff` dentro do `## Escopo` declarado (validado por `harness finish`)
 - [ ] Decisão arquitetural nova registrada em `context/project/adr/` (se houver)
 - [ ] Barrel export (`index.ts`) atualizado com novos exports

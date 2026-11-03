@@ -1,11 +1,24 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-export const AGENTS_DIR = 'context/agents'
+export const TASKS_DIR = 'tasks'
+export const LEGACY_AGENTS_DIR = 'context/agents'
 
-export const queueDir = (root) => path.join(root, AGENTS_DIR, 'queue')
-export const activeDir = (root) => path.join(root, AGENTS_DIR, 'active')
-export const doneDir = (root) => path.join(root, AGENTS_DIR, 'done')
+/**
+ * Raiz do pipeline: `tasks/` no layout v0.3, com fallback para
+ * `context/agents/` em projetos gerados antes da migração.
+ */
+export function pipelineRoot(root) {
+  const modern = path.join(root, TASKS_DIR)
+  if (fs.existsSync(modern)) return modern
+  const legacy = path.join(root, LEGACY_AGENTS_DIR)
+  if (fs.existsSync(legacy)) return legacy
+  return modern
+}
+
+export const queueDir = (root) => path.join(pipelineRoot(root), 'queue')
+export const activeDir = (root) => path.join(pipelineRoot(root), 'active')
+export const doneDir = (root) => path.join(pipelineRoot(root), 'done')
 
 export function listTasks(dir) {
   if (!fs.existsSync(dir)) return []

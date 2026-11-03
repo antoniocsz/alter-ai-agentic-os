@@ -310,9 +310,9 @@ function createContextSkeleton(root) {
   for (const d of [
     'context/project/adr',
     'context/modules',
-    'context/agents/queue',
-    'context/agents/active',
-    'context/agents/done'
+    'tasks/queue',
+    'tasks/active',
+    'tasks/done'
   ]) {
     ensureDir(path.join(root, d))
   }
