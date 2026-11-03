@@ -6,6 +6,7 @@ import { startTask, finishTask, requeueTask, reopenTask } from './lib/pipeline.j
 import { taskLocation, queueDir, activeDir, doneDir } from './lib/tasks.js'
 import { templatesDir } from './lib/paths.js'
 import { readWipConfig } from './lib/workspace.js'
+import { readRegistry } from './lib/worktree.js'
 
 const DEFAULT_PORT = 4310
 const VALID_MOVES = { queue: ['active'], active: ['queue', 'done'], done: ['active'] }
@@ -48,9 +49,17 @@ export function buildBoard(ctx) {
       // markdown é a fonte da verdade — garante o board atualizado mesmo sem `harness sync`
       syncFromMarkdown(db, proj.root)
       const board = boardQuery(db)
+      const worktrees = readRegistry(proj.root).worktrees.reduce((acc, w) => {
+        acc[w.task] = w.branch
+        return acc
+      }, {})
       for (const status of ['queue', 'active', 'done']) {
         for (const t of board[status]) {
-          cols[status].push({ ...t, project: proj.name || null })
+          cols[status].push({
+            ...t,
+            project: proj.name || null,
+            worktree: worktrees[t.id] ?? null
+          })
         }
       }
       wip[proj.name || ''] = proj.wip ?? { queue: null, active: null }

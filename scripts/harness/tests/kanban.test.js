@@ -215,3 +215,18 @@ test('servidor kanban: WIP bloqueia move no projeto dono (A1)', async () => {
     }
   })
 })
+test('buildBoard: card ativo carrega a branch da worktree', async () => {
+  const root = await makeProject('proj-wt')
+  write(root, 'tasks/active/01-foo.md', TASK)
+  fs.mkdirSync(path.join(root, '.harness'), { recursive: true })
+  fs.writeFileSync(
+    path.join(root, '.harness', 'worktrees.json'),
+    JSON.stringify({
+      worktrees: [{ task: '01-foo.md', branch: 'task/01-foo', path: '.worktrees/task-01-foo' }]
+    })
+  )
+
+  const board = buildBoard({ projects: [{ name: 'WT', root }] })
+  const card = board.active.find((t) => t.project === 'WT')
+  assert.equal(card.worktree, 'task/01-foo')
+})

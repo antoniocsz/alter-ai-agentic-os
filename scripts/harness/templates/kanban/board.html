@@ -266,12 +266,14 @@ function cardHtml(t) {
   const dep = t.depends_on ? `<span class="tag dep">depende: ${esc(t.depends_on)}</span>` : '';
   const scope = `<span class="tag">escopo: ${t.scope_count ?? (t.scope || []).length}</span>`;
   const proj = t.project ? `<span class="tag project">${esc(t.project)}</span>` : '';
+  const wt = t.worktree ? `<span class="tag worktree" title="worktree ativa">🌳 ${esc(t.worktree)}</span>` : '';
   return `
     <div class="card" draggable="${IS_SERVER}" data-id="${esc(t.id)}" data-status="${esc(boardStatus(t.id))}" title="clique para detalhes">
       <p class="title">${esc(t.title || t.id)}</p>
       <div class="meta">
         ${proj}
         ${t.module ? `<span class="tag module">${esc(t.module)}</span>` : ''}
+        ${wt}
         ${comp ? `<span class="tag ${comp.toLowerCase()}">${comp}</span>` : ''}
         ${t.agent ? `<span class="tag">${esc(t.agent)}</span>` : ''}
         ${scope}
