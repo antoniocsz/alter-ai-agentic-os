@@ -1,5 +1,73 @@
 # Changelog
 
+## 2026-11-03 — 64-sqlite-robustez.md
+
+- SQLite com busy_timeout=5000; DBs fechados em check/memory; reduz SQLITE_BUSY em concorrencia CLI/kanban.
+
+## 2026-11-03 — 67-datas-locais.md
+
+- Datas locais (GMT-3) em sessoes, retrospectiva e feature (entregue junto da 66).
+
+## 2026-11-03 — 66-copydir-binario.md
+
+- copyDir binario-safe + datas locais (localDate/localMonth) em sessoes/retro/feature; testes de bytes e formato.
+
+## 2026-11-03 — 69-kanban-v2-actions.md
+
+- Kanban v2: server actions chamam o CLI no servidor para start/finish/requeue/reopen/worktree, com validacao de projeto/task/movimento e feedback por banner; build Next ok.
+
+## 2026-11-03 — 68-adapter-layer.md
+
+- adapters copiados no init/onboarding/cache (entregue nas tasks 62-63); erro claro quando a fonte nao existe.
+
+## 2026-11-03 — 63-tasks-worktree-hardening.md
+
+- resolveTaskName rejeita traversal/separadores; registry write atomico; prune remove worktree e branch orfa; testes de regressao.
+
+## 2026-11-03 — 62-workspace-json-adapter.md
+
+- workspace --json, adapters na camada, gitignore; include hardening de task id e registry atomico (task 63).
+
+## 2026-11-03 — 61-check-db-days.md
+
+- check --db compara markdown x banco; report --days validado (entregue junto da task 60).
+
+## 2026-11-03 — 60-gates-strict.md
+
+- gates.strict + check sem efeito colateral (nao cria DB; --db compara markdown x banco) + report --days validado; 129 testes verdes.
+
+## 2026-11-03 — 59-kanban-nextjs.md
+
+- Kanban Next.js v1 em workspace/kanban: discovery do workspace subindo diretorios, leitura server-side dos markdown/registry, board multi-projeto com prioridade/modulo/feature/worktree/escopo, GET /api/board, build Next 15 ok; read-only (acoes na v2).
+
+## 2026-11-03 — 58-p0-workspace-config.md
+
+- workspace new/add usam layerSource (cache -> harnessSource -> kit), new aceita --profile/--bare; cache em .harness/workspace; status/recall usam workspaceContext (paths absolutos e agregacao fora de projeto); config duplicada removida; testes de cache/profile/contexto.
+
+## 2026-11-03 — 57-p0-lock-heartbeat.md
+
+- Lock com token de ownership (release so do dono), stale 30min e gate timeout 10min (HARNESS_GATE_TIMEOUT_MS); evita roubo durante gates longos; testes de ownership.
+
+## 2026-11-03 — 56-p0-kanban-seguro.md
+
+- Kanban seguro: bind 127.0.0.1 (--host explicito), ids validados (sem traversal/%), handler com try-catch (nao derruba com %), CSRF por Origin, content-type JSON, body limit 64KB; testes de ataque; 124 testes verdes.
+
+## 2026-11-03 — 55-p0-segredos.md
+
+- Segredos: env em MAIUSCULAS (DB_PASSWORD, AWS_SECRET_ACCESS_KEY, DATABASE_URL), Bearer e .env* detectados/redigidos; allowlist de defaults locais; sem skip de tests/ ou nomes com lock; 123 testes verdes.
+
+## 2026-11-03 — 54-p0-git-injecao.md
+
+- init/gates sem shell cru: execFileSync com args, branch e nome de gate validados (injeção bloqueada); quotePath ja corrigido na 53; testes de branch maliciosa e gate invalido; 123 testes verdes.
+
+## 2026-11-03 — 53-p0-escopo-integridade.md
+
+- Escopo agora considera HEAD do start (git diff) + working tree; worktree valida escopo antes do rebase/merge (commit nao esconde arquivo fora); git status/diff com core.quotePath=false -z (acentos preservados); 121 testes verdes.
+
+## 2026-11-03 — 52-release-v032.md
+
+- Release v0.3.2: itens verdes (ADR lifecycle, glossario, ciclo de vida de projeto, profile set/current, matriz de tools, retrospectiva).
+
 ## 2026-11-03 — 51-tool-matrix-retro.md
 
 - Matriz de capacidades por tool no README; harness retro gera retrospectiva (metricas+sessoes) em context/project/retro com --force; teste novo; 118 testes verdes.
