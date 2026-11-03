@@ -11,7 +11,8 @@ const NAME_RE = /^\d{2,}-.+\.md$/
 const REQUIRED_SECTIONS = ['agente', 'módulo', 'escopo', 'critério de conclusão']
 
 export function validate(root, opts = {}) {
-  const db = tryOpenDb(root)
+  const dbExists = fs.existsSync(path.join(root, '.harness', 'harness.db'))
+  const db = dbExists ? tryOpenDb(root) : null
   const errors = []
   const add = (m, taskId = null) => {
     errors.push(m)
@@ -139,12 +140,20 @@ export function validate(root, opts = {}) {
   if (opts.typecheck) runCommand('pnpm turbo typecheck', root, add, 'typecheck')
 
   if (opts.db) {
-    if (!fs.existsSync(path.join(root, '.harness', 'harness.db'))) {
+    if (!dbExists || !db) {
       add('banco .harness/harness.db não existe — rode `pnpm harness sync`')
-    } else if (db) {
-      const drift = findDrift(db, root)
-      for (const d of drift) {
-        add(`drift markdown × banco: ${d.id} (banco: ${d.db}, markdown: ${d.md})`, d.id)
+    } else {
+      const dbTotal = Number(db.prepare('SELECT COUNT(*) AS n FROM tasks').get().n)
+      const mdTotal = q.length + a.length + d.length
+      if (dbTotal !== mdTotal) {
+        add(
+          `drift markdown × banco: ${mdTotal} task(s) no markdown vs ${dbTotal} no banco — rode \`pnpm harness sync\``
+        )
+      } else {
+        const drift = findDrift(db, root)
+        for (const d of drift) {
+          add(`drift markdown × banco: ${d.id} (banco: ${d.db}, markdown: ${d.md})`, d.id)
+        }
       }
     }
   }

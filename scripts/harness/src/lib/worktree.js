@@ -204,8 +204,9 @@ function finishWorktreeUnlocked(root, arg, opts = {}) {
   }
 
   if (!opts.skipGates) {
-    const gates = resolveConfig(root).gates?.merge ?? []
-    const results = runGates(wt, gates)
+    const cfg = resolveConfig(root)
+    const gates = cfg.gates?.merge ?? []
+    const results = runGates(wt, gates, { strict: cfg.gates?.strict })
     const failed = firstFailure(results)
     if (failed) {
       throw new Error(

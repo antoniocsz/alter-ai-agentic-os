@@ -133,6 +133,11 @@ export function checkArtifact(root) {
 export function runGates(root, gates = [], opts = {}) {
   const results = []
   if (!gates.length) return results
+  const strict = Boolean(opts.strict)
+  const skip = (gate, reason) =>
+    strict
+      ? results.push({ gate, status: 'failed', output: `gate não executável (strict): ${reason}` })
+      : results.push({ gate, status: 'skipped', reason })
 
   const pkg = readPackage(root)
   const needsModules = hasDependencies(pkg) && !fs.existsSync(path.join(root, 'node_modules'))
@@ -167,11 +172,11 @@ export function runGates(root, gates = [], opts = {}) {
 
     if (gate === 'test:affected') {
       if (!pkg?.scripts?.test && !pkg?.devDependencies?.vitest) {
-        push(gate, 'skipped', { reason: 'sem script test/vitest' })
+        skip(gate, 'sem script test/vitest')
         continue
       }
       if (needsModules) {
-        push(gate, 'skipped', { reason: 'node_modules ausente' })
+        skip(gate, 'node_modules ausente')
         continue
       }
       const command = pkg?.devDependencies?.vitest
@@ -187,11 +192,11 @@ export function runGates(root, gates = [], opts = {}) {
       continue
     }
     if (!pkg?.scripts?.[gate]) {
-      push(gate, 'skipped', { reason: 'script ausente no package.json' })
+      skip(gate, 'script ausente no package.json')
       continue
     }
     if (needsModules) {
-      push(gate, 'skipped', { reason: 'node_modules ausente' })
+      skip(gate, 'node_modules ausente')
       continue
     }
     const res = runClean('pnpm', ['run', gate], root)

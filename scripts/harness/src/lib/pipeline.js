@@ -174,9 +174,10 @@ function finishTaskUnlocked(root, arg, opts = {}) {
     }
   }
 
+  const cfg = resolveConfig(root)
   const gateResults = opts.skipGates
     ? []
-    : runGates(root, resolveConfig(root).gates?.finish ?? [], { phase: 'finish' })
+    : runGates(root, cfg.gates?.finish ?? [], { phase: 'finish', strict: cfg.gates?.strict })
   const gateFailed = firstFailure(gateResults)
   if (gateFailed) {
     const db = tryOpenDb(root)

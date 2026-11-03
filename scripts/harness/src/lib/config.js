@@ -8,7 +8,8 @@ export const DEFAULT_CONFIG = {
   profile: 'web',
   gates: {
     finish: ['scope', 'secrets'],
-    merge: []
+    merge: [],
+    strict: false
   },
   git: {
     model: 'trunk',
@@ -65,6 +66,10 @@ export function validateConfig(cfg) {
   }
   if (cfg.git?.featureBranch !== undefined && typeof cfg.git.featureBranch !== 'boolean') {
     errors.push('git.featureBranch deve ser boolean')
+  }
+
+  if (cfg.gates?.strict !== undefined && typeof cfg.gates.strict !== 'boolean') {
+    errors.push('gates.strict deve ser boolean')
   }
 
   for (const key of ['active', 'queue']) {

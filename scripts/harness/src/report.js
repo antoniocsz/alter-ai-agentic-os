@@ -9,6 +9,9 @@ export async function report(args) {
   const format = flag(['--format']) ?? 'table'
   const module = flag(['--module'])
   const days = flag(['--days']) ? Number(flag(['--days'])) : null
+  if (days !== null && (!Number.isInteger(days) || days <= 0)) {
+    throw new Error(`--days inválido: ${flag(['--days'])} (use inteiro > 0)`)
+  }
 
   const metrics = computeMetrics(root, { module, days })
 

@@ -87,3 +87,12 @@ test('gates: nome de gate inválido falha sem executar shell', () => {
   assert.equal(results[0].status, 'failed')
   assert.match(results[0].output, /inválido/)
 })
+
+test('gates strict: skip por dependências ausentes reprova', () => {
+  const root = tmpdir()
+  write(root, 'package.json', JSON.stringify({ scripts: { test: 'node -e "0"' }, dependencies: { x: '1' } }))
+  assert.equal(runGates(root, ['test'])[0].status, 'skipped')
+  const strict = runGates(root, ['test'], { strict: true })[0]
+  assert.equal(strict.status, 'failed')
+  assert.match(strict.output, /strict/)
+})

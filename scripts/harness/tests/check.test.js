@@ -1,5 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import path from 'node:path'
 import { validate } from '../src/check.js'
 import { tmpdir, write } from './helpers.js'
 
@@ -115,4 +117,26 @@ test('validate: módulo da task sem context.md/status.md', () => {
   const r = validate(root)
   assert.equal(r.ok, false)
   assert.ok(r.errors.some((e) => e.includes('módulo sem context.md')))
+})
+test('check: não cria o banco sem --db e detecta drift com --db', () => {
+  const root = tmpdir()
+  for (const d of ['context/project/adr', 'tasks/queue', 'tasks/active', 'tasks/done']) {
+    fs.mkdirSync(path.join(root, d), { recursive: true })
+  }
+  fs.writeFileSync(path.join(root, 'context/project/overview.md'), '# Overview\n')
+  fs.writeFileSync(path.join(root, 'context/project/stack.md'), '# Stack\n')
+  fs.mkdirSync(path.join(root, 'context/modules/foo'), { recursive: true })
+  fs.writeFileSync(path.join(root, 'context/modules/foo/context.md'), '# Foo\n')
+  fs.writeFileSync(path.join(root, 'context/modules/foo/status.md'), '# Status\n')
+  write(root, 'tasks/queue/01-foo.md', validTask('foo'))
+
+  const plain = validate(root)
+  assert.equal(plain.ok, true, plain.errors.join('\n'))
+  assert.ok(!fs.existsSync(path.join(root, '.harness', 'harness.db')), 'não deveria criar o banco')
+
+  const withDb = validate(root, { db: true })
+  assert.ok(
+    withDb.errors.some((e) => e.includes('banco .harness/harness.db não existe')),
+    withDb.errors.join('\n')
+  )
 })
