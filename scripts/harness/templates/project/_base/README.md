@@ -18,6 +18,7 @@ pnpm harness kanban --serve
 ## Contexto e memória local
 
 - `context/project/` — overview, stack e ADRs (identidade do projeto)
+- `context/project/runbook.md` — ambientes, deploy, rollback, migrations e backup
 - `context/features/<slug>/spec.md` — spec da feature (fonte da verdade)
 - `context/modules/<m>/` — contexto e status por módulo (perfis com código)
 - `context/sessions/` — resumos de sessão (memória local)
