@@ -130,6 +130,9 @@ tasks/
 | `harness session end "<resumo>"` / `list` | Memória local: grava/lista sessões (db + `context/sessions/`) |
 | `harness recall "<termo>"` | Busca em sessões, tasks, notas e docs (agrega no workspace) |
 | `harness adapter <tool>` | Instala (ou lista com `list`) o adaptador de tool no projeto |
+| `harness retro [--days n]` | Gera retrospectiva markdown com métricas + sessões do período |
+| `harness profile set <p>` / `current` | Troca o perfil do projeto / mostra o atual |
+| `harness workspace remove <nome>` | Desregistra o projeto (`--delete --force` apaga a pasta) |
 | `harness task "<desc>"` | Cria task na queue com numeração automática e `## Escopo`. Flags: `--module`, `--agent`, `--scope`, `--dep`, `--complexity` |
 | `harness start <task>` | Move `queue/` → `active/`, bloqueando conflito de escopo com tasks ativas |
 | `harness finish <task>` | Valida `git diff` contra o `## Escopo` e move `active/` → `done/`. Flag: `--handoff "<resumo>"` |
@@ -357,6 +360,21 @@ harness adapter codex        # .codex/prompts (copie para ~/.codex/prompts)
   no OpenCode o `reviewer` mantém `edit: deny`. O CLI continua gatekeeper invariante em qualquer tool.
 - Trocar de tool no meio não perde nada: a sessão seguinte roda `harness status` e retoma.
 
+### Matriz de capacidades por tool
+
+| Capacidade | OpenCode | Claude Code | Codex |
+|---|---|---|---|
+| Instruções | `AGENTS.md` | `CLAUDE.md` (`@AGENTS.md`) | `AGENTS.md` |
+| Subagents | `.opencode/agent/*.md` | `.claude/agents/*.md` | — (sem subagents nativos) |
+| Skills | `.opencode/skill/<n>/SKILL.md` | `.claude/skills/<n>/SKILL.md` | — (prompts) |
+| Comandos | `.opencode/command/*.md` | `.claude/commands/*.md` | `~/.codex/prompts/*.md` |
+| Permissões | `permission:` no frontmatter | `settings.json` (allow/deny) | sandbox/config do Codex |
+| MCP | `opencode.json` | `.mcp.json` | `config.toml` |
+| Memória | CLI `harness` | CLI `harness` | CLI `harness` |
+
+O que se perde no Codex: subagents e skills nativas. A orquestração fica sequencial via
+`AGENTS.md` + CLI. Pipeline, gates, worktrees e memória são idênticos nas três tools.
+
 ## Agentes (subagents opencode)
 
 O harness inclui agents prontos em `.opencode/agent/` (copiados pelo `harness init`):
@@ -421,6 +439,9 @@ pnpm harness check --db                 # detecta drift entre markdown e banco
 
 `harness report` (table/json/csv) mostra WIP, cycle time, aging, throughput, distribuição por
 módulo/agente, **gates falhos** (`gate_failed`) e **worktrees finalizadas** (`worktree_finished`).
+
+`harness retro [--days 30]` gera `context/project/retro/AAAA-MM.md` com as métricas do período,
+as sessões e placeholders para lições/ações — a cadência leve de melhoria contínua.
 
 ## Painel kanban
 

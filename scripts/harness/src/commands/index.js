@@ -20,6 +20,7 @@ import { gatesCmd } from '../gates.js'
 import { sessionCmd } from '../session.js'
 import { recallCmd } from '../recall.js'
 import { memoryCmd } from '../memory.js'
+import { retroCmd } from '../retro.js'
 import { statusCmd } from '../status.js'
 import { adapterCmd } from '../adapter.js'
 
@@ -37,6 +38,7 @@ Comandos:
   status              WIP, ativas, worktrees, próximas e últimas sessões (prime de sessão)
   session <end|list>  Memória local: end "<resumo>" | list [--limit n]
   memory <list|prune> Memória local: list | prune [--days n] [--apply] (arquiva antigas)
+  retro [--days n]    Gera retrospectiva do período [--out <arquivo>] [--force]
   recall "<termo>"    Busca em sessões, tasks, notas e docs [--limit n] [--json]
   module <nome>       Scaffold de módulo [--with-prisma] [--with-http]
   task "<descrição>"  Cria task na queue com numeração automática e ## Escopo
@@ -84,6 +86,7 @@ export const commands = {
   status: statusCmd,
   session: sessionCmd,
   memory: memoryCmd,
+  retro: retroCmd,
   recall: recallCmd,
   task,
   start,
