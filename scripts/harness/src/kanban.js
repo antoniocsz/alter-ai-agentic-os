@@ -33,7 +33,11 @@ export async function kanbanFor(ctx, args) {
   if (serveIdx !== -1) {
     const raw = args[serveIdx + 1]
     const port = raw && !raw.startsWith('--') ? Number(raw) : DEFAULT_PORT
-    return serveBoard(ctx, port)
+    const hostIdx = args.indexOf('--host')
+    const host = hostIdx !== -1 && args[hostIdx + 1] && !args[hostIdx + 1].startsWith('-')
+      ? args[hostIdx + 1]
+      : '127.0.0.1'
+    return serveBoard(ctx, port, host)
   }
   const outIdx = args.indexOf('--out')
   const outFile = outIdx !== -1 ? args[outIdx + 1] : 'kanban.html'
@@ -126,58 +130,124 @@ export function readTaskFile(ctx, project, id) {
   }
 }
 
-export function serveBoard(ctx, port) {
+export function serveBoard(ctx, port, host = '127.0.0.1') {
   const page = renderPage(null, ctx.title)
   const server = http.createServer((req, res) => {
-    const url = new URL(req.url, `http://${req.headers.host ?? 'localhost'}`)
-    const pathname = url.pathname
-
-    if (req.method === 'GET' && pathname === '/') {
-      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
-      return res.end(page)
+    try {
+      route(req, res, ctx, page)
+    } catch (err) {
+      sendError(res, 500, `erro interno: ${err.message}`)
     }
-
-    if (req.method === 'GET' && pathname === '/api/board') {
-      return json(res, 200, { ok: true, board: buildBoard(ctx) })
-    }
-
-    const detail = pathname.match(/^\/api\/tasks\/([^/]+)\/detail$/)
-    if (req.method === 'GET' && detail) {
-      const id = decodeURIComponent(detail[1])
-      const project = url.searchParams.get('project') ?? ''
-      return handleDetail(res, ctx, id, project)
-    }
-
-    const move = pathname.match(/^\/api\/tasks\/([^/]+)\/move$/)
-    if (req.method === 'POST' && move) {
-      const id = decodeURIComponent(move[1])
-      return handleMove(req, res, ctx, id)
-    }
-
-    res.writeHead(404, { 'content-type': 'application/json' })
-    res.end(JSON.stringify({ ok: false, error: 'não encontrado' }))
   })
 
-  server.listen(port, () => {
+  server.on('error', (err) => {
+    process.stderr.write(`erro no kanban: ${err.message}\n`)
+    process.exitCode = 1
+  })
+
+  server.listen(port, host, () => {
     const actual = server.address()?.port ?? port
     process.stdout.write(
-      `📋 kanban em http://localhost:${actual}\n` +
+      `📋 kanban em http://${host}:${actual}\n` +
         `   drag&drop move tasks (valida escopo). Clique num card para ver o detalhamento. Ctrl+C para parar.\n`
     )
   })
   return server
 }
 
+const SAFE_ID_RE = /^(?:\d{2,}(?:-[^/\\]+)?\.md|\d{2,})$/
+
+function safeDecodeId(raw) {
+  let id
+  try {
+    id = decodeURIComponent(raw)
+  } catch {
+    return null
+  }
+  return SAFE_ID_RE.test(id) ? id : null
+}
+
+function sameOrigin(req) {
+  const origin = req.headers.origin
+  if (!origin) return true
+  try {
+    return new URL(origin).host === req.headers.host
+  } catch {
+    return false
+  }
+}
+
+function sendError(res, status, message) {
+  if (res.headersSent) return
+  json(res, status, { ok: false, error: message })
+}
+
+function route(req, res, ctx, page) {
+  let url
+  try {
+    url = new URL(req.url, `http://${req.headers.host ?? 'localhost'}`)
+  } catch {
+    return sendError(res, 400, 'url inválida')
+  }
+  const pathname = url.pathname
+
+  if (req.method === 'GET' && pathname === '/') {
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
+    return res.end(page)
+  }
+
+  if (req.method === 'GET' && pathname === '/api/board') {
+    try {
+      return json(res, 200, { ok: true, board: buildBoard(ctx) })
+    } catch (err) {
+      return sendError(res, 500, err.message)
+    }
+  }
+
+  const detail = pathname.match(/^\/api\/tasks\/([^/]+)\/detail$/)
+  if (req.method === 'GET' && detail) {
+    const id = safeDecodeId(detail[1])
+    if (!id) return sendError(res, 400, 'id de task inválido')
+    const project = url.searchParams.get('project') ?? ''
+    return handleDetail(res, ctx, id, project)
+  }
+
+  const move = pathname.match(/^\/api\/tasks\/([^/]+)\/move$/)
+  if (req.method === 'POST' && move) {
+    if (!sameOrigin(req)) return sendError(res, 403, 'origem não permitida')
+    const type = String(req.headers['content-type'] ?? '')
+    if (!type.includes('application/json')) {
+      return sendError(res, 415, 'content-type deve ser application/json')
+    }
+    const id = safeDecodeId(move[1])
+    if (!id) return sendError(res, 400, 'id de task inválido')
+    return handleMove(req, res, ctx, id)
+  }
+
+  return sendError(res, 404, 'não encontrado')
+}
+
 async function handleMove(req, res, ctx, id) {
   let body = ''
-  for await (const chunk of req) body += chunk
-  let to
   try {
-    to = JSON.parse(body || '{}').to
+    for await (const chunk of req) {
+      body += chunk
+      if (body.length > 64 * 1024) {
+        return json(res, 413, { ok: false, error: 'body muito grande' })
+      }
+    }
+  } catch {
+    return json(res, 400, { ok: false, error: 'falha ao ler body' })
+  }
+
+  let payload
+  try {
+    payload = JSON.parse(body || '{}')
   } catch {
     return json(res, 400, { ok: false, error: 'body inválido — envie {"to":"active|queue|done"}' })
   }
-  const project = (JSON.parse(body || '{}').project ?? '') || ''
+  const to = payload.to
+  const project = payload.project ?? ''
 
   let root
   try {

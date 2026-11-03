@@ -50,7 +50,7 @@ Comandos:
   log "<texto>"       Registra uma interação no banco [--task] [--kind] [--source]
   history <task>      Mostra eventos e interações de uma task
   report              Métricas do banco [--format table|json|csv] [--module] [--days]
-  kanban [--serve [porta] | --out <arquivo>]   Painel kanban (servidor ou HTML estático)
+  kanban [--serve [porta] [--host <h>]] | --out <arquivo>   Painel kanban (servidor ou HTML)
   update [--source <cam>] [--dry-run] Re-sincroniza a camada harness a partir da fonte (ou HARNESS_SOURCE)
   workspace ...       Opera sobre múltiplos projetos (ver "harness workspace help")
   check [--json]      Valida o protocolo (pipeline, escopos, seções, módulos)

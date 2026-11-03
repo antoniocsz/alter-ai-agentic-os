@@ -230,3 +230,45 @@ test('buildBoard: card ativo carrega a branch da worktree', async () => {
   const card = board.active.find((t) => t.project === 'WT')
   assert.equal(card.worktree, 'task/01-foo')
 })
+
+test('servidor kanban: rejeita id malformado/traversal e protege o move (CSRF/content-type)', async () => {
+  await withSilentStdout(async () => {
+    const root = await makeProject('proj-sec')
+    write(root, 'tasks/queue/01-foo.md', TASK)
+    syncProject(root)
+
+    const server = serveBoard({ projects: [{ name: 'A', root }], title: 't' }, 0)
+    await once(server, 'listening')
+    const base = `http://localhost:${server.address().port}`
+    const moveUrl = (id) => `${base}/api/tasks/${id}/move`
+
+    try {
+      const malformed = await fetch(`${base}/api/tasks/%/detail?project=A`)
+      assert.equal(malformed.status, 400)
+
+      const traversal = await fetch(
+        `${base}/api/tasks/${encodeURIComponent('../../README.md')}/detail?project=A`
+      )
+      assert.equal(traversal.status, 400)
+
+      const csrf = await fetch(moveUrl('01-foo.md'), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', origin: 'http://evil.test' },
+        body: JSON.stringify({ to: 'active', project: 'A' })
+      })
+      assert.equal(csrf.status, 403)
+
+      const wrongType = await fetch(moveUrl('01-foo.md'), {
+        method: 'POST',
+        headers: { 'content-type': 'text/plain' },
+        body: JSON.stringify({ to: 'active', project: 'A' })
+      })
+      assert.equal(wrongType.status, 415)
+
+      const alive = await fetch(`${base}/api/board`)
+      assert.equal(alive.status, 200)
+    } finally {
+      server.close()
+    }
+  })
+})

@@ -447,7 +447,7 @@ as sessões e placeholders para lições/ações — a cadência leve de melhori
 
 `harness kanban` visualiza o andamento em colunas queue/active/done.
 
-- **Servidor com drag&drop:** `pnpm harness kanban --serve [porta]` (padrão 4310) sobe um servidor HTTP nativo. Arrastar um card dispara o mesmo pipeline do CLI — mover para `active` valida conflito de escopo; mover para `done` valida o `git diff`. Erros aparecem como toast. Auto-atualiza a cada 3s.
+- **Servidor com drag&drop:** `pnpm harness kanban --serve [porta]` (padrão 4310) sobe um servidor HTTP nativo, com bind em **127.0.0.1** (use `--host` explícito para expor). Arrastar um card dispara o mesmo pipeline do CLI — mover para `active` valida conflito de escopo; mover para `done` valida o `git diff`. Erros aparecem como toast. Auto-atualiza a cada 3s.
 - **Estático:** `pnpm harness kanban` gera `kanban.html` auto-contido (sem drag&drop).
 - **Detalhamento:** clique num card para ver escopo, arquivo da task, timeline de eventos e interações (funciona também no modo estático).
 - **WIP limits (por projeto):** crie `.harness/kanban.json` no projeto com
