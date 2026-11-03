@@ -4,6 +4,7 @@ import { execSync } from 'node:child_process'
 import { queueDir, activeDir, doneDir, listTasks, parseTask, findConflicts } from './lib/tasks.js'
 import { tryOpenDb, logEvent, recordInteraction, findDrift } from './lib/db.js'
 import { readConfig, validateConfig } from './lib/config.js'
+import { lockStatus } from './lib/lock.js'
 import { findWorkspaceRoot, loadRegistry, isolationErrors } from './lib/workspace.js'
 
 const NAME_RE = /^\d{2,}-.+\.md$/
@@ -32,6 +33,14 @@ export function validate(root, opts = {}) {
     }
   } catch (err) {
     add(`[harness.json] ${err.message}`)
+  }
+
+  const lock = lockStatus(root)
+  if (lock.locked && lock.stale) {
+    add(
+      `lock órfão em ${lock.file} (pid ${lock.info?.pid ?? '?'}, desde ${lock.info?.at ?? '?'}) — ` +
+        'nenhum processo deveria estar operando; remova o arquivo ou aguarde.'
+    )
   }
 
   const q = listTasks(qDir)

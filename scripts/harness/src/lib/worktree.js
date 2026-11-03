@@ -6,6 +6,7 @@ import { resolveConfig } from './config.js'
 import { runGates, firstFailure } from './gates.js'
 import { tryOpenDb, logEvent } from './db.js'
 import { finishTask } from './pipeline.js'
+import { withLock } from './lock.js'
 
 export const worktreesDir = (root) => path.join(root, '.worktrees')
 export const registryPath = (root) => path.join(root, '.harness', 'worktrees.json')
@@ -68,6 +69,10 @@ function taskNumber(taskFile) {
 }
 
 export function startWorktree(root, arg) {
+  return withLock(root, () => startWorktreeUnlocked(root, arg))
+}
+
+function startWorktreeUnlocked(root, arg) {
   if (!isGitRepo(root)) throw new Error('worktree exige repositório git')
 
   let name
@@ -135,6 +140,10 @@ function resolveEntry(reg, arg) {
 }
 
 export function finishWorktree(root, arg, opts = {}) {
+  return withLock(root, () => finishWorktreeUnlocked(root, arg, opts))
+}
+
+function finishWorktreeUnlocked(root, arg, opts = {}) {
   if (!isGitRepo(root)) throw new Error('worktree exige repositório git')
 
   const reg = readRegistry(root)
@@ -237,18 +246,20 @@ export function listWorktrees(root) {
 }
 
 export function pruneWorktrees(root) {
-  const reg = readRegistry(root)
-  const removed = []
-  reg.worktrees = reg.worktrees.filter((w) => {
-    const exists = fs.existsSync(path.join(root, w.path))
-    if (!exists) removed.push(w)
-    return exists
+  return withLock(root, () => {
+    const reg = readRegistry(root)
+    const removed = []
+    reg.worktrees = reg.worktrees.filter((w) => {
+      const exists = fs.existsSync(path.join(root, w.path))
+      if (!exists) removed.push(w)
+      return exists
+    })
+    writeRegistry(root, reg)
+    if (isGitRepo(root)) {
+      try {
+        git(root, ['worktree', 'prune'])
+      } catch {}
+    }
+    return removed
   })
-  writeRegistry(root, reg)
-  if (isGitRepo(root)) {
-    try {
-      git(root, ['worktree', 'prune'])
-    } catch {}
-  }
-  return removed
 }

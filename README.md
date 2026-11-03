@@ -292,6 +292,8 @@ pnpm harness worktree finish 12 --handoff "..." # rebase + gates.merge + squash 
 - Base: `harness.json → git.baseBranch` (fallback `main`/`master`); o repositório principal precisa estar na base.
 - Gate que falha aborta antes do merge e preserva a worktree para inspeção.
 - Worktree e branch são removidas ao finalizar; `--keep` mantém, `prune` limpa registro órfão.
+- O pipeline usa lock em `.harness/lock`: `start`/`finish`/`worktree finish` são serializados —
+  com N agentes, só um merge acontece por vez (rebase → gates → squash). `check` detecta lock órfão.
 - `git.model: "trunk"` (default): branches curtas + squash merge; sem `develop` permanente.
 
 ## Execução em paralelo (subagents)

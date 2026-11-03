@@ -5,8 +5,13 @@ import { captureBaseline, isGitRepo, outOfScopeFiles } from './git.js'
 import { tryOpenDb, upsertTask, logEvent, taskFromMarkdown, recordInteraction } from './db.js'
 import { resolveConfig } from './config.js'
 import { runGates, firstFailure } from './gates.js'
+import { withLock } from './lock.js'
 
 export function startTask(root, arg) {
+  return withLock(root, () => startTaskUnlocked(root, arg))
+}
+
+function startTaskUnlocked(root, arg) {
   const qDir = queueDir(root)
   const aDir = activeDir(root)
   const name = resolveTaskName(qDir, arg)
@@ -55,6 +60,10 @@ export function startTask(root, arg) {
 }
 
 export function finishTask(root, arg, opts = {}) {
+  return withLock(root, () => finishTaskUnlocked(root, arg, opts))
+}
+
+function finishTaskUnlocked(root, arg, opts = {}) {
   const aDir = activeDir(root)
   const dDir = doneDir(root)
   const name = resolveTaskName(aDir, arg)
@@ -155,6 +164,10 @@ export function finishTask(root, arg, opts = {}) {
 }
 
 export function requeueTask(root, arg) {
+  return withLock(root, () => requeueTaskUnlocked(root, arg))
+}
+
+function requeueTaskUnlocked(root, arg) {
   const aDir = activeDir(root)
   const qDir = queueDir(root)
   const name = resolveTaskName(aDir, arg)
@@ -171,6 +184,10 @@ export function requeueTask(root, arg) {
 }
 
 export function reopenTask(root, arg) {
+  return withLock(root, () => reopenTaskUnlocked(root, arg))
+}
+
+function reopenTaskUnlocked(root, arg) {
   const dDir = doneDir(root)
   const aDir = activeDir(root)
   const name = resolveTaskName(dDir, arg)
