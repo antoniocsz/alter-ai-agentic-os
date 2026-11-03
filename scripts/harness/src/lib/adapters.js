@@ -40,6 +40,12 @@ export function installAdapter(tool, target, opts = {}) {
   }
 
   const kit = harnessRoot()
+  if (!fs.existsSync(path.join(kit, 'adapters'))) {
+    throw new Error(
+      `adapters não encontrados em ${kit} — rode \`harness update --source <harness>\` ` +
+        'ou gere o projeto novamente com `--tools`.'
+    )
+  }
   const name = opts.name ?? path.basename(target)
   const profile = opts.profile ?? 'web'
   const vars = { NAME: name, PROFILE: profile }

@@ -42,8 +42,11 @@ export function readRegistry(root) {
 }
 
 function writeRegistry(root, reg) {
-  fs.mkdirSync(path.dirname(registryPath(root)), { recursive: true })
-  fs.writeFileSync(registryPath(root), JSON.stringify(reg, null, 2) + '\n')
+  const file = registryPath(root)
+  fs.mkdirSync(path.dirname(file), { recursive: true })
+  const tmp = `${file}.tmp-${process.pid}`
+  fs.writeFileSync(tmp, JSON.stringify(reg, null, 2) + '\n')
+  fs.renameSync(tmp, file)
 }
 
 export function currentBranch(root) {
@@ -289,6 +292,11 @@ export function pruneWorktrees(root) {
     })
     writeRegistry(root, reg)
     if (isGitRepo(root)) {
+      for (const entry of removed) {
+        try {
+          git(root, ['branch', '-D', entry.branch])
+        } catch {}
+      }
       try {
         git(root, ['worktree', 'prune'])
       } catch {}

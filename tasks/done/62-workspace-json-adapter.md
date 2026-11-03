@@ -2,7 +2,10 @@
 ## Agente: `coordinator` | Módulo: `harness` | Prioridade: P1 | Tipo: fix
 ## Escopo:
 - `scripts/harness/src/workspace.js`
+- `scripts/harness/src/init.js`
 - `scripts/harness/src/lib/adapters.js`
+- `scripts/harness/src/lib/tasks.js`
+- `scripts/harness/src/lib/worktree.js`
 - `scripts/harness/templates/project/_base/.gitignore`
 - `scripts/harness/tests/workspace.test.js`
 - `scripts/harness/tests/adapters.test.js`
@@ -14,3 +17,11 @@
 
 ## Critério de conclusão:
 - [ ] critérios da descrição atendidos; testes verdes
+
+## Baseline (git)
+- scripts/harness/src/init.js
+- scripts/harness/src/lib/adapters.js
+- scripts/harness/src/workspace.js
+- scripts/harness/templates/project/_base/.gitignore
+- scripts/harness/tests/adapters.test.js
+- scripts/harness/tests/workspace.test.js

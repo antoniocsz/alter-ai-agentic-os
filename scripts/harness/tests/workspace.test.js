@@ -367,3 +367,12 @@ test('workspaceContext: distingue raiz, subpasta e projeto', async () => {
   assert.equal(workspaceContext(project).insideProject, true)
   assert.equal(workspaceContext(path.join(ws, 'projects')).insideProject, false)
 })
+
+test('workspace check --all --json emite JSON válido', async () => {
+  const ws = await makeWorkspace()
+  await newProject(ws, ['projeto-a'])
+  const res = run(ws, ['workspace', 'check', '--all', '--json'])
+  const parsed = JSON.parse(res.stdout)
+  assert.equal(parsed.ok, true)
+  assert.equal(parsed.projects.length, 1)
+})

@@ -292,6 +292,7 @@ export async function addProject(root, args) {
   copyDir(path.join(layer, '.agents'), path.join(target, '.agents'))
   copyDir(path.join(layer, '.opencode', 'agent'), path.join(target, '.opencode', 'agent'))
   copyDir(path.join(layer, 'scripts', 'harness'), path.join(target, 'scripts', 'harness'))
+  copyDir(path.join(layer, 'adapters'), path.join(target, 'adapters'))
   fs.copyFileSync(agentsMd, path.join(target, 'AGENTS.md'))
   createContextSkeleton(target)
 
@@ -400,6 +401,7 @@ function syncLayer(target, root, dryRun) {
   copyDir(path.join(layer, '.agents'), path.join(target, '.agents'))
   copyDir(path.join(layer, '.opencode', 'agent'), path.join(target, '.opencode', 'agent'))
   copyDir(path.join(layer, 'scripts', 'harness'), path.join(target, 'scripts', 'harness'))
+  copyDir(path.join(layer, 'adapters'), path.join(target, 'adapters'))
   if (fs.existsSync(agentsMd)) {
     const backups = path.join(target, '.harness', 'backups')
     if (fs.existsSync(path.join(target, 'AGENTS.md'))) {
@@ -466,7 +468,7 @@ export async function checkWorkspace(root, args) {
       (a) => ['--barrel', '--db', '--lint', '--typecheck'].includes(a)
     )
     for (const p of reg.projects) {
-      const status = runInProject(root, p, ['check', ...passthrough])
+      const status = runInProject(root, p, ['check', ...passthrough], { quiet: json })
       perProject.push({ project: p.name, ok: status === 0 })
       if (status !== 0) errors.push(`[${p.name}] harness check falhou`)
     }
@@ -550,7 +552,7 @@ export async function updateWorkspace(root, args) {
   } else {
     const cache = path.join(root, '.harness', 'workspace')
     ensureDir(cache)
-    for (const item of ['.agents', '.opencode', 'scripts']) {
+    for (const item of ['.agents', '.opencode', 'scripts', 'adapters']) {
       copyDir(path.join(src, item), path.join(cache, item))
     }
     fs.copyFileSync(path.join(src, 'AGENTS.md'), path.join(cache, 'AGENTS.md'))
@@ -604,9 +606,13 @@ export async function kanbanWorkspace(root, args) {
 
 /* ------------------------------ helpers ------------------------------ */
 
-function runInProject(wsRoot, project, args) {
+function runInProject(wsRoot, project, args, opts = {}) {
   const bin = resolveProjectBin(wsRoot, project)
-  const res = spawnSync(process.execPath, [bin, ...args], { cwd: project.path, stdio: 'inherit' })
+  const res = spawnSync(process.execPath, [bin, ...args], {
+    cwd: project.path,
+    stdio: opts.quiet ? 'pipe' : 'inherit',
+    encoding: 'utf8'
+  })
   return res.status ?? 1
 }
 

@@ -52,3 +52,9 @@ test('init: --tools claude instala a camada Claude', async () => {
   assert.ok(fs.existsSync(path.join(root, '.claude/agents/coordinator.md')))
   assert.ok(!fs.existsSync(path.join(root, '.opencode/agent')), 'opencode não deveria ser instalado')
 })
+
+test('init copia adapters para o projeto (adapter roda no CLI do projeto)', async () => {
+  const root = path.join(tmpdir(), 'adapters-copiados')
+  await init([root, '--profile', 'script'])
+  assert.ok(fs.existsSync(path.join(root, 'adapters', 'shared', 'command', 'status.md')))
+})

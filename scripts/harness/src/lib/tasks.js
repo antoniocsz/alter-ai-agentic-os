@@ -120,6 +120,9 @@ export function taskLocation(root, name) {
 
 export function resolveTaskName(dir, arg) {
   if (!arg) throw new Error('informe o nome da task (ex: 04-api-routes-finance.md ou 04)')
+  if (/[\\/]/.test(arg) || arg.includes('..')) {
+    throw new Error(`nome de task inválido: ${arg} (sem /, \\ ou ..)`)
+  }
   if (arg.endsWith('.md')) {
     if (!fs.existsSync(path.join(dir, arg))) throw new Error(`task não encontrada em ${path.basename(dir)}/: ${arg}`)
     return arg

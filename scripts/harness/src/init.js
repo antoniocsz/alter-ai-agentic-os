@@ -86,6 +86,7 @@ export async function createProject(target, opts = {}, sourceRoot = harnessRoot(
 
   fs.copyFileSync(agentsMd, path.join(target, 'AGENTS.md'))
   copyDir(path.join(sourceRoot, '.agents'), path.join(target, '.agents'))
+  copyDir(path.join(sourceRoot, 'adapters'), path.join(target, 'adapters'))
   copyDir(path.join(sourceRoot, 'scripts', 'harness'), path.join(target, 'scripts', 'harness'))
   copyDir(baseTemplateDir(), target, { vars, renderAll: true })
   copyDir(profileTemplateDir(profile), target, { vars, renderAll: true })

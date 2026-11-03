@@ -11,3 +11,4 @@ packages/database/src/generated/
 .tmp/
 .worktrees/
 coverage/
+kanban.html
