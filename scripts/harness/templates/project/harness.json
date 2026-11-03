@@ -1,0 +1,15 @@
+{
+  "profile": "web",
+  "gates": {
+    "finish": ["scope", "lint", "typecheck"],
+    "merge": ["test", "build"]
+  },
+  "git": {
+    "model": "trunk",
+    "featureBranch": false
+  },
+  "wip": {
+    "active": 3,
+    "queue": 8
+  }
+}

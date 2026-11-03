@@ -3,6 +3,7 @@ import path from 'node:path'
 import { execSync } from 'node:child_process'
 import { queueDir, activeDir, doneDir, listTasks, parseTask, findConflicts } from './lib/tasks.js'
 import { tryOpenDb, logEvent, recordInteraction, findDrift } from './lib/db.js'
+import { readConfig, validateConfig } from './lib/config.js'
 import { findWorkspaceRoot, loadRegistry, isolationErrors } from './lib/workspace.js'
 
 const NAME_RE = /^\d{2,}-.+\.md$/
@@ -23,6 +24,15 @@ export function validate(root, opts = {}) {
   const qDir = queueDir(root)
   const aDir = activeDir(root)
   const dDir = doneDir(root)
+
+  try {
+    const cfg = readConfig(root)
+    if (cfg) {
+      for (const m of validateConfig(cfg)) add(`[harness.json] ${m}`)
+    }
+  } catch (err) {
+    add(`[harness.json] ${err.message}`)
+  }
 
   const q = listTasks(qDir)
   const a = listTasks(aDir)
