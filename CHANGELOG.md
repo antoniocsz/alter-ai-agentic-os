@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-11-03 — 51-tool-matrix-retro.md
+
+- Matriz de capacidades por tool no README; harness retro gera retrospectiva (metricas+sessoes) em context/project/retro com --force; teste novo; 118 testes verdes.
+
+## 2026-11-03 — 50-ciclo-vida-projeto.md
+
+- workspace remove (unregister; --delete --force com bloqueio fora da raiz) e profile set/current; testes de workspace e profile; 118 testes verdes.
+
+## 2026-11-03 — 49-adr-glossario.md
+
+- ADR template com ciclo de vida e indice adr/README.md; glossary.md no template base; AGENTS aponta glossario/runbook/ADR.
+
+## 2026-11-03 — 48-release-v031.md
+
+- Release v0.3.1: hardening medio (ACs, retencao de memoria, commits convencionais, runbook, LFS game, observabilidade) + alias global.
+
 ## 2026-11-03 — 47-observabilidade.md
 
 - report inclui gate_failed e worktree_finished em table/json/csv; teste novo; 115 testes verdes.
