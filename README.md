@@ -277,6 +277,9 @@ Regras:
 4. Nome dos arquivos: `<numero>-<descricao-curta>.md` (ex: `23-frontend-goals.md`).
 5. Conteúdo da task: título, escopo, referências a módulos afetados e checklist.
 6. Toda task declara `## Escopo` com os arquivos que vai tocar — é o que permite paralelismo seguro.
+7. Toda task **nova** declara `## Prioridade` (`P0`..`P3`; default `P2`) — `status` ordena a fila por prioridade.
+8. **Definition of Ready**: `harness start` só move a task se ela tiver escopo, critério de conclusão,
+   spec da feature (quando `## Feature:` existe) e dependências concluídas.
 
 ## Worktree por task
 
@@ -294,6 +297,8 @@ pnpm harness worktree finish 12 --handoff "..." # rebase + gates.merge + squash 
 - Worktree e branch são removidas ao finalizar; `--keep` mantém, `prune` limpa registro órfão.
 - O pipeline usa lock em `.harness/lock`: `start`/`finish`/`worktree finish` são serializados —
   com N agentes, só um merge acontece por vez (rebase → gates → squash). `check` detecta lock órfão.
+- **Paridade CI**: o workflow gerado roda `harness check` + `harness gates --phase merge` — o mesmo
+  comando do fluxo local, sem definição duplicada de qualidade.
 - `git.model: "trunk"` (default): branches curtas + squash merge; sem `develop` permanente.
 
 ## Execução em paralelo (subagents)

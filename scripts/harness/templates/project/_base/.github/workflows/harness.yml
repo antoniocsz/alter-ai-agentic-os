@@ -1,0 +1,19 @@
+name: harness
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  harness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Protocolo
+        run: node scripts/harness/bin/harness.js check
+      - name: Gates de merge
+        run: node scripts/harness/bin/harness.js gates --phase merge

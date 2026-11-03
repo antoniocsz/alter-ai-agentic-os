@@ -121,12 +121,12 @@ function finishTaskUnlocked(root, arg, opts = {}) {
   const task = parseTask(activePath)
   const baseline = parseBaseline(task)
   const activeTasks = listTasks(aDir).map((n) => parseTask(path.join(aDir, n)))
-  const doneTasks = listTasks(dDir).map((n) => parseTask(path.join(dDir, n)))
 
   if (isGitRepo(root)) {
+    // Apenas tasks ATIVAS liberam escopo: escopos de tasks concluídas não podem
+    // alargar a permissão para sempre (ex.: uma task antiga com escopo de diretório).
     const allowedScopes = [
       ...activeTasks.flatMap((t) => t.scope),
-      ...doneTasks.flatMap((t) => t.scope),
       'context/',
       norm(path.relative(root, pipelineRoot(root))) + '/',
       '.worktrees/',

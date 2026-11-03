@@ -1,4 +1,4 @@
-# Task: Definition of Ready + prioridade (Fase 8 🔴)
+# Task: Definition of Ready + prioridade + paridade CI (Fase 8 🔴)
 ## Agente: `coordinator` (hardening)
 ## Módulo: `harness`
 ## Escopo (arquivos que esta task vai tocar):
@@ -8,6 +8,9 @@
 - `scripts/harness/src/lib/memory.js`
 - `scripts/harness/templates/task/task.md.tpl`
 - `scripts/harness/tests/dor.test.js`
+- `scripts/harness/templates/project/_base/.github/workflows/harness.yml`
+- `scripts/harness/templates/project/web/.github/workflows/ci.yml`
+- `scripts/harness/templates/project/api/.github/workflows/ci.yml`
 - `AGENTS.md`
 - `README.md`
 ## Depende de: [x] 33-segredos-redaction.md
