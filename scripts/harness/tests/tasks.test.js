@@ -101,6 +101,7 @@ test('resolveTaskName: nome completo, prefixo, ambíguo e ausente', () => {
   write(root, 'tasks/queue/02-x.md', TASK.replace('Foo', 'X'))
   assert.equal(resolveTaskName(q, '01-foo.md'), '01-foo.md')
   assert.equal(resolveTaskName(q, '02'), '02-x.md')
+  assert.equal(resolveTaskName(q, '2'), '02-x.md')
   assert.throws(() => resolveTaskName(q, '01'), /ambíguo/)
   assert.throws(() => resolveTaskName(q, '99'), /nenhuma task/)
 })

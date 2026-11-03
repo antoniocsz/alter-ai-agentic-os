@@ -124,7 +124,10 @@ export function resolveTaskName(dir, arg) {
     if (!fs.existsSync(path.join(dir, arg))) throw new Error(`task não encontrada em ${path.basename(dir)}/: ${arg}`)
     return arg
   }
-  const matches = listTasks(dir).filter((n) => n.startsWith(arg + '-') || n.startsWith(arg + '.'))
+  const prefixes = /^\d+$/.test(arg) ? [arg, arg.padStart(2, '0')] : [arg]
+  const matches = listTasks(dir).filter((n) =>
+    prefixes.some((p) => n.startsWith(p + '-') || n.startsWith(p + '.'))
+  )
   if (matches.length === 0) throw new Error(`nenhuma task em ${path.basename(dir)}/ começa com "${arg}"`)
   if (matches.length > 1) {
     throw new Error(`prefixo ambíguo "${arg}": ${matches.join(', ')}`)
