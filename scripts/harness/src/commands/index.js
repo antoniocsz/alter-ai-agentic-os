@@ -56,7 +56,6 @@ Comandos:
   check [--json]      Valida o protocolo (pipeline, escopos, seções, módulos)
   version [--bump patch|minor|major]  Mostra ou incrementa a versão do harness
   changelog [--out <arquivo>]  Gera CHANGELOG.md a partir dos handoffs registrados
-  version             Mostra a versão do harness
   help                Mostra esta ajuda
 
 Flags do check: --json | --barrel | --lint | --typecheck | --db

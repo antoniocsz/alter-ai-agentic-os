@@ -3,7 +3,22 @@ import os from 'node:os'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 
-export const tmpdir = () => fs.mkdtempSync(path.join(os.tmpdir(), 'harness-'))
+const createdTmp = []
+
+export const tmpdir = () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-'))
+  createdTmp.push(dir)
+  return dir
+}
+
+// Regra do workspace: testes não deixam lixo em %TEMP%.
+process.on('exit', () => {
+  for (const dir of createdTmp) {
+    try {
+      fs.rmSync(dir, { recursive: true, force: true })
+    } catch {}
+  }
+})
 
 export function write(root, rel, content) {
   const p = path.join(root, rel)

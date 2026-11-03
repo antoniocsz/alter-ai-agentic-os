@@ -31,7 +31,7 @@ export function listTasks(dir) {
 export const norm = (p) => p.replace(/\\/g, '/')
 
 export function parseTask(filePath) {
-  const content = fs.readFileSync(filePath, 'utf8')
+  const content = fs.readFileSync(filePath, 'utf8').replace(/^\uFEFF/, '')
   const name = path.basename(filePath)
   const sections = {}
   const values = {}

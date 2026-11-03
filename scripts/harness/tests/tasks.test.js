@@ -120,3 +120,11 @@ test('resolveTaskName: rejeita traversal e separadores', () => {
   assert.throws(() => resolveTaskName(dir, '../../README.md'), /inválido/)
   assert.throws(() => resolveTaskName(dir, '..\\x.md'), /inválido/)
 })
+
+test('parseTask: lida com BOM no início do arquivo', () => {
+  const root = tmpdir()
+  const file = write(root, 'tasks/queue/01-bom.md', '\uFEFF' + TASK)
+  const task = parseTask(file)
+  assert.equal(Object.keys(task.sections).includes('Agente'), true)
+  assert.ok(task.scope.length > 0)
+})
