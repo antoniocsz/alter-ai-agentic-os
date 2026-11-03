@@ -482,7 +482,7 @@ Via `.agents/feature-planning.md` — 5 fases em ordem:
 3. **Confirmar** — apresentar plano e aguardar confirmação.
 4. **Spec** — `harness feature <slug>` cria `context/features/<slug>/{spec.md,plan.md}`; a spec
    é a fonte da verdade, com critérios de aceitação (`AC-1`...).
-5. **Gerar tasks** — criar arquivos em `tasks/queue/` com `## Feature: <slug>`.
+5. **Gerar tasks** — criar arquivos em `tasks/queue/` com `## Feature: <slug>` e `## ACs`.
 
 Ordem padrão de dependências:
 

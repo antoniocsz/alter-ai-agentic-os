@@ -92,8 +92,22 @@ export function validate(root, opts = {}) {
       const feature = (task.values?.['Feature'] ?? '').trim()
       if (feature && feature !== '—' && feature !== '-') {
         const slug = feature.replace(/`/g, '').trim()
-        if (!fs.existsSync(path.join(root, 'context', 'features', slug, 'spec.md'))) {
+        const specPath = path.join(root, 'context', 'features', slug, 'spec.md')
+        if (!fs.existsSync(specPath)) {
           add(`[${dir}/${n}] feature sem spec.md: ${slug}`, n)
+        } else {
+          const acs = String(task.values?.['ACs'] ?? '')
+            .replace(/`/g, '')
+            .split(',')
+            .map((a) => a.trim().toUpperCase())
+            .filter((a) => a && a !== '—' && a !== '-')
+          if (acs.length > 0) {
+            const spec = fs.readFileSync(specPath, 'utf8').toUpperCase()
+            const missing = acs.filter((ac) => !spec.includes(ac))
+            if (missing.length > 0) {
+              add(`[${dir}/${n}] ACs ausentes na spec de ${slug}: ${missing.join(', ')}`, n)
+            }
+          }
         }
       }
       const priority = (task.values?.['Prioridade'] ?? '').trim()

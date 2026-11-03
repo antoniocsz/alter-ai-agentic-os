@@ -38,6 +38,16 @@ export async function task(args) {
     throw new Error(`prioridade inválida: ${priorityRaw} (use P0 | P1 | P2 | P3)`)
   }
   const commitType = normalizeCommitType(flag(['--type']) ?? 'feat')
+  const acsRaw = flag(['--acs'])
+  const acs = acsRaw
+    ? acsRaw
+        .split(',')
+        .map((a) => a.trim().toUpperCase())
+        .filter(Boolean)
+    : []
+  for (const ac of acs) {
+    if (!/^AC-\d+$/.test(ac)) throw new Error(`AC inválido: ${ac} (use AC-1, AC-2...)`)
+  }
   const featureRaw = flag(['--feature'])
   const feature = featureRaw ? slugifyFeature(featureRaw) : '—'
 
@@ -76,6 +86,7 @@ export async function task(args) {
       FEATURE: feature,
       PRIORITY: priorityRaw,
       TYPE: commitType,
+      ACS: acs.length ? acs.join(', ') : '—',
       COMPLEXITY: complexity
     })
   )

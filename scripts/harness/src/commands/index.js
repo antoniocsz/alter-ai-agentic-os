@@ -58,7 +58,7 @@ Comandos:
   help                Mostra esta ajuda
 
 Flags do check: --json | --barrel | --lint | --typecheck | --db
-Flags do task:  --feature <slug> | --module <m> | --agent backend|frontend|mobile | --scope "p1,p2" | --dep <task> | --complexity
+Flags do task:  --feature <slug> | --acs AC-1,AC-2 | --priority P0..P3 | --type feat|fix|docs|... | --module <m> | --agent backend|frontend|mobile | --scope "p1,p2" | --dep <task> | --complexity
 Flags do finish: --handoff "<resumo>" | --skip-gates
 Flag global:    --project <projeto> (ou -p) roda o comando dentro do projeto do workspace
 `

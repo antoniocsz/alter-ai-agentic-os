@@ -4,6 +4,7 @@
 ## Feature: {{FEATURE}}
 ## Prioridade: {{PRIORITY}}
 ## Tipo: {{TYPE}}
+## ACs: {{ACS}}
 ## Escopo (arquivos que esta task vai tocar):
 {{SCOPE}}
 ## Depende de: [ ] `{{DEP}}`

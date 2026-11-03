@@ -58,3 +58,22 @@ test('check: task com feature sem spec.md reprova', () => {
   const ok = validate(root)
   assert.equal(ok.ok, true, ok.errors.join('\n'))
 })
+
+test('check: ACs da task precisam existir na spec da feature', () => {
+  const root = setupRoot()
+  fs.mkdirSync(path.join(root, 'context/features/billing'), { recursive: true })
+  write(root, 'context/features/billing/spec.md', '# Spec\n\n- [ ] AC-1 — ok\n')
+
+  const withAcs = TASK.replace('## Feature: billing', '## Feature: billing\n## ACs: AC-1, AC-7')
+  write(root, 'tasks/queue/01-billing-acs.md', withAcs)
+
+  const bad = validate(root)
+  assert.ok(
+    bad.errors.some((e) => e.includes('ACs ausentes') && e.includes('AC-7')),
+    bad.errors.join('\n')
+  )
+
+  write(root, 'context/features/billing/spec.md', '# Spec\n\n- [ ] AC-1 — ok\n- [ ] AC-7 — ok\n')
+  const ok = validate(root)
+  assert.equal(ok.ok, true, ok.errors.join('\n'))
+})

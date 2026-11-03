@@ -8,7 +8,7 @@
 2. MAPEAR      → identificar módulos, camadas e agentes necessários
 3. CONFIRMAR   → apresentar plano e aguardar confirmação
 4. SPEC        → criar context/features/<slug>/{spec.md,plan.md} (critérios AC-N)
-5. GERAR TASKS → criar arquivos em tasks/queue/ com `## Feature: <slug>`
+5. GERAR TASKS → criar arquivos em tasks/queue/ com `## Feature: <slug>` e `## ACs`
 ```
 
 ## Fase 1 — Perguntas de clarificação (uma por vez)
@@ -70,7 +70,7 @@ pnpm harness feature <slug>     # cria context/features/<slug>/spec.md + plan.md
 
 Preencha a spec ANTES das tasks: problema, comportamento e critérios de aceitação com IDs
 (`AC-1`, `AC-2`). O `plan.md` guarda decisões técnicas e ordem de tasks. Toda task da feature
-referencia `## Feature: <slug>`; o `check` reprova task com feature sem spec.
+referencia `## Feature: <slug>` e os ACs cobertos (`## ACs: AC-1, AC-2`); o `check` reprova task com feature sem spec ou AC inexistente.
 
 ## Fase 5 — Template de task (tasks/queue/)
 
@@ -82,6 +82,7 @@ Ex: `01-backend-domain-ocorrencia.md`, `06a-frontend-viewmodel-ocorrencias.md`
 ## Agente: `agente-<especialidade>`
 ## Módulo: `packages/modules/<modulo>`
 ## Feature: <slug>
+## ACs: <AC-1, AC-2>
 ## Escopo (arquivos que esta task vai tocar):
 - `packages/modules/<modulo>/src/...`
 ## Depende de: [ ] `<arquivo-da-task-anterior>.md`
