@@ -1,5 +1,37 @@
 # Changelog
 
+## 2026-11-03 — 76-code-quality.md
+
+- Testes limpam %TEMP% no exit; parseTask ignora BOM; linha duplicada de version removida; 137 testes verdes.
+
+## 2026-11-03 — 75-docs-changelog-status.md
+
+- status.md atualizado: historico de dogfood corrigido, fases 7-9 (v0.3/hardening/kanban Next), contagem de testes e pendencias atuais.
+
+## 2026-11-03 — 74-docs-workspace.md
+
+- context/workspace/adr criado; referencia corrigida para <projeto>/context; mapa e kanban v2 ja atualizados.
+
+## 2026-11-03 — 73-docs-agents-openCode.md
+
+- frontend aponta ui-ux.md; executor/coordinator usam worktree finish; ## Agente padronizado sem prefixo agente-; orchestration/feature-planning alinhados.
+
+## 2026-11-03 — 72-docs-agents-templates.md
+
+- Stack base neutra; READMEs usam harness global; docs gates reais; paths context/agents removidos; template workspace sincronizado (remove/task/run).
+
+## 2026-11-03 — 71-docs-readme.md
+
+- README: versao 0.3.3, indice sem links concatenados (+ worktree/perfis/workspaces/metricas), arvore com features/sessions/adapters/core, flags de task/finish, --bare removido, 7 blocos por perfil.
+
+## 2026-11-03 — 65-parser-flags.md
+
+- Parser unico de flags (--k v/--k=v/boolean) aplicado em task/log/history/finish/worktree; descricao e handoff nao confundem mais com valores de flag; testes do parser; 136 testes verdes.
+
+## 2026-11-03 — 70-release-v033.md
+
+- Release v0.3.3: P0 (escopo/worktree, seguranca, kanban, lock, workspace), P1 (strict, check db, json, traversal, prune, binario, datas, sqlite) e kanban Next v2.
+
 ## 2026-11-03 — 64-sqlite-robustez.md
 
 - SQLite com busy_timeout=5000; DBs fechados em check/memory; reduz SQLITE_BUSY em concorrencia CLI/kanban.

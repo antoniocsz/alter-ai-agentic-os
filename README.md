@@ -57,7 +57,7 @@ O kit instala wrappers em `harness/bin/` (`harness` para bash, `harness.cmd` par
 `harness/bin` já está no PATH do usuário e no `~/.bashrc`. Em um terminal novo:
 
 ```bash
-harness version          # 0.3.3
+harness version          # 0.3.4
 harness status           # de qualquer projeto
 harness workspace list   # da raiz do workspace
 ```
