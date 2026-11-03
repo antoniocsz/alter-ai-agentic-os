@@ -1,0 +1,6 @@
+{
+  "profile": "game",
+  "gates": { "finish": ["scope", "lint", "test"], "merge": ["test", "build"] },
+  "git": { "model": "trunk", "featureBranch": false },
+  "wip": { "active": 2, "queue": 8 }
+}

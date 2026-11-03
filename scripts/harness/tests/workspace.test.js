@@ -272,7 +272,7 @@ test('workspace task: cria task direto no projeto certo (B1)', async () => {
   const queueB = fs.readdirSync(path.join(ws, 'projects', 'projeto-b', 'tasks', 'queue'))
   assert.ok(queueA.some((f) => f.endsWith('.md')), 'task deveria existir em projeto-a')
   // projeto-b continua com as tasks de fundação do template apenas (mesma contagem de antes)
-  assert.equal(queueB.length, 4, 'projeto-b não deveria receber a task')
+  assert.equal(queueB.filter((f) => f.endsWith('.md')).length, 4, 'projeto-b não deveria receber a task')
 })
 
 test('workspace report --all --format json: agrega todos os projetos num JSON (B2)', async () => {

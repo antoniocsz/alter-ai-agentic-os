@@ -33,7 +33,7 @@ Este repositório é a **fonte do AlterAI - Agentic OS** (a "camada harness"). V
 **1. Gerar um projeto novo** — cria um monorepo com a camada harness embutida:
 
 ```bash
-pnpm harness init meu-projeto [--prisma] [--git] [--bare]
+pnpm harness init meu-projeto --profile web [--prisma] [--git]
 cd meu-projeto && pnpm install
 ```
 
@@ -50,7 +50,8 @@ A partir daí o projeto tem `pnpm harness start|finish|check|...`.
 
 | Comando | O que faz |
 |---|---|
-| `pnpm harness init <dir>` | Gera projeto novo com a camada harness (`--bare` = sem módulos padrão) |
+| `pnpm harness init <dir> --profile <p>` | Gera projeto novo com o perfil escolhido (`web` é o default) |
+| `pnpm harness profile` | Lista os perfis (ou detalha um: `harness profile docs`) |
 | `pnpm harness init --workspace <dir>` | Gera um **workspace** (equivale a `harness workspace init`) |
 | `pnpm harness module <nome>` | Cria um módulo (bounded context) |
 | `pnpm harness task "<desc>" --module <m>` | Planeja uma task na queue |
@@ -105,7 +106,7 @@ tasks/
 
 | Comando | O que faz |
 |---|---|
-| `harness init <dir>` | Gera projeto novo. Flags: `--prisma` (docker-compose Postgres+Redis, `packages/database`, `.env.example`), `--git [--branch <b>]` (git init + commit inicial) |
+| `harness init <dir>` | Gera projeto novo. Flags: `--profile <p>` (web default), `--prisma` (web/api), `--git [--branch <b>]` |
 | `harness module <nome>` | Scaffold de módulo. Flags: `--with-prisma`, `--with-http` |
 | `harness update [--source <cam>]` | Re-sincroniza a camada harness a partir do harness-fonte (ou `HARNESS_SOURCE`) |
 | `harness task "<desc>"` | Cria task na queue com numeração automática e `## Escopo`. Flags: `--module`, `--agent`, `--scope`, `--dep`, `--complexity` |
@@ -127,7 +128,7 @@ tasks/
 
 ## Começando um projeto
 
-1. **Inicializar:** `pnpm harness init <nome-do-projeto> [--prisma] [--git]` — gera AGENTS.md, `.agents/`, `.opencode/agent/` (agents prontos), `scripts/harness/`, `context/` e o esqueleto do monorepo (turbo.json, pnpm-workspace.yaml, tsconfig.base.json, eslint.config.js, `apps/api`, `apps/web`, `packages/contracts`, `packages/api-client`, Vitest, `opencode.json`, CI). Já vem com os **módulos padrão** (tenancy, auth, authorization, audit) e suas tasks de fundação na queue. `--prisma` adiciona `docker-compose.yml` (Postgres + Redis com limites de memória/CPU), `packages/database` (schema + client) e `.env.example`; `--git` inicializa o repositório com commit inicial.
+1. **Inicializar:** `pnpm harness init <nome-do-projeto> --profile <p> [--prisma] [--git]` — gera AGENTS.md, `.agents/`, `.opencode/agent/`, `scripts/harness/`, `harness.json`, `context/` e o esqueleto do perfil. Perfis: `web` (monorepo Fastify+Next), `api` (Fastify+contracts), `cli`, `script`, `game`, `docs`, `design`, `bare`. O perfil `web` já vem com os **módulos padrão** (tenancy, auth, authorization, audit) e tasks de fundação na queue. `--prisma` (web/api) adiciona `docker-compose.yml`, `packages/database` e `.env.example`; `--git` inicializa o repositório com commit inicial.
 2. **Versionar:** `cd <nome-do-projeto> && git init && git add -A && git commit -m "chore: bootstrap harness"` (já feito com `--git`).
 3. **Instalar:** `pnpm install` (configs e dependências iniciais).
 4. **Banco local (com `--prisma`):** `docker compose up -d` e `cp .env.example .env`; scripts em `apps/api`: `db:up`, `db:migrate`, `db:deploy`.
@@ -334,6 +335,19 @@ pnpm harness check --db                 # detecta drift entre markdown e banco
   (toast com o motivo). No kanban agregado, o limite é avaliado por projeto dono do card.
 
 ## Perfis e `harness.json`
+
+Perfis disponíveis (`harness profile` lista):
+
+| Perfil | Esqueleto gerado |
+|---|---|
+| `web` | Monorepo pnpm/Turbo: `apps/api` (Fastify) + `apps/web` (Next.js) + `packages/contracts`/`api-client` |
+| `api` | Monorepo: `apps/api` (Fastify) + `packages/contracts` |
+| `cli` | CLI Node.js: `bin/cli.js` + `src/index.js` + testes |
+| `script` | Script Node.js: `src/main.js` + testes |
+| `game` | `src/scenes`, `src/systems`, `assets/` (engine a definir) |
+| `docs` | `docs/` em markdown, sem código de aplicação |
+| `design` | `assets/` + `BRIEF.md` |
+| `bare` | Só contexto + pipeline |
 
 Cada projeto declara seu perfil em `harness.json` na raiz:
 

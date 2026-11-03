@@ -3,6 +3,7 @@ import path from 'node:path'
 import { execSync } from 'node:child_process'
 import { harnessRoot, templatesDir } from './lib/paths.js'
 import { copyDir, ensureDir } from './lib/templates.js'
+import { baseTemplateDir, profileTemplateDir, resolveProfile } from './lib/profiles.js'
 
 const DB_SCRIPTS =
   ',\n' +
@@ -16,14 +17,18 @@ const DB_SCRIPTS =
 
 export async function init(args) {
   const [dir] = args
-  if (!dir) throw new Error('uso: harness init <dir> [--prisma] [--git [--branch <nome>]] [--bare]')
+  if (!dir) throw new Error('uso: harness init <dir> [--profile <p>] [--prisma] [--git [--branch <nome>]]')
 
   const branchIdx = args.indexOf('--branch')
+  const profile = resolveProfile(args)
   const opts = {
+    profile,
     prisma: args.includes('--prisma'),
     git: args.includes('--git'),
-    branch: branchIdx !== -1 ? args[branchIdx + 1] : null,
-    bare: args.includes('--bare')
+    branch: branchIdx !== -1 ? args[branchIdx + 1] : null
+  }
+  if (opts.prisma && !['web', 'api'].includes(profile)) {
+    throw new Error(`--prisma só é válido nos perfis web e api (recebido: ${profile})`)
   }
   const target = path.resolve(dir)
 
@@ -45,39 +50,40 @@ export async function createProject(target, opts = {}, sourceRoot = harnessRoot(
   ensureDir(target)
 
   const name = sanitize(path.basename(target))
+  const profile = opts.profile ?? 'web'
   const agentsMd = agentsMdSource ?? path.join(sourceRoot, 'AGENTS.md')
+  const vars = { NAME: name, PROFILE: profile, DB_SCRIPTS: opts.prisma ? DB_SCRIPTS : '' }
 
   fs.copyFileSync(agentsMd, path.join(target, 'AGENTS.md'))
   copyDir(path.join(sourceRoot, '.agents'), path.join(target, '.agents'))
   copyDir(path.join(sourceRoot, '.opencode', 'agent'), path.join(target, '.opencode', 'agent'))
   copyDir(path.join(sourceRoot, 'scripts', 'harness'), path.join(target, 'scripts', 'harness'))
-  copyDir(path.join(templatesDir(), 'project'), target, {
-    vars: { NAME: name, DB_SCRIPTS: opts.prisma ? DB_SCRIPTS : '' },
-    renderAll: true
-  })
+  copyDir(baseTemplateDir(), target, { vars, renderAll: true })
+  copyDir(profileTemplateDir(profile), target, { vars, renderAll: true })
 
-  if (opts.bare) {
-    for (const m of ['tenancy', 'auth', 'authorization', 'audit']) {
-      fs.rmSync(path.join(target, 'context', 'modules', m), { recursive: true, force: true })
-    }
-    const qDir = path.join(target, 'tasks', 'queue')
-    if (fs.existsSync(qDir)) {
-      for (const f of fs.readdirSync(qDir)) {
-        fs.rmSync(path.join(qDir, f), { recursive: true, force: true })
-      }
-    }
+  const profileLines = {
+    web: '  - Monorepo pnpm/Turbo: apps/api (Fastify) + apps/web (Next.js) + packages/contracts|api-client',
+    api: '  - Monorepo pnpm/Turbo: apps/api (Fastify) + packages/contracts',
+    cli: '  - CLI Node.js: bin/cli.js + src/index.js + testes (node --test)',
+    script: '  - Script Node.js: src/main.js + testes (node --test)',
+    game: '  - Estrutura de jogo: src/scenes, src/systems, assets (engine a definir)',
+    docs: '  - Documentação: docs/ (markdown), sem código de aplicação',
+    design: '  - Design: assets/ + BRIEF.md',
+    bare: '  - Mínimo: sem código de aplicação (só contexto + pipeline)'
   }
 
   const gerado = [
     '  - AGENTS.md + .agents/ (camada harness)',
     '  - .opencode/agent/ (agents prontos) + scripts/harness (CLI)',
-    '  - context/ (overview.md, stack.md, adr/, modules/) + tasks/queue|active|done',
-    '  - Monorepo mínimo (turbo.json, pnpm-workspace.yaml, tsconfig.base.json, eslint.config.js)',
-    '  - apps/api (Fastify) + apps/web (Next.js), packages/contracts + packages/api-client',
-    ...(opts.bare
-      ? ['  - Sem módulos padrão (--bare): crie do zero com `harness module <nome>`']
-      : ['  - Módulos padrão (tenancy, auth, authorization, audit) + tasks de fundação na queue']),
-    '  - Vitest configurado (turbo test) e opencode.json + CI (.github/workflows/ci.yml)'
+    '  - harness.json (perfil ' + profile + ')',
+    '  - context/ (project/, features/, sessions/, modules/) + tasks/queue|active|done',
+    profileLines[profile],
+    ...(profile === 'web'
+      ? ['  - Módulos padrão (tenancy, auth, authorization, audit) + tasks de fundação na queue']
+      : []),
+    ...(['web', 'api'].includes(profile)
+      ? ['  - Vitest configurado (turbo test) e CI (.github/workflows/ci.yml)']
+      : [])
   ]
   if (opts.prisma) {
     copyDir(path.join(templatesDir(), 'prisma'), target, { vars: { NAME: name }, renderAll: true })
@@ -107,7 +113,7 @@ export async function createProject(target, opts = {}, sourceRoot = harnessRoot(
       execSync(`git init${initBranch}`, { cwd: target, stdio: 'ignore' })
       execSync(`git add -A`, { cwd: target, stdio: 'ignore' })
       execSync(
-        `git -c user.name="harness" -c user.email="harness@local" commit -qm "chore: bootstrap harness"`,
+        `git -c user.name="harness" -c user.email="harness@local" commit -qm "chore: bootstrap harness (${profile})"`,
         { cwd: target, stdio: 'ignore' }
       )
       lines.push(`   git: repositório inicializado${opts.branch ? ` na branch ${opts.branch}` : ''} com commit inicial.`)

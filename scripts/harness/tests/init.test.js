@@ -95,3 +95,37 @@ test('init: --prisma gera packages/database no padrão diasbellazzi', () => {
   assert.ok(cfg.includes('databaseUrl()'), 'prisma.config.ts não usa databaseUrl()')
   assert.ok(cfg.includes('import.meta.dirname'), 'prisma.config.ts não usa import.meta.dirname')
 })
+
+test('init: --profile script gera projeto mínimo sem monorepo', () => {
+  const target = path.join(tmpdir(), 'script-projeto')
+  init([target, '--profile', 'script'])
+
+  assert.ok(fs.existsSync(path.join(target, 'package.json')))
+  assert.ok(fs.existsSync(path.join(target, 'src', 'main.js')))
+  assert.ok(fs.existsSync(path.join(target, 'tests', 'main.test.js')))
+  assert.ok(!fs.existsSync(path.join(target, 'apps')))
+  const cfg = JSON.parse(fs.readFileSync(path.join(target, 'harness.json'), 'utf8'))
+  assert.equal(cfg.profile, 'script')
+  const r = validate(target)
+  assert.equal(r.ok, true, r.errors.join('\n'))
+})
+
+test('init: --profile docs não gera package.json e cria docs/', () => {
+  const target = path.join(tmpdir(), 'docs-projeto')
+  init([target, '--profile', 'docs'])
+
+  assert.ok(fs.existsSync(path.join(target, 'docs', 'index.md')))
+  assert.ok(!fs.existsSync(path.join(target, 'package.json')))
+  const cfg = JSON.parse(fs.readFileSync(path.join(target, 'harness.json'), 'utf8'))
+  assert.equal(cfg.profile, 'docs')
+  const r = validate(target)
+  assert.equal(r.ok, true, r.errors.join('\n'))
+})
+
+test('init: perfil inválido e --prisma fora de web/api falham', async () => {
+  await assert.rejects(init([path.join(tmpdir(), 'x'), '--profile', 'mobile']), /perfil inválido/)
+  await assert.rejects(
+    init([path.join(tmpdir(), 'y'), '--profile', 'script', '--prisma']),
+    /--prisma só é válido/
+  )
+})

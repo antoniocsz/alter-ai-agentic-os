@@ -35,7 +35,9 @@ pnpm harness module <nome>                                         # criar módu
 
 ## Contexto
 
-- `context/overview.md` + `context/stack.md` — visão e stack
+- `context/project/overview.md` + `context/project/stack.md` — visão e stack
+- `context/features/<slug>/spec.md` — spec da feature
 - `context/modules/<módulo>/` — contexto e status de cada módulo
 - `tasks/queue|active|done/` — pipeline de tasks
-- `context/adr/` — decisões arquiteturais
+- `context/project/adr/` — decisões arquiteturais
+- `harness.json` — perfil, gates e WIP

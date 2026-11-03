@@ -1,0 +1,6 @@
+{
+  "profile": "docs",
+  "gates": { "finish": ["scope"], "merge": ["links"] },
+  "git": { "model": "trunk", "featureBranch": false },
+  "wip": { "active": 3, "queue": 10 }
+}

@@ -13,12 +13,14 @@ import { report } from '../report.js'
 import { update } from '../update.js'
 import { workspace } from '../workspace.js'
 import { versionCmd, changelogCmd } from '../version.js'
+import { profileCmd } from '../profile.js'
 
 export const usage = `harness <comando> [args]
 
 Comandos:
-  init <dir>          Gera projeto novo [--prisma] [--git [--branch <b>]] [--bare]
+  init <dir>          Gera projeto novo [--profile <p>] [--prisma] [--git [--branch <b>]]
                       ou, com --workspace <dir>: gera um workspace (delega p/ workspace init)
+  profile [perfil]    Lista os perfis de projeto (ou detalha um)
   module <nome>       Scaffold de módulo [--with-prisma] [--with-http]
   task "<descrição>"  Cria task na queue com numeração automática e ## Escopo
   start <task>        Move queue/<task> → active/ com checagem de conflito de escopo
@@ -57,6 +59,7 @@ export const commands = {
     }
   },
   module: moduleCmd,
+  profile: profileCmd,
   task,
   start,
   finish,

@@ -107,6 +107,9 @@ Estas regras se aplicam a TODO agente e valem para QUALQUER tarefa, incluindo de
 5. **Pipeline queue→active→done** — limpar a queue antes de iniciar (mover concluídas para done); registrar a tarefa na queue antes de começar; tasks ativas podem coexistir apenas com `## Escopo` disjuntos (validado por `harness start`/`check`); mover para done ao finalizar via `harness finish`.
 6. **Sem tarefas "bônus"** — não executar melhorias, limpezas ou correções não pedidas no plano aprovado.
 7. **Sempre que houver dúvida sobre o estado do repositório, reportar antes de qualquer ação.**
+8. **Arquivos/pastas temporárias** — rascunhos, dumps, builds de teste e experimentos vivem em
+   `.tmp/` (gitignored) e são **removidos ao terminar a tarefa**. Não deixar lixo ocupando disco
+   no repositório nem no workspace; se um artefato precisar ficar, ele vira parte do escopo.
 
 ---
 

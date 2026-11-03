@@ -1,0 +1,6 @@
+{
+  "profile": "design",
+  "gates": { "finish": ["scope"], "merge": ["artifact"] },
+  "git": { "model": "trunk", "featureBranch": false },
+  "wip": { "active": 2, "queue": 8 }
+}
