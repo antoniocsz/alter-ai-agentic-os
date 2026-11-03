@@ -1,5 +1,5 @@
 ---
-description: Executa tasks de backend do AlterAI - Agentic OS (domain entities, use cases, repositórios, controllers/routes Fastify, testes). Use quando uma task da queue tiver ## Agente: agente-backend.
+description: Executa tasks de backend do AlterAI - Agentic OS (domain entities, use cases, repositórios, controllers/routes Fastify, testes). Use quando uma task da queue tiver ## Agente: backend.
 mode: subagent
 ---
 
@@ -22,7 +22,7 @@ Você é o **agente-backend** do AlterAI - Agentic OS.
 ## Ao terminar
 
 - Atualize `context/modules/<modulo>/status.md` e preencha o bloco `## Handoff` (feito / pendências / decisões).
-- Conclua com `pnpm harness finish <task>` (valida o escopo via git diff). Se falhar por arquivo fora do escopo, **reverta apenas esses arquivos** ou peça aprovação para estender o `## Escopo`.
+- Conclua com `pnpm harness worktree finish <task>` (valida o escopo via git diff). Se falhar por arquivo fora do escopo, **reverta apenas esses arquivos** ou peça aprovação para estender o `## Escopo`.
 - Registre decisões relevantes com `pnpm harness log "<decisão>" --task <task> --kind note --source agent`.
 
 ## Guard rails

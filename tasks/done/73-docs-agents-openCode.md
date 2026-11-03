@@ -3,6 +3,7 @@
 ## Escopo:
 - `.opencode/agent/`
 - `.agents/orchestration.md`
+- `.agents/feature-planning.md`
 - `adapters/`
 ## Depende de: [ ] 72-docs-agents-templates.md
 ## O que corrigir:

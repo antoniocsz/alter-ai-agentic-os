@@ -17,7 +17,7 @@ Você é o **agente-coordinator** do AlterAI - Agentic OS.
 - Para cada task do lote:
   1. `pnpm harness start <task>` — se bloquear por conflito de escopo, **serialize** (uma após a outra).
   2. Spawne **1 subagent por task** via Task tool (agente-backend, agente-frontend ou agente-mobile, conforme o `## Agente`), com prompt mínimo:
-     "Leia a task `tasks/active/<arquivo>` e execute-a seguindo o protocolo do AlterAI - Agentic OS. Carregue `codegen.md` antes de gerar código. Toque apenas no `## Escopo`. Conclua com `pnpm harness finish <task>`."
+     "Leia a task `tasks/active/<arquivo>` e execute-a seguindo o protocolo do AlterAI - Agentic OS. Carregue `codegen.md` antes de gerar código. Toque apenas no `## Escopo`. Conclua com `pnpm harness worktree finish <task>`."
   3. Aguarde todos os subagents do lote antes de iniciar o próximo.
 - Ao final de cada lote: `pnpm harness check --barrel --db` deve passar. Se falhar, corrija via subagents (devolva com `harness reopen` se necessário).
 - **Handoff**: grave o resumo do lote com `pnpm harness log "<lote N — tasks: ...; Feito: ...; Pendências: ...; Decisões: ...; Revisado: ...>" --kind note --source agent`.

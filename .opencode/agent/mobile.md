@@ -1,5 +1,5 @@
 ---
-description: Executa tasks mobile do AlterAI - Agentic OS (Expo bare workflow, MVVM, offline-first). Use quando uma task da queue tiver ## Agente: agente-mobile.
+description: Executa tasks mobile do AlterAI - Agentic OS (Expo bare workflow, MVVM, offline-first). Use quando uma task da queue tiver ## Agente: mobile.
 mode: subagent
 ---
 
@@ -21,7 +21,7 @@ Você é o **agente-mobile** do AlterAI - Agentic OS.
 ## Ao terminar
 
 - Atualize `context/modules/<modulo>/status.md` e preencha o bloco `## Handoff`.
-- Conclua com `pnpm harness finish <task>`. Se falhar por escopo, reverta apenas os arquivos fora do escopo ou peça aprovação para estender o `## Escopo`.
+- Conclua com `pnpm harness worktree finish <task>`. Se falhar por escopo, reverta apenas os arquivos fora do escopo ou peça aprovação para estender o `## Escopo`.
 - Registre decisões com `pnpm harness log "<decisão>" --task <task> --kind note --source agent`.
 
 ## Guard rails

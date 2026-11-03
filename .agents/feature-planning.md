@@ -53,12 +53,12 @@ Bloco D — Aceite
 "Módulos: [lista]
 Agentes necessários: [lista]
 Tasks:
-[1] Setup módulo → agente-backend
-[2] Domain entity + evento → agente-backend
-[3] UseCase → agente-backend
+[1] Setup módulo → backend
+[2] Domain entity + evento → backend
+[3] UseCase → backend
 ...
-[6a] ViewModel + View → agente-frontend (paralelo)
-[6b] Mobile Screen → agente-mobile (paralelo)
+[6a] ViewModel + View → frontend (paralelo)
+[6b] Mobile Screen → mobile (paralelo)
 Ficou correto?"
 ```
 
