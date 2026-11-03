@@ -14,7 +14,13 @@ Camada de operação que padroniza como agentes de IA trabalham em um projeto de
 - [Pipeline de tarefas (queue → active → done)](#pipeline-de-tarefas-queue--active--done)
 - [Execução em paralelo (subagents)](#execução-em-paralelo-subagents)
 - [Adaptadores de tool](#adaptadores-de-tool)
-- [Agentes (subagents opencode)](#agentes-subagents-opencode)- [Memória local (sessões, recall, status)](#memória-local-sessões-recall-status)- [Painel kanban](#painel-kanban)
+- [Agentes (subagents opencode)](#agentes-subagents-opencode)
+- [Memória local (sessões, recall, status)](#memória-local-sessões-recall-status)
+- [Painel kanban](#painel-kanban)
+- [Worktree por task](#worktree-por-task)
+- [Perfis e `harness.json`](#perfis-e-harnessjson)
+- [Workspaces (múltiplos projetos, operação unificada)](#workspaces-múltiplos-projetos-operação-unificada)
+- [Métricas e observabilidade](#métricas-e-observabilidade)
 - [Protocolo de execução de tarefa](#protocolo-de-execução-de-tarefa)
 - [Planejamento de features](#planejamento-de-features)
 - [Exemplo de prompt](#exemplo-de-prompt)
@@ -51,7 +57,7 @@ O kit instala wrappers em `harness/bin/` (`harness` para bash, `harness.cmd` par
 `harness/bin` já está no PATH do usuário e no `~/.bashrc`. Em um terminal novo:
 
 ```bash
-harness version          # 0.3.2
+harness version          # 0.3.3
 harness status           # de qualquer projeto
 harness workspace list   # da raiz do workspace
 ```
@@ -103,8 +109,12 @@ Conclusão
 AGENTS.md            — arquivo base: protocolo, regras inegociáveis, guard rails, índices
 .agents/             — referências modulares (carregar sob demanda por especialidade)
 scripts/harness/     — CLI do harness (init, module, start, finish, check)
+adapters/            — camada por tool (opencode | claude | codex)
+core/                — papéis neutros (coordinator, executor, reviewer)
 context/
-├── project/         — visão do projeto (overview, domain-model, stack, ADRs)
+├── project/         — visão do projeto (overview, stack, glossary, runbook, ADRs)
+├── features/        — spec.md + plan.md por feature (spec-driven)
+├── sessions/        — memória local (resumo por sessão)
 └── modules/         — contexto e status por módulo (context.md + status.md)
 tasks/
 ├── queue/           — tarefas planejadas, não iniciadas
@@ -133,9 +143,9 @@ tasks/
 | `harness retro [--days n]` | Gera retrospectiva markdown com métricas + sessões do período |
 | `harness profile set <p>` / `current` | Troca o perfil do projeto / mostra o atual |
 | `harness workspace remove <nome>` | Desregistra o projeto (`--delete --force` apaga a pasta) |
-| `harness task "<desc>"` | Cria task na queue com numeração automática e `## Escopo`. Flags: `--module`, `--agent`, `--scope`, `--dep`, `--complexity` |
+| `harness task "<desc>"` | Cria task na queue. Flags: `--feature`, `--acs`, `--priority`, `--type`, `--module`, `--agent`, `--scope`, `--dep`, `--complexity` |
 | `harness start <task>` | Move `queue/` → `active/`, bloqueando conflito de escopo com tasks ativas |
-| `harness finish <task>` | Valida `git diff` contra o `## Escopo` e move `active/` → `done/`. Flag: `--handoff "<resumo>"` |
+| `harness finish <task>` | Valida `git diff` contra o `## Escopo` e move `active/` → `done/`. Flags: `--handoff`, `--skip-gates` |
 | `harness requeue <task>` | Move `active/` → `queue/` (devolve para a fila) |
 | `harness reopen <task>` | Move `done/` → `active/` (reabre) |
 | `harness sync` | Reindexa o banco SQLite (`.harness/harness.db`) a partir dos `.md` |
@@ -156,7 +166,7 @@ tasks/
 2. **Versionar:** `cd <nome-do-projeto> && git init && git add -A && git commit -m "chore: bootstrap harness"` (já feito com `--git`).
 3. **Instalar:** `pnpm install` (configs e dependências iniciais).
 4. **Banco local (com `--prisma`):** `docker compose up -d` e `cp .env.example .env`; scripts em `apps/api`: `db:up`, `db:migrate`, `db:deploy`.
-5. **Onboarding:** rodar a context-interview (7 blocos, abaixo) para preencher `context/project/overview.md` e `stack.md` e definir os ADRs iniciais.
+5. **Onboarding:** rodar a context-interview (7 blocos, abaixo; subconjunto conforme o perfil) para preencher `context/project/overview.md` e `stack.md` e definir os ADRs iniciais.
 6. **Criar módulos:** `pnpm harness module <nome>` para cada bounded context; preencher `context.md` e `status.md`.
 7. **Planejar e executar:** criar tasks em `tasks/queue/` (com `## Escopo`) e operar com `harness start` / `harness finish`.
 8. **Verificar:** `pnpm harness check` a qualquer momento — também útil no CI.
@@ -189,7 +199,7 @@ Cada projeto gerado é um monorepo próprio (pnpm/Turbo) que guarda a identidade
 **Criar um projeto novo (a partir da fonte):**
 
 ```bash
-node D:/projetos/harness/scripts/harness/bin/harness.js init D:/projetos/projeto-a [--prisma] [--git] [--bare]
+node D:/projetos/harness/scripts/harness/bin/harness.js init D:/projetos/projeto-a --profile <p> [--prisma] [--git]
 ```
 
 **Atualizar a camada (de dentro de cada projeto):**
@@ -227,7 +237,7 @@ D:\projetos\                        ← raiz do workspace
 | Comando | O que faz |
 |---|---|
 | `harness workspace init <dir>` | Cria o workspace (camada harness + registro + cache do AGENTS.md). Flags: `--source`, `--projects-dir`, `--dry-run` |
-| `harness workspace new <nome>` | Cria um projeto novo dentro do workspace. Flags: `--prisma`, `--git`, `--bare` |
+| `harness workspace new <nome>` | Cria um projeto novo dentro do workspace. Flags: `--profile`, `--prisma`, `--git`, `--branch` |
 | `harness workspace add <path>` | Registra projeto existente; se não tiver a camada, faz **onboarding** (backup do AGENTS.md, instala camada + esqueleto `context/`). Flags: `--name`, `--sync`, `--dry-run` |
 | `harness workspace remove <nome>` | Desregistra o projeto; `--delete --force` também apaga a pasta (bloqueado fora da raiz) |
 | `harness workspace list` / `status` | Tabela: queue/active/done, versão do harness, onboarded |
@@ -262,7 +272,7 @@ depois é só rodar a context-interview para preencher `context/project/*`.
 
 ## Bootstrap de projeto novo
 
-Via `.agents/context-interview.md` — 7 blocos, um por vez, confirmando antes de avançar:
+Via `.agents/context-interview.md` — 7 blocos (subconjunto conforme o perfil), um por vez, confirmando antes de avançar:
 
 | Bloco | Assunto | Gera/impacta |
 |---|---|---|
@@ -535,7 +545,7 @@ O AlterAI - Agentic OS é acionado por prompts em linguagem natural. O agente re
 
 ```
 Quero iniciar um projeto novo de SaaS B2B de gestão de clientes.
-Siga o fluxo do AlterAI - Agentic OS: faça a context-interview (7 blocos, um por vez,
+Siga o fluxo do AlterAI - Agentic OS: faça a context-interview (7 blocos, um por vez; subconjunto conforme o perfil,
 confirmando antes de avançar) e gere overview, domain-model, stack e ADRs.
 Ao final, monte a queue inicial com as primeiras tasks.
 ```
