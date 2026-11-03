@@ -8,6 +8,6 @@
 - Diagrama de estrutura (features/, sessions/, tasks/), exemplos de harness.json com `secrets`.
 - Flags de `task` (--feature/--acs/--priority/--type), `finish --skip-gates`, `workspace remove/task`, `--host`.
 - `--bare` obsoleto e fallback do comando global.
-## Critério:
+## Critério de conclusão:
 - [ ] nenhum caminho/comando inexistente no README
 - [ ] índice e âncoras válidos

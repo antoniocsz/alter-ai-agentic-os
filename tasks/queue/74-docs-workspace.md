@@ -7,5 +7,5 @@
 ## O que corrigir:
 - `context/workspace/adr/` ausente (criar ou remover referência), `<projeto>/context`.
 - Mapa com versões reais; demos e kanban documentados.
-## Critério:
+## Critério de conclusão:
 - [ ] docs do workspace sem referências quebradas

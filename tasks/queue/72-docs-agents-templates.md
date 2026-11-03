@@ -9,5 +9,5 @@
 - `context/agents` → `tasks/`; protocolo/paths; `stack.md` base neutra por perfil.
 - READMEs de docs/design/bare sem `pnpm harness` (usar `harness`/node); gates citados corretos.
 - Template workspace (AGENTS) sincronizado com o CLI.
-## Critério:
+## Critério de conclusão:
 - [ ] nenhum path legado; templates batem com os perfis

@@ -6,5 +6,5 @@
 ## Depende de: [ ] 74-docs-workspace.md
 ## O que corrigir:
 - Entrada da release atual; status sem “69/69”/“módulos removidos”; contagem real.
-## Critério:
+## Critério de conclusão:
 - [ ] CHANGELOG/status batem com a versão e a suíte

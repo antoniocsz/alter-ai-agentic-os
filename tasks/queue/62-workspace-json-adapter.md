@@ -11,3 +11,6 @@
 - `workspace check --all --json` emite JSON válido (filhos silenciosos).
 - `harness adapter` falha claro quando a fonte não existe; init copia adapters.
 - `kanban.html` no gitignore do template.
+
+## Critério de conclusão:
+- [ ] critérios da descrição atendidos; testes verdes

@@ -6,3 +6,6 @@
 ## O que criar:
 - Server actions para mover cards (start/finish/requeue/reopen) e abrir worktree, chamando o CLI no servidor.
 - Feedback por query string; validação de id/projeto/ação.
+
+## Critério de conclusão:
+- [ ] critérios da descrição atendidos; testes verdes

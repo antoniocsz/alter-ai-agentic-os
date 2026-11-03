@@ -7,3 +7,6 @@
 ## Depende de: [ ] 66-copydir-binario.md
 ## O que criar:
 - Nomes de sessão/retro/feature usam data local, não UTC.
+
+## Critério de conclusão:
+- [ ] critérios da descrição atendidos; testes verdes

@@ -9,3 +9,6 @@
 ## O que criar:
 - Rejeitar `../`, `/` e `\` em nomes de task (CLI e kanban).
 - Prune remove a branch órfã; registry com escrita atômica.
+
+## Critério de conclusão:
+- [ ] critérios da descrição atendidos; testes verdes

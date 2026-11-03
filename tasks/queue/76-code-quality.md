@@ -8,5 +8,5 @@
 - Limpar projetos temporários dos testes (after/finally) — regra de temporários.
 - Unificar `isGitRepo`, `norm`, `slugify`, `PROFILES`; remover dead code e linha duplicada do `version`.
 - `parseTask`: BOM e CRLF; `render` não apagar placeholder desconhecido silenciosamente.
-## Critério:
+## Critério de conclusão:
 - [ ] suíte sem lixo em %TEMP%; duplicações removidas; testes verdes

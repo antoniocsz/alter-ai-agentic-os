@@ -6,3 +6,6 @@
 ## Depende de: [ ] 67-datas-locais.md
 ## O que criar:
 - Copiar `adapters/` no init e no cache do workspace (adapter funciona no projeto).
+
+## Critério de conclusão:
+- [ ] critérios da descrição atendidos; testes verdes

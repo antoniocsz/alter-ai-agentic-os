@@ -6,3 +6,6 @@
 ## Depende de: [ ] 65-parser-flags.md
 ## O que criar:
 - Renderizar só texto; copiar binários byte a byte e preservar modo executável.
+
+## Critério de conclusão:
+- [ ] critérios da descrição atendidos; testes verdes

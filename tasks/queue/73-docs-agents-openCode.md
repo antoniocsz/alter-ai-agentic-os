@@ -9,5 +9,5 @@
 - `frontend.md` aponta `.agents/ui-ux.md` (não ui-ux-pro-max).
 - Conclusão via `worktree finish` no fluxo paralelo.
 - Padronizar `## Agente: agente-<especialidade>` (ou remover prefixo de todos).
-## Critério:
+## Critério de conclusão:
 - [ ] comandos e refs batem com o fluxo real

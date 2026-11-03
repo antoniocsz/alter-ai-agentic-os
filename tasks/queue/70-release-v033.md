@@ -4,3 +4,6 @@
 - `scripts/harness/package.json`
 - `CHANGELOG.md`
 ## Depende de: [ ] 69-kanban-v2-actions.md
+
+## Critério de conclusão:
+- [ ] critérios da descrição atendidos; testes verdes

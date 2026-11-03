@@ -7,3 +7,6 @@
 ## Depende de: [ ] 63-tasks-worktree-hardening.md
 ## O que criar:
 - `PRAGMA busy_timeout=5000`; fechar DBs em finally nos pontos de leitura.
+
+## Critério de conclusão:
+- [ ] critérios da descrição atendidos; testes verdes
