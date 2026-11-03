@@ -1,8 +1,9 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { queueDir, activeDir, doneDir, listTasks } from './tasks.js'
+import { queueDir, activeDir, doneDir, listTasks, parseTask } from './tasks.js'
 import { tryOpenDb } from './db.js'
 import { listWorktrees } from './worktree.js'
+import { redact } from './redact.js'
 
 const norm = (p) => p.replace(/\\/g, '/')
 
@@ -21,7 +22,7 @@ function today() {
 }
 
 export function sessionEnd(root, summary, opts = {}) {
-  const text = String(summary ?? '').trim()
+  const text = redact(String(summary ?? '').trim())
   if (!text) throw new Error('uso: harness session end "<resumo do que foi feito>"')
 
   const date = opts.date ?? today()
@@ -182,7 +183,9 @@ function searchDb(root, term, limit) {
 function recallOne(root, term, limit) {
   const dbHits = searchDb(root, term, limit)
   const mdHits = searchMarkdown(root, term, limit)
-  return [...dbHits, ...mdHits].slice(0, limit)
+  return [...dbHits, ...mdHits]
+    .slice(0, limit)
+    .map((hit) => ({ ...hit, text: redact(hit.text) }))
 }
 
 export function recall(root, term, opts = {}) {
@@ -214,11 +217,20 @@ export function statusReport(root) {
   const active = listTasks(activeDir(root))
   const done = listTasks(doneDir(root))
 
+  const rank = { P0: 0, P1: 1, P2: 2, P3: 3 }
+  const ordered = queue
+    .map((name) => parseTask(path.join(queueDir(root), name)))
+    .sort((a, b) => {
+      const ra = rank[String(a.values?.Prioridade ?? '').trim()] ?? 9
+      const rb = rank[String(b.values?.Prioridade ?? '').trim()] ?? 9
+      return ra - rb || a.name.localeCompare(b.name)
+    })
+
   return {
     name: path.basename(root),
     counts: { queue: queue.length, active: active.length, done: done.length },
     activeTasks: active,
-    next: queue.slice(0, 3),
+    next: ordered.slice(0, 3).map((t) => `${t.name}${t.values?.Prioridade ? ` (${t.values.Prioridade})` : ''}`),
     worktrees: listWorktrees(root),
     sessions: listSessions(root, 3),
     handoff: lastHandoff(root)

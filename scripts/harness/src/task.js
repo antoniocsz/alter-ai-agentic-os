@@ -32,6 +32,10 @@ export async function task(args) {
   const dep = flag(['--dep']) ?? '-'
   const complexity = flag(['--complexity']) ?? 'baixa'
   const scopeRaw = flag(['--scope']) ?? ''
+  const priorityRaw = (flag(['--priority']) ?? 'P2').toUpperCase()
+  if (!/^P[0-3]$/.test(priorityRaw)) {
+    throw new Error(`prioridade inválida: ${priorityRaw} (use P0 | P1 | P2 | P3)`)
+  }
   const featureRaw = flag(['--feature'])
   const feature = featureRaw ? slugifyFeature(featureRaw) : '—'
 
@@ -68,6 +72,7 @@ export async function task(args) {
       AGENT_REF: ref,
       FILE: file,
       FEATURE: feature,
+      PRIORITY: priorityRaw,
       COMPLEXITY: complexity
     })
   )

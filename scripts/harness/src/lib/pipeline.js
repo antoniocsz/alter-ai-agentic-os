@@ -11,6 +11,39 @@ export function startTask(root, arg) {
   return withLock(root, () => startTaskUnlocked(root, arg))
 }
 
+function checkDoR(root, task) {
+  const issues = []
+
+  if (!task.scope || task.scope.length === 0) {
+    issues.push('declarar `## Escopo` (arquivos que a task vai tocar)')
+  }
+  const hasCriteria = Object.keys(task.sections ?? {}).some((k) =>
+    k.toLowerCase().includes('critério de conclusão')
+  )
+  if (!hasCriteria) issues.push('declarar `## Critério de conclusão`')
+
+  const feature = String(task.values?.Feature ?? '').replace(/`/g, '').trim()
+  if (feature && feature !== '—' && feature !== '-') {
+    if (!fs.existsSync(path.join(root, 'context', 'features', feature, 'spec.md'))) {
+      issues.push(`criar a spec da feature: context/features/${feature}/spec.md`)
+    }
+  }
+
+  const depRaw = String(task.values?.['Depende de'] ?? '')
+    .replace(/\[[ x]\]/gi, '')
+    .replace(/`/g, '')
+    .trim()
+  if (depRaw && depRaw !== '-' && depRaw !== '—') {
+    try {
+      resolveTaskName(doneDir(root), depRaw)
+    } catch {
+      issues.push(`dependência não concluída: ${depRaw} (não está em tasks/done/)`)
+    }
+  }
+
+  return issues
+}
+
 function startTaskUnlocked(root, arg) {
   const qDir = queueDir(root)
   const aDir = activeDir(root)
@@ -19,6 +52,16 @@ function startTaskUnlocked(root, arg) {
   if (fs.existsSync(path.join(aDir, name))) return { ok: false, error: `task já está ativa: ${name}` }
 
   const task = parseTask(path.join(qDir, name))
+  const dor = checkDoR(root, task)
+  if (dor.length > 0) {
+    return {
+      ok: false,
+      error:
+        `DoR não atendida em ${name}:\n` +
+        dor.map((d) => `  - ${d}`).join('\n') +
+        '\ncomplete a task na queue e tente de novo.'
+    }
+  }
   const activeTasks = listTasks(aDir).map((n) => parseTask(path.join(aDir, n)))
 
   if (activeTasks.length > 0) {

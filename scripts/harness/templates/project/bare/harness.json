@@ -1,6 +1,6 @@
 {
   "profile": "bare",
-  "gates": { "finish": ["scope"], "merge": [] },
+  "gates": { "finish": ["scope", "secrets"], "merge": [] },
   "git": { "model": "trunk", "featureBranch": false },
   "wip": { "active": 2, "queue": 6 }
 }

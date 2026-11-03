@@ -1,6 +1,6 @@
 {
   "profile": "script",
-  "gates": { "finish": ["scope", "test"], "merge": ["test"] },
+  "gates": { "finish": ["scope", "secrets", "test"], "merge": ["test"] },
   "git": { "model": "trunk", "featureBranch": false },
   "wip": { "active": 2, "queue": 6 }
 }

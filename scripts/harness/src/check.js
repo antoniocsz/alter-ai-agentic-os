@@ -96,6 +96,10 @@ export function validate(root, opts = {}) {
           add(`[${dir}/${n}] feature sem spec.md: ${slug}`, n)
         }
       }
+      const priority = (task.values?.['Prioridade'] ?? '').trim()
+      if (priority && !/^P[0-3]$/.test(priority)) {
+        add(`[${dir}/${n}] prioridade inválida: ${priority} (use P0..P3)`, n)
+      }
     }
   }
 

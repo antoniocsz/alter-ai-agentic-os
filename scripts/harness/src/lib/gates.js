@@ -1,6 +1,7 @@
 import { execSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
+import { scanSecrets } from './redact.js'
 
 /**
  * Motor de gates do harness.
@@ -118,8 +119,14 @@ export function runGates(root, gates = [], opts = {}) {
       continue
     }
 
-    if (gate === 'links') {
-      const broken = checkLinks(root)
+    if (gate === 'secrets') {
+      const findings = scanSecrets(root)
+      if (findings.length === 0) push(gate, 'passed')
+      else push(gate, 'failed', { output: `possíveis segredos:\n  ${findings.join('\n  ')}` })
+      continue
+    }
+
+    if (gate === 'links') {      const broken = checkLinks(root)
       if (broken.length === 0) push(gate, 'passed')
       else push(gate, 'failed', { output: `links quebrados:\n  ${broken.join('\n  ')}` })
       continue

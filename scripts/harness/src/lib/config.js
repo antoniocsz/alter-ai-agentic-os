@@ -7,7 +7,7 @@ export const GIT_MODELS = ['trunk', 'gitflow']
 export const DEFAULT_CONFIG = {
   profile: 'web',
   gates: {
-    finish: ['scope'],
+    finish: ['scope', 'secrets'],
     merge: []
   },
   git: {

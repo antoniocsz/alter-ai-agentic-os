@@ -2,6 +2,7 @@ import { createRequire } from 'node:module'
 import fs from 'node:fs'
 import path from 'node:path'
 import { queueDir, activeDir, doneDir, listTasks, parseTask } from './tasks.js'
+import { redact } from './redact.js'
 
 const [NODE_MAJOR, NODE_MINOR] = process.versions.node.split('.').map(Number)
 if (NODE_MAJOR < 22 || (NODE_MAJOR === 22 && NODE_MINOR < 5)) {
@@ -157,7 +158,7 @@ export function logEvent(db, taskId, event, message = '') {
 export function recordInteraction(db, { taskId = null, kind = 'note', content, source = 'cli', meta = null }) {
   db.prepare(
     'INSERT INTO interactions (task_id, kind, content, source, at, meta_json) VALUES (?,?,?,?,?,?)'
-  ).run(taskId, kind, content, source, new Date().toISOString(), meta ? JSON.stringify(meta) : null)
+  ).run(taskId, kind, redact(content), source, new Date().toISOString(), meta ? JSON.stringify(meta) : null)
 }
 
 export function taskFromMarkdown(dir, name) {

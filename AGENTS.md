@@ -160,6 +160,9 @@ Estas regras se aplicam a TODO agente e valem para QUALQUER tarefa, incluindo de
 8. **Arquivos/pastas temporárias** — rascunhos, dumps, builds de teste e experimentos vivem em
    `.tmp/` (gitignored) e são **removidos ao terminar a tarefa**. Não deixar lixo ocupando disco
    no repositório nem no workspace; se um artefato precisar ficar, ele vira parte do escopo.
+9. **Segredos** — nunca commitar chaves nem registrá-las em sessões/handoffs. A memória aplica
+   redaction automática e o gate `secrets` reprova o finish se encontrar padrão de segredo.
+   Use `.env` (gitignored) e variáveis de ambiente.
 
 ---
 

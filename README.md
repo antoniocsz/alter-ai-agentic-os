@@ -370,6 +370,8 @@ pnpm harness recall "webhook" --json
 
 - `status` na raiz de um workspace lista os projetos (sem entrar em loop).
 - `recall` agrega resultados de todos os projetos quando rodado na raiz do workspace.
+- Sessões, notas e handoffs passam por **redaction** (`sk-*`, JWT, `password=...`) antes de persistir.
+- O gate `secrets` varre o repositório no `finish` e bloqueia se encontrar padrão de segredo.
 - O banco é regenerável (`harness sync`) e gitignored; as sessões em markdown são versionadas.
 
 ### Banco de dados (índice e histórico)
