@@ -113,3 +113,10 @@ test('listTasks: só .md, ordenado', () => {
   write(root, 'context/agents/queue/.gitkeep', '')
   assert.deepEqual(listTasks(queueDir(root)), ['01-a.md', '02-b.md'])
 })
+test('resolveTaskName: rejeita traversal e separadores', () => {
+  const root = tmpdir()
+  write(root, 'tasks/queue/01-foo.md', TASK)
+  const dir = queueDir(root)
+  assert.throws(() => resolveTaskName(dir, '../../README.md'), /inválido/)
+  assert.throws(() => resolveTaskName(dir, '..\\x.md'), /inválido/)
+})

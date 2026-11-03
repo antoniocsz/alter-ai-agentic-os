@@ -81,6 +81,8 @@ test('worktree: exige task ativa e prune limpa registro órfão', async () => {
   const removed = pruneWorktrees(root)
   assert.equal(removed.length, 1)
   assert.equal(listWorktrees(root).length, 0)
+  const branches = execFileSync('git', ['branch', '--list', 'task/01-*'], { cwd: root, encoding: 'utf8' })
+  assert.equal(branches.trim(), '', 'branch órfã deveria ser removida')
 })
 
 test('worktree: arquivo fora do escopo bloqueia o merge', async () => {

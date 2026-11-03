@@ -292,14 +292,14 @@ export function pruneWorktrees(root) {
     })
     writeRegistry(root, reg)
     if (isGitRepo(root)) {
+      try {
+        git(root, ['worktree', 'prune'])
+      } catch {}
       for (const entry of removed) {
         try {
           git(root, ['branch', '-D', entry.branch])
         } catch {}
       }
-      try {
-        git(root, ['worktree', 'prune'])
-      } catch {}
     }
     return removed
   })
