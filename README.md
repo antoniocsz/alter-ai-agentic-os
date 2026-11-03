@@ -113,6 +113,7 @@ tasks/
 | `harness worktree start <task>` | Cria `.worktrees/task-<n>-<slug>` e branch `task/<n>-<slug>` a partir da base |
 | `harness worktree finish <task>` | Commita, rebase, roda gates.merge, squash merge, conclui a task e remove a worktree |
 | `harness worktree list` / `prune` | Lista worktrees registradas / limpa entradas órfãs |
+| `harness gates [--phase finish\|merge]` | Roda os gates declarados no `harness.json` |
 | `harness task "<desc>"` | Cria task na queue com numeração automática e `## Escopo`. Flags: `--module`, `--agent`, `--scope`, `--dep`, `--complexity` |
 | `harness start <task>` | Move `queue/` → `active/`, bloqueando conflito de escopo com tasks ativas |
 | `harness finish <task>` | Valida `git diff` contra o `## Escopo` e move `active/` → `done/`. Flag: `--handoff "<resumo>"` |
@@ -384,8 +385,10 @@ Cada projeto declara seu perfil em `harness.json` na raiz:
 }
 ```
 
-- O perfil define o peso do protocolo e os gates esperados (motor de gates chega na Fase 4;
-  até lá os comandos continuam operando só a validação de escopo).
+- O perfil define o peso do protocolo e os gates executados pelo `finish`/merge.
+- `harness finish` roda `gates.finish` antes de mover a task: gate que falha bloqueia e registra
+  `gate_failed`. `harness worktree finish` roda `gates.merge` antes do squash merge.
+- `harness gates [--phase finish|merge] [--json]` roda os gates manualmente.
 - `harness check` valida o arquivo quando presente; projetos antigos sem ele continuam válidos.
 - `git.model: "trunk"` é o default (worktree por task + squash merge); `"gitflow"` fica como opção futura.
 

@@ -3,6 +3,8 @@ import path from 'node:path'
 import { queueDir, activeDir, doneDir, listTasks, parseTask, findConflicts, moveTask, resolveTaskName, pipelineRoot, norm } from './tasks.js'
 import { captureBaseline, isGitRepo, outOfScopeFiles } from './git.js'
 import { tryOpenDb, upsertTask, logEvent, taskFromMarkdown, recordInteraction } from './db.js'
+import { resolveConfig } from './config.js'
+import { runGates, firstFailure } from './gates.js'
 
 export function startTask(root, arg) {
   const qDir = queueDir(root)
@@ -96,6 +98,26 @@ export function finishTask(root, arg, opts = {}) {
     }
   }
 
+  const gateResults = opts.skipGates
+    ? []
+    : runGates(root, resolveConfig(root).gates?.finish ?? [], { phase: 'finish' })
+  const gateFailed = firstFailure(gateResults)
+  if (gateFailed) {
+    const db = tryOpenDb(root)
+    if (db) {
+      try {
+        upsertTask(db, taskFromMarkdown(aDir, name))
+        logEvent(db, name, 'gate_failed', gateFailed.gate)
+      } catch {}
+    }
+    return {
+      ok: false,
+      error: `gate "${gateFailed.gate}" falhou:\n${gateFailed.output ?? '(sem saída)'}`,
+      gateFailure: gateFailed,
+      gates: gateResults
+    }
+  }
+
   moveTask(root, name, aDir, dDir)
 
   const db = tryOpenDb(root)
@@ -121,7 +143,15 @@ export function finishTask(root, arg, opts = {}) {
   const hasHandoffBlock =
     statusPath && fs.existsSync(statusPath) ? /##\s*Handoff/i.test(fs.readFileSync(statusPath, 'utf8')) : false
 
-  return { ok: true, name, task, gitRepo: isGitRepo(root), handoff, statusHandoffMissing: statusPath ? !hasHandoffBlock : null }
+  return {
+    ok: true,
+    name,
+    task,
+    gitRepo: isGitRepo(root),
+    handoff,
+    gates: gateResults,
+    statusHandoffMissing: statusPath ? !hasHandoffBlock : null
+  }
 }
 
 export function requeueTask(root, arg) {

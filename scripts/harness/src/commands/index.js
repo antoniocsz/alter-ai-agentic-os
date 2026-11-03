@@ -16,6 +16,7 @@ import { versionCmd, changelogCmd } from '../version.js'
 import { profileCmd } from '../profile.js'
 import { featureCmd } from '../feature.js'
 import { worktreeCmd } from '../worktree.js'
+import { gatesCmd } from '../gates.js'
 
 export const usage = `harness <comando> [args]
 
@@ -25,6 +26,7 @@ Comandos:
   profile [perfil]    Lista os perfis de projeto (ou detalha um)
   feature <slug>      Cria context/features/<slug>/ (spec.md + plan.md)
   worktree <sub>      start <task> | finish <task> [--keep] [--skip-gates] | list | prune
+  gates [--phase finish|merge] [--json]   Roda os gates do harness.json
   module <nome>       Scaffold de módulo [--with-prisma] [--with-http]
   task "<descrição>"  Cria task na queue com numeração automática e ## Escopo
   start <task>        Move queue/<task> → active/ com checagem de conflito de escopo
@@ -46,7 +48,7 @@ Comandos:
 
 Flags do check: --json | --barrel | --lint | --typecheck | --db
 Flags do task:  --feature <slug> | --module <m> | --agent backend|frontend|mobile | --scope "p1,p2" | --dep <task> | --complexity
-Flags do finish: --handoff "<resumo>"
+Flags do finish: --handoff "<resumo>" | --skip-gates
 Flag global:    --project <projeto> (ou -p) roda o comando dentro do projeto do workspace
 `
 
@@ -66,6 +68,7 @@ export const commands = {
   profile: profileCmd,
   feature: featureCmd,
   worktree: worktreeCmd,
+  gates: gatesCmd,
   task,
   start,
   finish,

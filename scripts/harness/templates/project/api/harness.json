@@ -1,0 +1,6 @@
+{
+  "profile": "api",
+  "gates": { "finish": ["scope", "lint", "typecheck", "test:affected"], "merge": ["test", "build"] },
+  "git": { "model": "trunk", "featureBranch": false },
+  "wip": { "active": 3, "queue": 8 }
+}

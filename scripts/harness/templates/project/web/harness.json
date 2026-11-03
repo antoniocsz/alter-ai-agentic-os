@@ -1,7 +1,7 @@
 {
   "profile": "web",
   "gates": {
-    "finish": ["scope", "lint", "typecheck"],
+    "finish": ["scope", "lint", "typecheck", "test:affected"],
     "merge": ["test", "build"]
   },
   "git": {

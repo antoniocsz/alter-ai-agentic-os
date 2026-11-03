@@ -29,7 +29,7 @@ pacotes do seu projeto (ex: `@saas`, `@acme`).
 O `harness.json` do projeto declara o **perfil** (`web`, `api`, `cli`, `script`, `game`, `docs`,
 `design`, `bare`). O perfil define:
 
-- quais gates rodam no `finish`/merge (motor de gates na Fase 4);
+- quais gates rodam no `finish`/merge e com quais comandos;
 - quais seções de contexto e refs de `.agents/` são obrigatórias;
 - o peso do protocolo: perfis `script`/`docs`/`design` usam o caminho enxuto (sem módulos,
   sem refs de stack TS), `web`/`api` usam o protocolo completo.
@@ -178,5 +178,5 @@ Antes de marcar a tarefa como concluída (itens de stack conforme o perfil):
 - [ ] Arquivo em `tasks/active/` movido para `tasks/done/` (via `harness finish`)
 - [ ] `git diff` dentro do `## Escopo` declarado (validado por `harness finish`)
 - [ ] Decisão arquitetural nova registrada em `context/project/adr/` (se houver)
-- [ ] Gates do perfil (`harness.json`) aplicáveis ao tipo de projeto
+- [ ] Gates do perfil (`harness.json`) passando — o `finish` bloqueia se algum falhar
 - [ ] Ref de stack carregada e cumprida (ex.: `.agents/stack-ts-monorepo.md`)
