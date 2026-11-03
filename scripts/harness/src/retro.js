@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { computeMetrics, formatTable } from './lib/metrics.js'
 import { listSessions } from './lib/memory.js'
+import { localDate, localMonth } from './lib/dates.js'
 
 export async function retroCmd(args = [], root = process.cwd()) {
   const flag = (name, fallback) => {
@@ -9,7 +10,7 @@ export async function retroCmd(args = [], root = process.cwd()) {
     return idx !== -1 ? args[idx + 1] : fallback
   }
   const days = Number(flag('--days', 30)) || 30
-  const month = new Date().toISOString().slice(0, 7)
+  const month = localMonth()
   const out = path.resolve(root, flag('--out', `context/project/retro/${month}.md`))
   const force = args.includes('--force')
 
@@ -18,7 +19,7 @@ export async function retroCmd(args = [], root = process.cwd()) {
   }
 
   const metrics = computeMetrics(root, { days })
-  const cutoff = new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10)
+  const cutoff = localDate(new Date(Date.now() - days * 86_400_000))
   const sessions = listSessions(root, 30).filter((s) => !s.date || s.date >= cutoff)
 
   const lines = [

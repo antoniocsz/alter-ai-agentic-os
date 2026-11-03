@@ -4,7 +4,7 @@
 - `scripts/harness/src/lib/memory.js`
 - `scripts/harness/src/retro.js`
 - `scripts/harness/src/feature.js`
-## Depende de: [ ] 66-copydir-binario.md
+## Depende de: [x] 66-copydir-binario.md
 ## O que criar:
 - Nomes de sessão/retro/feature usam data local, não UTC.
 

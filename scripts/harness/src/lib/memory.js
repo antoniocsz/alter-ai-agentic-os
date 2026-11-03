@@ -5,6 +5,7 @@ import { tryOpenDb } from './db.js'
 import { listWorktrees } from './worktree.js'
 import { redact } from './redact.js'
 import { workspaceContext } from './workspace.js'
+import { localDate } from './dates.js'
 
 const norm = (p) => p.replace(/\\/g, '/')
 
@@ -19,7 +20,7 @@ function slug(value, max = 40) {
 }
 
 function today() {
-  return new Date().toISOString().slice(0, 10)
+  return localDate()
 }
 
 export function sessionEnd(root, summary, opts = {}) {

@@ -42,3 +42,12 @@ test('renderTemplateFile: renderiza no destino', () => {
   renderTemplateFile(path.join(src, 't.txt'), path.join(dest, 'out.txt'), { NAME: 'z' })
   assert.equal(fs.readFileSync(path.join(dest, 'out.txt'), 'utf8'), 'ok z')
 })
+test('copyDir: renderAll preserva binário byte a byte', () => {
+  const src = tmpdir()
+  const dest = path.join(tmpdir(), 'dest')
+  const bytes = Buffer.from([0, 255, 1, 2, 3, 0])
+  fs.writeFileSync(path.join(src, 'img.bin'), bytes)
+
+  copyDir(src, dest, { renderAll: true, vars: { NAME: 'x' } })
+  assert.deepEqual(fs.readFileSync(path.join(dest, 'img.bin')), bytes)
+})

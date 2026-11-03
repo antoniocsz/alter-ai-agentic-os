@@ -75,3 +75,9 @@ test('memory prune: dry-run lista, apply arquiva e recall continua achando', asy
   const hits = recall(root, 'enricher')
   assert.ok(hits.some((h) => h.source.includes('archive')), hits.map((h) => h.source).join('\n'))
 })
+
+test('datas: localDate/localMonth no formato esperado', async () => {
+  const { localDate, localMonth } = await import('../src/lib/dates.js')
+  assert.match(localDate(), /^\d{4}-\d{2}-\d{2}$/)
+  assert.match(localMonth(), /^\d{4}-\d{2}$/)
+})

@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { templatesDir } from './lib/paths.js'
 import { render } from './lib/templates.js'
+import { localDate } from './lib/dates.js'
 
 export function slugifyFeature(value) {
   return String(value)
@@ -26,7 +27,7 @@ export async function featureCmd(args, root = process.cwd()) {
   }
 
   fs.mkdirSync(dir, { recursive: true })
-  const vars = { SLUG: slug, DATE: new Date().toISOString().slice(0, 10) }
+  const vars = { SLUG: slug, DATE: localDate() }
   for (const [tpl, out] of [
     ['spec.md.tpl', 'spec.md'],
     ['plan.md.tpl', 'plan.md']
