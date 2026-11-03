@@ -4,6 +4,7 @@ import { execSync } from 'node:child_process'
 import { harnessRoot, templatesDir } from './lib/paths.js'
 import { copyDir, ensureDir } from './lib/templates.js'
 import { baseTemplateDir, profileTemplateDir, resolveProfile } from './lib/profiles.js'
+import { resolveTools, installAdapter } from './lib/adapters.js'
 
 const DB_SCRIPTS =
   ',\n' +
@@ -17,12 +18,14 @@ const DB_SCRIPTS =
 
 export async function init(args) {
   const [dir] = args
-  if (!dir) throw new Error('uso: harness init <dir> [--profile <p>] [--prisma] [--git [--branch <nome>]]')
+  if (!dir) throw new Error('uso: harness init <dir> [--profile <p>] [--tools opencode,claude,codex] [--prisma] [--git [--branch <nome>]]')
 
   const branchIdx = args.indexOf('--branch')
   const profile = resolveProfile(args)
+  const tools = resolveTools(args)
   const opts = {
     profile,
+    tools,
     prisma: args.includes('--prisma'),
     git: args.includes('--git'),
     branch: branchIdx !== -1 ? args[branchIdx + 1] : null
@@ -74,15 +77,16 @@ export async function createProject(target, opts = {}, sourceRoot = harnessRoot(
 
   const name = sanitize(path.basename(target))
   const profile = opts.profile ?? 'web'
+  const tools = opts.tools ?? ['opencode']
   const agentsMd = agentsMdSource ?? path.join(sourceRoot, 'AGENTS.md')
   const vars = { NAME: name, PROFILE: profile, DB_SCRIPTS: opts.prisma ? DB_SCRIPTS : '' }
 
   fs.copyFileSync(agentsMd, path.join(target, 'AGENTS.md'))
   copyDir(path.join(sourceRoot, '.agents'), path.join(target, '.agents'))
-  copyDir(path.join(sourceRoot, '.opencode', 'agent'), path.join(target, '.opencode', 'agent'))
   copyDir(path.join(sourceRoot, 'scripts', 'harness'), path.join(target, 'scripts', 'harness'))
   copyDir(baseTemplateDir(), target, { vars, renderAll: true })
   copyDir(profileTemplateDir(profile), target, { vars, renderAll: true })
+  for (const tool of tools) installAdapter(tool, target, { name, profile })
 
   const profileLines = {
     web: '  - Monorepo pnpm/Turbo: apps/api (Fastify) + apps/web (Next.js) + packages/contracts|api-client',
@@ -98,6 +102,7 @@ export async function createProject(target, opts = {}, sourceRoot = harnessRoot(
   const gerado = [
     '  - AGENTS.md + .agents/ (camada harness)',
     '  - .opencode/agent/ (agents prontos) + scripts/harness (CLI)',
+    `  - adapters de tool: ${tools.join(', ')}`,
     '  - harness.json (perfil ' + profile + ')',
     '  - context/ (project/, features/, sessions/, modules/) + tasks/queue|active|done',
     profileLines[profile],

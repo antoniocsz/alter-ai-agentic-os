@@ -13,8 +13,8 @@ Camada de operação que padroniza como agentes de IA trabalham em um projeto de
 - [Bootstrap de projeto novo](#bootstrap-de-projeto-novo)
 - [Pipeline de tarefas (queue → active → done)](#pipeline-de-tarefas-queue--active--done)
 - [Execução em paralelo (subagents)](#execução-em-paralelo-subagents)
-- [Agentes (subagents opencode)](#agentes-subagents-opencode)
-- [Memória local (sessões, recall, status)](#memória-local-sessões-recall-status)- [Painel kanban](#painel-kanban)
+- [Adaptadores de tool](#adaptadores-de-tool)
+- [Agentes (subagents opencode)](#agentes-subagents-opencode)- [Memória local (sessões, recall, status)](#memória-local-sessões-recall-status)- [Painel kanban](#painel-kanban)
 - [Protocolo de execução de tarefa](#protocolo-de-execução-de-tarefa)
 - [Planejamento de features](#planejamento-de-features)
 - [Exemplo de prompt](#exemplo-de-prompt)
@@ -116,6 +116,7 @@ tasks/
 | `harness status` | Prime de sessão: WIP, ativas, worktrees, últimas sessões e handoff |
 | `harness session end "<resumo>"` / `list` | Memória local: grava/lista sessões (db + `context/sessions/`) |
 | `harness recall "<termo>"` | Busca em sessões, tasks, notas e docs (agrega no workspace) |
+| `harness adapter <tool>` | Instala (ou lista com `list`) o adaptador de tool no projeto |
 | `harness task "<desc>"` | Cria task na queue com numeração automática e `## Escopo`. Flags: `--module`, `--agent`, `--scope`, `--dep`, `--complexity` |
 | `harness start <task>` | Move `queue/` → `active/`, bloqueando conflito de escopo com tasks ativas |
 | `harness finish <task>` | Valida `git diff` contra o `## Escopo` e move `active/` → `done/`. Flag: `--handoff "<resumo>"` |
@@ -135,7 +136,7 @@ tasks/
 
 ## Começando um projeto
 
-1. **Inicializar:** `pnpm harness init <nome-do-projeto> --profile <p> [--prisma] [--git]` — gera AGENTS.md, `.agents/`, `.opencode/agent/`, `scripts/harness/`, `harness.json`, `context/` e o esqueleto do perfil. Perfis: `web` (monorepo Fastify+Next), `api` (Fastify+contracts), `cli`, `script`, `game`, `docs`, `design`, `bare`. O perfil `web` já vem com os **módulos padrão** (tenancy, auth, authorization, audit) e tasks de fundação na queue. `--prisma` (web/api) adiciona `docker-compose.yml`, `packages/database` e `.env.example`; `--git` inicializa o repositório com commit inicial.
+1. **Inicializar:** `pnpm harness init <nome-do-projeto> --profile <p> [--tools opencode,claude] [--prisma] [--git]` — gera AGENTS.md, `.agents/`, adaptador(es) de tool, `scripts/harness/`, `harness.json`, `context/` e o esqueleto do perfil. Perfis: `web` (monorepo Fastify+Next), `api` (Fastify+contracts), `cli`, `script`, `game`, `docs`, `design`, `bare`. O perfil `web` já vem com os **módulos padrão** (tenancy, auth, authorization, audit) e tasks de fundação na queue. `--prisma` (web/api) adiciona `docker-compose.yml`, `packages/database` e `.env.example`; `--git` inicializa o repositório com commit inicial.
 2. **Versionar:** `cd <nome-do-projeto> && git init && git add -A && git commit -m "chore: bootstrap harness"` (já feito com `--git`).
 3. **Instalar:** `pnpm install` (configs e dependências iniciais).
 4. **Banco local (com `--prisma`):** `docker compose up -d` e `cp .env.example .env`; scripts em `apps/api`: `db:up`, `db:migrate`, `db:deploy`.
@@ -314,6 +315,24 @@ da queue. Para cada uma, rode `pnpm harness start <task>` antes de iniciar o
 subagent. Cada subagent deve ler o arquivo da task, respeitar o ## Escopo e
 concluir com `pnpm harness finish <task>`. Ao final, rode `pnpm harness check`.
 ```
+
+## Adaptadores de tool
+
+O núcleo do harness (pipeline, gates, memória, CLI) é **neutro de tool** — vive no disco e
+qualquer ferramenta que execute shell opera. A camada de instruções é gerada por adaptador:
+
+```bash
+harness adapter list
+harness adapter opencode     # .opencode/{agent,skill,command}
+harness adapter claude       # CLAUDE.md (@AGENTS.md) + .claude/{agents,skills,commands,settings.json}
+harness adapter codex        # .codex/prompts (copie para ~/.codex/prompts)
+```
+
+- `init --tools opencode,claude` já instala os adaptadores escolhidos (default: `opencode`).
+- `AGENTS.md` é canônico; `CLAUDE.md` importa (`@AGENTS.md`); Codex lê `AGENTS.md` nativamente.
+- Sandbox: Claude recebe `settings.json` negando `git reset/checkout/restore/push`, `rm -rf`, `sudo`;
+  no OpenCode o `reviewer` mantém `edit: deny`. O CLI continua gatekeeper invariante em qualquer tool.
+- Trocar de tool no meio não perde nada: a sessão seguinte roda `harness status` e retoma.
 
 ## Agentes (subagents opencode)
 

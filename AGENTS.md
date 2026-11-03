@@ -102,6 +102,15 @@ Regras:
 
 ---
 
+### Adaptadores de tool (multi-tool)
+
+O projeto não fica preso a uma ferramenta:
+
+- `harness adapter opencode|claude|codex` renderiza a camada de instruções da tool (saída descartável).
+- `AGENTS.md` é a fonte canônica; `CLAUDE.md` importa com `@AGENTS.md`; Codex lê `AGENTS.md`.
+- Pipeline, gates, worktrees e memória vivem no disco: trocar de tool no meio não perde estado.
+- Papéis neutros ficam em `core/` (coordinator, executor, reviewer) no kit.
+
 ### Sessão (memória local)
 
 O harness não depende de memória externa. O protocolo de sessão é:

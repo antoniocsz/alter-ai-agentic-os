@@ -20,13 +20,16 @@ import { gatesCmd } from '../gates.js'
 import { sessionCmd } from '../session.js'
 import { recallCmd } from '../recall.js'
 import { statusCmd } from '../status.js'
+import { adapterCmd } from '../adapter.js'
 
 export const usage = `harness <comando> [args]
 
 Comandos:
-  init <dir>          Gera projeto novo [--profile <p>] [--prisma] [--git [--branch <b>]]
+  init <dir>          Gera projeto novo [--profile <p>] [--tools opencode,claude,codex]
+                      [--prisma] [--git [--branch <b>]]
                       ou, com --workspace <dir>: gera um workspace (delega p/ workspace init)
   profile [perfil]    Lista os perfis de projeto (ou detalha um)
+  adapter [tool]      Instala (ou lista) adaptadores de tool no projeto atual
   feature <slug>      Cria context/features/<slug>/ (spec.md + plan.md)
   worktree <sub>      start <task> | finish <task> [--keep] [--skip-gates] | list | prune
   gates [--phase finish|merge] [--json]   Roda os gates do harness.json
@@ -72,6 +75,7 @@ export const commands = {
   },
   module: moduleCmd,
   profile: profileCmd,
+  adapter: adapterCmd,
   feature: featureCmd,
   worktree: worktreeCmd,
   gates: gatesCmd,
