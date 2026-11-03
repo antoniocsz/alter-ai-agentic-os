@@ -14,3 +14,6 @@
 - [ ] `.env` com `DB_PASSWORD=...` reprova o gate e é redigido
 - [ ] `blocklist.ts` com segredo é detectado
 ## Complexidade: média
+
+## Baseline (git)
+- scripts/harness/src/lib/redact.js

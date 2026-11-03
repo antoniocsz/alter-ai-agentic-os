@@ -10,22 +10,37 @@ const TOKEN_RES = [
   /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/g
 ]
 
-// token fica de fora de propósito: `token = tokenStorage...` é código, não segredo.
-const ASSIGN_RE =
-  /\b((?:password|senha|secret|api[_-]?key|access[_-]?key)\s*[:=]\s*)(["']?)([^\s"',;(){}[\]$]{8,})\2/gi
+// Chaves de ambiente em MAIÚSCULAS (DB_PASSWORD, AWS_SECRET_ACCESS_KEY,
+// DATABASE_URL, OPENAI_API_KEY...). Evita confundir código (`const password = ...`).
+const ENV_ASSIGN_RE =
+  /(^|[\s,{(])((?:[A-Z][A-Z0-9]*_)*(?:PASSWORD|SENHA|SECRET|TOKEN|API_KEY|ACCESS_KEY|PRIVATE_KEY|DATABASE_URL)\s*[:=]\s*)(["']?)([^\s"',;]{8,})\3/gm
+
+const BEARER_RE = /\b(Bearer\s+)([A-Za-z0-9._~+/=-]{16,})/gi
 
 const ALLOWLIST = new Set([
   'postgres', 'password', 'changeme', 'change-me', 'secret', 'admin', 'root',
   'example', 'test', 'dev', 'development', 'replace-me', 'your-secret'
 ])
 
+function isAllowedValue(value) {
+  const v = String(value).toLowerCase()
+  if (ALLOWLIST.has(v)) return true
+  // URLs de desenvolvimento local: usuário:postgres@localhost / 127.0.0.1
+  const m = v.match(/^[a-z+]+:\/\/[^:/\s]+:([^@/\s]+)@(localhost|127\.0\.0\.1)([:/]|$)/)
+  if (m && ALLOWLIST.has(m[1])) return true
+  if (/^redis:\/\/(localhost|127\.0\.0\.1)([:/]|$)/.test(v)) return true
+  return false
+}
+
+
 export function redact(text) {
   if (text === null || text === undefined) return text
   let out = String(text)
   for (const re of TOKEN_RES) out = out.replace(re, '[REDACTED]')
-  out = out.replace(ASSIGN_RE, (match, prefix, quote, value) =>
-    ALLOWLIST.has(value.toLowerCase()) ? match : `${prefix}${quote}[REDACTED]${quote}`
+  out = out.replace(ENV_ASSIGN_RE, (match, boundary, prefix, quote, value) =>
+    isAllowedValue(value) ? match : `${boundary}${prefix}${quote}[REDACTED]${quote}`
   )
+  out = out.replace(BEARER_RE, (_match, prefix) => `${prefix}[REDACTED]`)
   return out
 }
 
@@ -34,25 +49,32 @@ export function lineHasSecret(line) {
     re.lastIndex = 0
     if (re.test(line)) return true
   }
-  ASSIGN_RE.lastIndex = 0
+  ENV_ASSIGN_RE.lastIndex = 0
   let match
-  while ((match = ASSIGN_RE.exec(line))) {
-    if (!ALLOWLIST.has(match[3].toLowerCase())) return true
+  while ((match = ENV_ASSIGN_RE.exec(line))) {
+    if (!isAllowedValue(match[4])) return true
   }
+  BEARER_RE.lastIndex = 0
+  if (BEARER_RE.test(line)) return true
   return false
 }
 
 const TEXT_EXT = new Set([
   '.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx', '.json', '.md', '.yml', '.yaml',
-  '.env', '.toml', '.ini', '.py', '.sh', '.bash', '.ps1', '.txt', '.html', '.css', '.sql', '.xml'
+  '.toml', '.ini', '.py', '.sh', '.bash', '.ps1', '.txt', '.html', '.css', '.sql', '.xml'
 ])
 
-const SKIP_DIRS = new Set(['node_modules', '.git', '.harness', '.worktrees', 'dist', 'coverage', '.turbo', '.tmp'])
+const SKIP_DIRS = new Set([
+  'node_modules', '.git', '.harness', '.worktrees', 'dist', 'coverage', '.turbo',
+  '.tmp', 'build', '.next', 'vendor'
+])
 
-const isTestFile = (rel) =>
-  /(^|\/)(tests?|__tests__)\//.test(rel) || /\.(test|spec)\.[a-z0-9]+$/i.test(rel)
+const LOCKFILES = new Set([
+  'pnpm-lock.yaml', 'package-lock.json', 'yarn.lock', 'npm-shrinkwrap.json', 'bun.lockb'
+])
 
-const isLockfile = (name) => /lock|\.map$/i.test(name)
+const isEnvFile = (name) => /^\.env(\..+)?$/.test(name)
+const isTextFile = (name) => TEXT_EXT.has(path.extname(name)) || isEnvFile(name)
 
 export function scanSecrets(root) {
   const findings = []
@@ -68,10 +90,8 @@ export function scanSecrets(root) {
         walk(full)
         continue
       }
-      if (isTestFile(rel)) continue
-      const ext = path.extname(entry.name)
-      if (!TEXT_EXT.has(ext)) continue
-      if (isLockfile(entry.name)) continue
+      if (!isTextFile(entry.name)) continue
+      if (LOCKFILES.has(entry.name) || /\.(lock|map)$/i.test(entry.name)) continue
 
       let content
       try {
