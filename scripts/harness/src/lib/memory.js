@@ -4,6 +4,7 @@ import { queueDir, activeDir, doneDir, listTasks, parseTask } from './tasks.js'
 import { tryOpenDb } from './db.js'
 import { listWorktrees } from './worktree.js'
 import { redact } from './redact.js'
+import { workspaceContext } from './workspace.js'
 
 const norm = (p) => p.replace(/\\/g, '/')
 
@@ -229,16 +230,10 @@ export function recall(root, term, opts = {}) {
   if (!text) throw new Error('uso: harness recall "<termo>"')
   const limit = opts.limit ?? 20
 
-  const registryFile = path.join(root, '.harness-workspace.json')
-  if (fs.existsSync(registryFile)) {
-    let reg
-    try {
-      reg = JSON.parse(fs.readFileSync(registryFile, 'utf8'))
-    } catch {
-      reg = { projects: [] }
-    }
+  const ctx = workspaceContext(root)
+  if (ctx && !ctx.insideProject) {
     const out = []
-    for (const project of reg.projects ?? []) {
+    for (const project of ctx.reg.projects ?? []) {
       const hits = recallOne(project.path, text, limit)
       for (const hit of hits) out.push({ ...hit, project: project.name })
     }

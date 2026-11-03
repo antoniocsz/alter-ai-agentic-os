@@ -5,7 +5,7 @@ import path from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { initWorkspace, newProject, addProject, listWorkspace, checkWorkspace } from '../src/workspace.js'
 import { createProject } from '../src/init.js'
-import { loadRegistry, saveRegistry, readWipConfig } from '../src/lib/workspace.js'
+import { loadRegistry, saveRegistry, readWipConfig, workspaceContext } from '../src/lib/workspace.js'
 import { tmpdir, write } from './helpers.js'
 
 const TASK = `# Task: Foo
@@ -344,4 +344,26 @@ test('workspace remove: desregistra sem apagar e exige --force para --delete', a
   res = run(ws, ['workspace', 'remove', 'projeto-b', '--delete', '--force'])
   assert.equal(res.status, 0, res.stdout + res.stderr)
   assert.ok(!fs.existsSync(targetB), 'projeto deveria ser apagado com --force')
+})
+
+test('workspace new: funciona sem cache e aceita --profile', async () => {
+  const ws = await makeWorkspace()
+  fs.rmSync(path.join(ws, '.harness', 'workspace'), { recursive: true, force: true })
+
+  await newProject(ws, ['projeto-script', '--profile', 'script'])
+  const target = path.join(ws, 'projects', 'projeto-script')
+  assert.ok(fs.existsSync(path.join(target, 'src', 'main.js')))
+  assert.ok(!fs.existsSync(path.join(target, 'apps')))
+  const cfg = JSON.parse(fs.readFileSync(path.join(target, 'harness.json'), 'utf8'))
+  assert.equal(cfg.profile, 'script')
+})
+
+test('workspaceContext: distingue raiz, subpasta e projeto', async () => {
+  const ws = await makeWorkspace()
+  await newProject(ws, ['projeto-a'])
+  const project = path.join(ws, 'projects', 'projeto-a')
+
+  assert.equal(workspaceContext(ws).insideProject, false)
+  assert.equal(workspaceContext(project).insideProject, true)
+  assert.equal(workspaceContext(path.join(ws, 'projects')).insideProject, false)
 })

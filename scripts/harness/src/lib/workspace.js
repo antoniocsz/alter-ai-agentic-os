@@ -18,8 +18,7 @@ export function findWorkspaceRoot(cwd) {
   }
 }
 
-export function defaultRegistry(projectsDir = 'projects') {
-  return { version: 1, harnessSource: null, projectsDir, projects: [] }
+export function defaultRegistry(projectsDir = 'projects') {  return { version: 1, harnessSource: null, projectsDir, projects: [] }
 }
 
 export function loadRegistry(root) {
@@ -47,8 +46,7 @@ export function loadRegistry(root) {
   return reg
 }
 
-export function saveRegistry(root, reg) {
-  const out = {
+export function saveRegistry(root, reg) {  const out = {
     version: reg.version ?? 1,
     harnessSource: reg.harnessSource ?? null,
     projectsDir: reg.projectsDir ?? 'projects',
@@ -136,4 +134,19 @@ export function isolationErrors(reg, root) {
     }
   }
   return errors
+}
+/**
+ * Contexto de workspace a partir de um diretório qualquer:
+ * encontra a raiz subindo, resolve paths e diz se o cwd está dentro de um projeto.
+ */
+export function workspaceContext(cwd = process.cwd()) {
+  const wsRoot = findWorkspaceRoot(cwd)
+  if (!wsRoot) return null
+  const reg = loadRegistry(wsRoot)
+  const abs = path.resolve(cwd)
+  const insideProject = reg.projects.some((p) => {
+    const projectPath = path.resolve(p.path)
+    return abs === projectPath || abs.startsWith(projectPath + path.sep)
+  })
+  return { wsRoot, reg, insideProject }
 }

@@ -1,24 +1,23 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { statusReport } from './lib/memory.js'
+import { workspaceContext } from './lib/workspace.js'
 
 export async function statusCmd() {
   const root = process.cwd()
-  const registryFile = path.join(root, '.harness-workspace.json')
+  const ctx = workspaceContext(root)
 
-  if (fs.existsSync(registryFile)) {
-    let reg
-    try {
-      reg = JSON.parse(fs.readFileSync(registryFile, 'utf8'))
-    } catch {
-      reg = { projects: [] }
-    }
-    process.stdout.write(`📊 workspace: ${path.basename(root)}\n`)
-    if (!reg.projects?.length) {
+  if (ctx && !ctx.insideProject) {
+    process.stdout.write(`📊 workspace: ${path.basename(ctx.wsRoot)}\n`)
+    if (!ctx.reg.projects?.length) {
       process.stdout.write('   nenhum projeto registrado.\n')
       return
     }
-    for (const project of reg.projects) {
+    for (const project of ctx.reg.projects) {
+      if (!fs.existsSync(project.path)) {
+        process.stdout.write(`   ${project.name.padEnd(20)} (ausente: ${project.path})\n`)
+        continue
+      }
       const s = statusReport(project.path)
       const wt = s.worktrees.length ? ` · worktrees: ${s.worktrees.length}` : ''
       process.stdout.write(
@@ -52,6 +51,8 @@ export async function statusCmd() {
     }
   }
   if (s.handoff) {
-    process.stdout.write(`   último handoff (${s.handoff.task_id}): ${s.handoff.content.replace(/^handoff:\s*/, '').slice(0, 140)}\n`)
+    process.stdout.write(
+      `   último handoff (${s.handoff.task_id}): ${s.handoff.content.replace(/^handoff:\s*/, '').slice(0, 140)}\n`
+    )
   }
 }

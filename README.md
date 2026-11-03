@@ -51,7 +51,7 @@ O kit instala wrappers em `harness/bin/` (`harness` para bash, `harness.cmd` par
 `harness/bin` já está no PATH do usuário e no `~/.bashrc`. Em um terminal novo:
 
 ```bash
-harness version          # 0.3.0
+harness version          # 0.3.2
 harness status           # de qualquer projeto
 harness workspace list   # da raiz do workspace
 ```
@@ -220,7 +220,7 @@ D:\projetos\                        ← raiz do workspace
 └── projeto-b\
 ```
 
-> Projetos direto na raiz: crie o workspace com `--projects-dir .`. O padrão (`projects/`) também funciona; este workspace usa a raiz. O kit pode ficar fora da raiz do workspace via `harnessSource` no registro (ex.: `"harnessSource": "../harness"`).
+> Projetos direto na raiz: crie o workspace com `--projects-dir .`. O padrão (`projects/`) também funciona; este workspace usa `workspace/`. O kit pode ficar fora da raiz do workspace via `harnessSource` no registro (ex.: `"harnessSource": "../harness"`).
 
 **Comandos:**
 

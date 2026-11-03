@@ -5,6 +5,7 @@ import { harnessRoot, templatesDir } from './lib/paths.js'
 import { copyDir, renderTemplateFile, ensureDir } from './lib/templates.js'
 import { createProject, sanitize } from './init.js'
 import { isGitRepo } from './lib/git.js'
+import { isValidProfile, PROFILES } from './lib/profiles.js'
 import { kanbanFor } from './kanban.js'
 import { computeMetrics } from './lib/metrics.js'
 import { task as createTask } from './task.js'
@@ -82,7 +83,7 @@ function usage() {
 
 Subcomandos:
   init <dir>                Cria um workspace novo [--source <harness>] [--projects-dir <nome>] [--dry-run]
-  new <nome>                Cria um projeto novo dentro do workspace [--prisma] [--git] [--bare]
+  new <nome>                Cria um projeto novo dentro do workspace [--profile <p>] [--prisma] [--git [--branch <b>]]
   add <path>                Registra projeto existente [--name <nome>] [--sync] [--dry-run]
   remove <nome>             Remove do registro [--delete --force] (apaga a pasta; exige --force)
   list | status             Lista os projetos (queue/active/done, versão, onboarded)
@@ -178,7 +179,7 @@ export async function initWorkspace(args) {
 
 export async function newProject(root, args) {
   const [name] = args
-  if (!name) throw new Error('uso: harness workspace new <nome> [--prisma] [--git [--branch <b>]] [--bare]')
+  if (!name) throw new Error('uso: harness workspace new <nome> [--profile <p>] [--prisma] [--git [--branch <b>]]')
 
   const reg = loadRegistry(root)
   const clean = sanitize(name)
@@ -190,29 +191,32 @@ export async function newProject(root, args) {
   if (fs.existsSync(target) && fs.readdirSync(target).length > 0) {
     throw new Error(`diretório não está vazio: ${target}`)
   }
-  const agentsMd = path.join(root, '.harness', 'workspace', 'AGENTS.md')
-  if (!fs.existsSync(agentsMd)) {
-    throw new Error(
-      `cache do AGENTS.md ausente (${agentsMd}). Rode \`pnpm harness workspace update\` para re-sincronizar a camada.`
-    )
+
+  const profile = flag(args, ['--profile']) ?? (args.includes('--bare') ? 'bare' : 'web')
+  if (!isValidProfile(profile)) {
+    throw new Error(`perfil inválido: ${profile} (use: ${PROFILES.join(' | ')})`)
+  }
+  const prisma = args.includes('--prisma')
+  if (prisma && !['web', 'api'].includes(profile)) {
+    throw new Error(`--prisma só é válido nos perfis web e api (recebido: ${profile})`)
+  }
+  const branchIdx = args.indexOf('--branch')
+  const branch = branchIdx !== -1 ? args[branchIdx + 1] : null
+  if (branch && !/^[A-Za-z0-9._/-]+$/.test(branch)) {
+    throw new Error(`branch inválida: ${branch}`)
   }
 
-  const branchIdx = args.indexOf('--branch')
+  const layer = layerSource(root)
   await createProject(
     target,
-    {
-      prisma: args.includes('--prisma'),
-      git: args.includes('--git'),
-      branch: branchIdx !== -1 ? args[branchIdx + 1] : null,
-      bare: args.includes('--bare')
-    },
-    root,
-    agentsMd
+    { profile, prisma, git: args.includes('--git'), branch },
+    layer,
+    path.join(layer, 'AGENTS.md')
   )
 
   reg.projects.push({ name: clean, path: target })
   saveRegistry(root, reg)
-  process.stdout.write(`✅ projeto ${clean} criado e registrado no workspace.\n`)
+  process.stdout.write(`✅ projeto ${clean} (${profile}) criado e registrado no workspace.\n`)
 }
 
 /* ------------------------------ add ------------------------------ */
@@ -275,10 +279,8 @@ export async function addProject(root, args) {
     return
   }
 
-  const agentsMd = path.join(root, '.harness', 'workspace', 'AGENTS.md')
-  if (!fs.existsSync(agentsMd)) {
-    throw new Error(`cache do AGENTS.md ausente (${agentsMd}). Rode \`pnpm harness workspace update\`.`)
-  }
+  const layer = layerSource(root)
+  const agentsMd = path.join(layer, 'AGENTS.md')
 
   if (fs.existsSync(path.join(target, 'AGENTS.md'))) {
     const backups = path.join(target, '.harness', 'backups')
@@ -287,9 +289,9 @@ export async function addProject(root, args) {
     fs.copyFileSync(path.join(target, 'AGENTS.md'), path.join(backups, `AGENTS.md.${stamp}`))
   }
 
-  copyDir(path.join(root, '.agents'), path.join(target, '.agents'))
-  copyDir(path.join(root, '.opencode', 'agent'), path.join(target, '.opencode', 'agent'))
-  copyDir(path.join(root, 'scripts', 'harness'), path.join(target, 'scripts', 'harness'))
+  copyDir(path.join(layer, '.agents'), path.join(target, '.agents'))
+  copyDir(path.join(layer, '.opencode', 'agent'), path.join(target, '.opencode', 'agent'))
+  copyDir(path.join(layer, 'scripts', 'harness'), path.join(target, 'scripts', 'harness'))
   fs.copyFileSync(agentsMd, path.join(target, 'AGENTS.md'))
   createContextSkeleton(target)
 
@@ -338,7 +340,8 @@ function removeProject(root, args) {
   )
 }
 
-function createContextSkeleton(root) {  for (const d of [
+function createContextSkeleton(root) {
+  for (const d of [
     'context/project/adr',
     'context/modules',
     'tasks/queue',
@@ -362,15 +365,41 @@ function createContextSkeleton(root) {  for (const d of [
   }
 }
 
+/**
+ * Camada do harness usada por `new`/`add`: cache do workspace → harnessSource
+ * do registro → kit que está rodando o CLI.
+ */
+function layerSource(root) {
+  const candidates = [path.join(root, '.harness', 'workspace')]
+  try {
+    const reg = loadRegistry(root)
+    if (reg.harnessSource) candidates.push(path.resolve(root, reg.harnessSource))
+  } catch {}
+  candidates.push(harnessRoot())
+
+  for (const candidate of candidates) {
+    const ok =
+      fs.existsSync(path.join(candidate, 'AGENTS.md')) &&
+      fs.existsSync(path.join(candidate, '.agents')) &&
+      fs.existsSync(path.join(candidate, 'scripts', 'harness', 'bin', 'harness.js'))
+    if (ok) return candidate
+  }
+  throw new Error(
+    'camada do harness não encontrada (cache .harness/workspace, harnessSource ou kit).\n' +
+      '  rode `harness workspace update --source <harness>` para criar o cache.'
+  )
+}
+
 function syncLayer(target, root, dryRun) {
-  const agentsMd = path.join(root, '.harness', 'workspace', 'AGENTS.md')
+  const layer = layerSource(root)
+  const agentsMd = path.join(layer, 'AGENTS.md')
   if (dryRun) {
-    process.stdout.write(`🔎 dry-run: sincronizaria a camada do harness em ${target}\n`)
+    process.stdout.write(`🔎 dry-run: sincronizaria a camada do harness (${layer}) em ${target}\n`)
     return
   }
-  copyDir(path.join(root, '.agents'), path.join(target, '.agents'))
-  copyDir(path.join(root, '.opencode', 'agent'), path.join(target, '.opencode', 'agent'))
-  copyDir(path.join(root, 'scripts', 'harness'), path.join(target, 'scripts', 'harness'))
+  copyDir(path.join(layer, '.agents'), path.join(target, '.agents'))
+  copyDir(path.join(layer, '.opencode', 'agent'), path.join(target, '.opencode', 'agent'))
+  copyDir(path.join(layer, 'scripts', 'harness'), path.join(target, 'scripts', 'harness'))
   if (fs.existsSync(agentsMd)) {
     const backups = path.join(target, '.harness', 'backups')
     if (fs.existsSync(path.join(target, 'AGENTS.md'))) {
@@ -515,16 +544,17 @@ export async function updateWorkspace(root, args) {
     throw new Error(`fonte do harness inválida (sem AGENTS.md): ${src}`)
   }
 
-  // 1. camada do próprio workspace + cache do AGENTS.md
+  // 1. cache da camada para `workspace new/add`
   if (dryRun) {
-    process.stdout.write(`🔎 dry-run: sincronizaria a camada do workspace a partir de ${src}\n`)
+    process.stdout.write(`🔎 dry-run: sincronizaria o cache da camada a partir de ${src}\n`)
   } else {
+    const cache = path.join(root, '.harness', 'workspace')
+    ensureDir(cache)
     for (const item of ['.agents', '.opencode', 'scripts']) {
-      copyDir(path.join(src, item), path.join(root, item))
+      copyDir(path.join(src, item), path.join(cache, item))
     }
-    ensureDir(path.join(root, '.harness', 'workspace'))
-    fs.copyFileSync(path.join(src, 'AGENTS.md'), path.join(root, '.harness', 'workspace', 'AGENTS.md'))
-    process.stdout.write(`✅ camada do workspace sincronizada de ${src}\n`)
+    fs.copyFileSync(path.join(src, 'AGENTS.md'), path.join(cache, 'AGENTS.md'))
+    process.stdout.write(`✅ cache da camada sincronizado de ${src}\n`)
   }
 
   // 2. projetos (--all)
