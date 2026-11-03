@@ -20,3 +20,8 @@
 - [ ] `pnpm test` verde
 ## Ao terminar: rodar `pnpm harness finish 43-runbook-assets.md --handoff "<resumo>"`
 ## Complexidade: baixa
+
+## Baseline (git)
+- scripts/harness/templates/project/_base/context/project/runbook.md
+- scripts/harness/templates/project/game/.gitattributes
+- scripts/harness/templates/project/game/README.md
