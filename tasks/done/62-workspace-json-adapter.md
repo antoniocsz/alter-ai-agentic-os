@@ -1,5 +1,6 @@
 # Task: workspace --all --json + adapter source + gitignore
 ## Agente: `coordinator` | Módulo: `harness` | Prioridade: P1 | Tipo: fix
+## Módulo: `harness`
 ## Escopo:
 - `scripts/harness/src/workspace.js`
 - `scripts/harness/src/init.js`

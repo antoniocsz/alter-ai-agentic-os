@@ -1,5 +1,6 @@
 # Task: task id seguro + prune de bem
 ## Agente: `coordinator` | Módulo: `harness` | Prioridade: P1 | Tipo: fix
+## Módulo: `harness`
 ## Escopo:
 - `scripts/harness/src/lib/tasks.js`
 - `scripts/harness/src/lib/worktree.js`

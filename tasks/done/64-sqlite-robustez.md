@@ -1,5 +1,6 @@
 # Task: SQLite busy_timeout e close
 ## Agente: `coordinator` | Módulo: `harness` | Prioridade: P1 | Tipo: fix
+## Módulo: `harness`
 ## Escopo:
 - `scripts/harness/src/lib/db.js`
 - `scripts/harness/src/check.js`

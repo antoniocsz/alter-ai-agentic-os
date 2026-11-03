@@ -1,5 +1,6 @@
 # Task: Sprint 2 — README consistente
 ## Agente: `coordinator` | Módulo: `harness` | Prioridade: P1 | Tipo: docs
+## Módulo: `harness`
 ## Escopo:
 - `README.md`
 ## Depende de: [ ] 70-release-v033.md

@@ -1,5 +1,6 @@
 # Task: Release v0.3.3
 ## Agente: `coordinator` | Módulo: `harness` | Prioridade: P1 | Tipo: chore
+## Módulo: `harness`
 ## Escopo:
 - `scripts/harness/package.json`
 - `CHANGELOG.md`

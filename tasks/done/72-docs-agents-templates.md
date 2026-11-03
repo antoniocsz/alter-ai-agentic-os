@@ -1,5 +1,6 @@
 # Task: Sprint 2 — AGENTS e templates consistentes
 ## Agente: `coordinator` | Módulo: `harness` | Prioridade: P1 | Tipo: docs
+## Módulo: `harness`
 ## Escopo:
 - `AGENTS.md`
 - `.agents/`

@@ -1,5 +1,6 @@
 # Task: Kanban v2 — ações via CLI
 ## Agente: `coordinator` | Módulo: `harness` | Prioridade: P1 | Tipo: feat
+## Módulo: `harness`
 ## Escopo:
 - `workspace/kanban/`
 ## Depende de: [x] 68-adapter-layer.md

@@ -1,5 +1,6 @@
 # Task: copyDir binário-safe
 ## Agente: `coordinator` | Módulo: `harness` | Prioridade: P1 | Tipo: fix
+## Módulo: `harness`
 ## Escopo:
 - `scripts/harness/src/lib/templates.js`
 - `scripts/harness/src/lib/dates.js`

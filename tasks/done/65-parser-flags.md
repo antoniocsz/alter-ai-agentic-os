@@ -1,5 +1,6 @@
 # Task: Parser único de flags
 ## Agente: `coordinator` | Módulo: `harness` | Prioridade: P1 | Tipo: refactor
+## Módulo: `harness`
 ## Escopo:
 - `scripts/harness/src/lib/flags.js`
 - `scripts/harness/src/finish.js`

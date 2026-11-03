@@ -1,5 +1,6 @@
 # Task: check --db real e validação de --days
 ## Agente: `coordinator` | Módulo: `harness` | Prioridade: P1 | Tipo: fix
+## Módulo: `harness`
 ## Escopo:
 - `scripts/harness/src/check.js`
 - `scripts/harness/src/report.js`

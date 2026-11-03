@@ -1,5 +1,6 @@
 # Task: Sprint 2 — CHANGELOG e status do módulo
 ## Agente: `coordinator` | Módulo: `harness` | Prioridade: P1 | Tipo: docs
+## Módulo: `harness`
 ## Escopo:
 - `CHANGELOG.md`
 - `context/modules/harness/status.md`

@@ -1,5 +1,6 @@
 # Task: Sprint 2 — qualidade interna
 ## Agente: `coordinator` | Módulo: `harness` | Prioridade: P2 | Tipo: refactor
+## Módulo: `harness`
 ## Escopo:
 - `scripts/harness/tests/helpers.js`
 - `scripts/harness/tests/tasks.test.js`

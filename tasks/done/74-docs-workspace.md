@@ -1,5 +1,6 @@
 # Task: Sprint 2 — docs do workspace
 ## Agente: `coordinator` | Módulo: `harness` | Prioridade: P1 | Tipo: docs
+## Módulo: `harness`
 ## Escopo:
 - `context/workspace/`
 - `workspace/kanban/README.md`

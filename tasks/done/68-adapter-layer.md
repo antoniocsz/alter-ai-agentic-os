@@ -1,5 +1,6 @@
 # Task: adapters na camada do projeto
 ## Agente: `coordinator` | Módulo: `harness` | Prioridade: P1 | Tipo: fix
+## Módulo: `harness`
 ## Escopo:
 - `scripts/harness/src/init.js`
 - `scripts/harness/src/workspace.js`

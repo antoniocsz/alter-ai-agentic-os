@@ -1,5 +1,6 @@
 # Task: Gates strict (skipped vs blocked)
 ## Agente: `coordinator` | Módulo: `harness` | Prioridade: P1 | Tipo: feat
+## Módulo: `harness`
 ## Escopo:
 - `scripts/harness/src/lib/config.js`
 - `scripts/harness/src/lib/gates.js`

@@ -1,5 +1,6 @@
 # Task: datas locais (GMT-3)
 ## Agente: `coordinator` | Módulo: `harness` | Prioridade: P1 | Tipo: fix
+## Módulo: `harness`
 ## Escopo:
 - `scripts/harness/src/lib/memory.js`
 - `scripts/harness/src/retro.js`

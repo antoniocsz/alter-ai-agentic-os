@@ -1,5 +1,6 @@
 # Task: Release v0.3.4 (Sprint 2)
 ## Agente: `coordinator` | Módulo: `harness` | Prioridade: P1 | Tipo: chore
+## Módulo: `harness`
 ## Depende de: [x] 76-code-quality.md
 ## Escopo:
 - `scripts/harness/package.json`

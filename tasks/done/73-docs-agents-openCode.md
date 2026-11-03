@@ -1,5 +1,6 @@
 # Task: Sprint 2 — agents e adapters consistentes
 ## Agente: `coordinator` | Módulo: `harness` | Prioridade: P1 | Tipo: docs
+## Módulo: `harness`
 ## Escopo:
 - `.opencode/agent/`
 - `.agents/orchestration.md`
