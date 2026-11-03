@@ -17,10 +17,10 @@
 - [x] Correções da revisão (P1–P4): docs de paths relativos, erro de `--project` tratado, status.md real, `handleDetail` com prefixo ambíguo → 400
 
 ## Fase 3 — Limpeza de dogfood
-- [x] Removidas tasks de exemplo do template (queue 03–06, active 02, done 01)
-- [x] Removidos módulos padrão do template (tenancy, auth, authorization, audit, analytics)
-- [x] `context/project/overview.md` e `stack.md` reescritos com a identidade do repo-fonte
-- [x] `harness sync` (órfãos 01–06 removidos do banco)
+- [x] Histórico: tasks/módulos de exemplo removidos do repo-fonte (v0.2)
+- [x] v0.3: o template do perfil `web` voltou a gerar os módulos padrão (tenancy, auth,
+  authorization, audit) e as tasks de fundação — agora isolados no perfil, não na base
+- [x] `context/project/overview.md` e `stack.md` neutros por perfil
 
 ## Fase 4 — Evolução (lote B1+B2+B3+C1+A1)
 - [x] B1 — `harness workspace task <projeto> "<desc>"` cria task direto no projeto
@@ -35,12 +35,12 @@
 - [x] Kanban: toggle "agrupar por módulo" nas colunas
 - [x] `harness version [--bump patch|minor|major]` (incrementa + registra interação)
 - [x] `harness changelog [--out CHANGELOG.md]` (gera a partir dos handoffs)
-- [x] Testes 69/69
+- [x] Testes verdes (contagem crescendo com as fases)
 
 ## Fase 6 — Estabilidade dos testes (flake de IPC do node --test)
 - [x] `helpers.withSilentStdout` silencia banners do produto nos testes ruidosos
 - [x] 3 testes ruidosos de `kanban.test.js` envolvidos (kanbanFor estático, prefixo ambíguo, WIP bloqueia)
-- [x] Testes 69/69 estáveis (3 execuções consecutivas)
+- [x] Testes verdes (contagem crescendo com as fases) estáveis (3 execuções consecutivas)
 
 ## Handoff (lote 3 — task 15: flake de IPC do kanban.test.js)
 - Feito: helper `withSilentStdout` em `tests/helpers.js` + 3 testes ruidosos de
@@ -62,3 +62,24 @@
 - Decisões: computeMetrics sincroniza do markdown (fonte da verdade); WIP via
   `.harness/kanban.json` avaliado por projeto dono do card; `check` na raiz do workspace
   valida isolamento sem afetar o check de projeto.
+
+## Fase 7 — v0.3 (workspace multi-perfil)
+- [x] Perfis (web/api/cli/script/game/docs/design/bare), `init --profile`, `harness profile`
+- [x] Spec-driven (`harness feature`, `--feature`, ACs) e DoR/prioridade/tipo
+- [x] Worktree por task, gates (nativos + scripts), conventional commits
+- [x] Memória local (session/recall/status/memory prune) — sem claude-mem
+- [x] Adaptadores OpenCode/Claude/Codex + skills/commands compartilhados
+
+## Fase 8 — Hardening (review v0.3.2)
+- [x] P0: escopo por HEAD + pré-merge, segredos, kanban seguro, lock com ownership,
+  execução sem shell, workspace new/add
+- [x] P1: gates strict, `check --db`, `workspace --json`, traversal/prune, SQLite busy,
+  parser único de flags, copyDir binário, datas locais
+
+## Fase 9 — Kanban Next.js
+- [x] Dashboard multi-projeto em `workspace/kanban` (read-only)
+- [x] v2: ações via server actions chamando o CLI (start/finish/requeue/reopen/worktree)
+
+## Handoff (v0.3.3)
+- Feito: suite em 136 testes; `harness check`/`gates` verdes; release v0.3.3.
+- Pendências: Sprint 2 docs (71–76) e revisão contínua.
