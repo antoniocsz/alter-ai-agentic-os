@@ -1,4 +1,4 @@
-import { execSync } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { scanSecrets } from './redact.js'
@@ -31,9 +31,13 @@ function hasDependencies(pkg) {
   )
 }
 
-function run(command, root) {
+function runArgs(bin, args, root) {
   try {
-    const stdout = execSync(command, { cwd: root, stdio: 'pipe', encoding: 'utf8' })
+    const opts = { cwd: root, stdio: 'pipe', encoding: 'utf8' }
+    // No Windows, pnpm é um .cmd e precisa de shell; os args são validados
+    // (gate ^[a-z0-9:_-]+$) para não permitir injeção.
+    if (process.platform === 'win32') opts.shell = true
+    const stdout = execFileSync(bin, args, opts)
     return { ok: true, output: stdout.slice(-2000) }
   } catch (err) {
     const output = `${err.stdout ?? ''}${err.stderr ?? ''}`.trim().slice(-4000)
@@ -43,11 +47,11 @@ function run(command, root) {
 
 // `pnpm run` pode criar pnpm-lock.yaml como efeito colateral. Removemos apenas
 // se o arquivo não existia antes do gate — nunca apagamos um lockfile real.
-function runClean(command, root) {
+function runClean(bin, args, root) {
   const lock = path.join(root, 'pnpm-lock.yaml')
   const existed = fs.existsSync(lock)
   try {
-    return run(command, root)
+    return runArgs(bin, args, root)
   } finally {
     if (!existed) {
       try {
@@ -56,6 +60,8 @@ function runClean(command, root) {
     }
   }
 }
+
+const GATE_RE = /^[a-z0-9:_-]+$/
 
 const MD_LINK = /\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g
 
@@ -165,13 +171,17 @@ export function runGates(root, gates = [], opts = {}) {
         continue
       }
       const command = pkg?.devDependencies?.vitest
-        ? 'pnpm exec vitest run --changed'
-        : 'pnpm run test'
-      const res = runClean(command, root)
+        ? ['pnpm', ['exec', 'vitest', 'run', '--changed']]
+        : ['pnpm', ['run', 'test']]
+      const res = runClean(command[0], command[1], root)
       push(gate, res.ok ? 'passed' : 'failed', res.ok ? {} : { output: res.output })
       continue
     }
 
+    if (!GATE_RE.test(gate)) {
+      push(gate, 'failed', { output: 'nome de gate inválido (use apenas a-z, 0-9, :, _, -)' })
+      continue
+    }
     if (!pkg?.scripts?.[gate]) {
       push(gate, 'skipped', { reason: 'script ausente no package.json' })
       continue
@@ -180,7 +190,7 @@ export function runGates(root, gates = [], opts = {}) {
       push(gate, 'skipped', { reason: 'node_modules ausente' })
       continue
     }
-    const res = runClean(`pnpm run ${gate}`, root)
+    const res = runClean('pnpm', ['run', gate], root)
     push(gate, res.ok ? 'passed' : 'failed', res.ok ? {} : { output: res.output })
   }
 

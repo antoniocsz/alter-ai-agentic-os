@@ -135,3 +135,12 @@ test('init: --dry-run não escreve nada no disco', () => {
   init([target, '--profile', 'cli', '--dry-run'])
   assert.ok(!fs.existsSync(target), 'dry-run criou o diretório')
 })
+
+test('init: branch inválida é rejeitada antes de criar arquivos', async () => {
+  const target = path.join(tmpdir(), 'branch-maliciosa')
+  await assert.rejects(
+    init([target, '--profile', 'script', '--git', '--branch', 'a & echo PWNED']),
+    /branch inválida/
+  )
+  assert.ok(!fs.existsSync(target), 'nada deveria ser criado')
+})

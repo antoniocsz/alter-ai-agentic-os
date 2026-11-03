@@ -80,3 +80,10 @@ test('gates: preserva pnpm-lock.yaml pré-existente', () => {
   runGates(root, ['test'])
   assert.ok(fs.existsSync(path.join(root, 'pnpm-lock.yaml')))
 })
+
+test('gates: nome de gate inválido falha sem executar shell', () => {
+  const root = tmpdir()
+  const results = runGates(root, ['test; echo pwned'])
+  assert.equal(results[0].status, 'failed')
+  assert.match(results[0].output, /inválido/)
+})

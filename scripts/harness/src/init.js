@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { execSync } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 import { harnessRoot, templatesDir } from './lib/paths.js'
 import { copyDir, ensureDir } from './lib/templates.js'
 import { baseTemplateDir, profileTemplateDir, resolveProfile } from './lib/profiles.js'
@@ -32,6 +32,9 @@ export async function init(args) {
   }
   if (opts.prisma && !['web', 'api'].includes(profile)) {
     throw new Error(`--prisma só é válido nos perfis web e api (recebido: ${profile})`)
+  }
+  if (opts.branch && !/^[A-Za-z0-9._/-]+$/.test(opts.branch)) {
+    throw new Error(`branch inválida: ${opts.branch} (use letras, números, ., _, / e -)`)
   }
   const target = path.resolve(dir)
 
@@ -135,13 +138,26 @@ export async function createProject(target, opts = {}, sourceRoot = harnessRoot(
     ''
   ]
 
+  if (opts.branch && !/^[A-Za-z0-9._/-]+$/.test(opts.branch)) {
+    throw new Error(`branch inválida: ${opts.branch} (use letras, números, ., _, / e -)`)
+  }
+
   if (opts.git) {
     try {
-      const initBranch = opts.branch ? ` -b ${opts.branch}` : ''
-      execSync(`git init${initBranch}`, { cwd: target, stdio: 'ignore' })
-      execSync(`git add -A`, { cwd: target, stdio: 'ignore' })
-      execSync(
-        `git -c user.name="harness" -c user.email="harness@local" commit -qm "chore: bootstrap harness (${profile})"`,
+      const initArgs = opts.branch ? ['init', '-b', opts.branch] : ['init']
+      execFileSync('git', initArgs, { cwd: target, stdio: 'ignore' })
+      execFileSync('git', ['add', '-A'], { cwd: target, stdio: 'ignore' })
+      execFileSync(
+        'git',
+        [
+          '-c',
+          'user.name=harness',
+          '-c',
+          'user.email=harness@local',
+          'commit',
+          '-qm',
+          `chore: bootstrap harness (${profile})`
+        ],
         { cwd: target, stdio: 'ignore' }
       )
       lines.push(`   git: repositório inicializado${opts.branch ? ` na branch ${opts.branch}` : ''} com commit inicial.`)
