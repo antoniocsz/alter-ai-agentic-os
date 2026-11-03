@@ -544,7 +544,30 @@ export async function kanbanWorkspace(root, args) {
 /* ------------------------------ helpers ------------------------------ */
 
 function runInProject(wsRoot, project, args) {
-  const bin = path.join(wsRoot, 'scripts', 'harness', 'bin', 'harness.js')
+  const bin = resolveProjectBin(wsRoot, project)
   const res = spawnSync(process.execPath, [bin, ...args], { cwd: project.path, stdio: 'inherit' })
   return res.status ?? 1
+}
+
+function resolveProjectBin(wsRoot, project) {
+  const candidates = [
+    path.join(project.path, 'scripts', 'harness', 'bin', 'harness.js'),
+    path.join(wsRoot, 'scripts', 'harness', 'bin', 'harness.js')
+  ]
+  try {
+    const reg = loadRegistry(wsRoot)
+    if (reg.harnessSource) {
+      candidates.push(
+        path.resolve(wsRoot, reg.harnessSource, 'scripts', 'harness', 'bin', 'harness.js')
+      )
+    }
+  } catch {}
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) return candidate
+  }
+  throw new Error(
+    `harness CLI não encontrado para o projeto "${project.name}".\n` +
+      '  esperado em scripts/harness/bin/harness.js (projeto/workspace) ou em harnessSource.'
+  )
 }

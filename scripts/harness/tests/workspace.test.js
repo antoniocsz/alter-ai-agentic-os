@@ -313,3 +313,15 @@ test('readWipConfig: lê .harness/kanban.json com fallback vazio', () => {
   write(root, '.harness/kanban.json', JSON.stringify({ wip: { active: 3, queue: 8 } }))
   assert.deepEqual(readWipConfig(root), { queue: 8, active: 3 })
 })
+test('workspace check --all: usa o CLI do projeto quando a raiz não tem scripts/', async () => {
+  const ws = await makeWorkspace()
+  await newProject(ws, ['projeto-a'])
+  fs.rmSync(path.join(ws, 'scripts'), { recursive: true, force: true })
+
+  const kitBin = path.resolve(import.meta.dirname, '..', 'bin', 'harness.js')
+  const res = spawnSync(process.execPath, [kitBin, 'workspace', 'check', '--all'], {
+    cwd: ws,
+    encoding: 'utf8'
+  })
+  assert.equal(res.status, 0, res.stdout + res.stderr)
+})
