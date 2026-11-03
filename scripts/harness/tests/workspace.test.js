@@ -325,3 +325,23 @@ test('workspace check --all: usa o CLI do projeto quando a raiz não tem scripts
   })
   assert.equal(res.status, 0, res.stdout + res.stderr)
 })
+
+test('workspace remove: desregistra sem apagar e exige --force para --delete', async () => {
+  const ws = await makeWorkspace()
+  await newProject(ws, ['projeto-a'])
+  const target = path.join(ws, 'projects', 'projeto-a')
+
+  let res = run(ws, ['workspace', 'remove', 'projeto-a', '--delete'])
+  assert.notEqual(res.status, 0, 'sem --force deveria falhar')
+
+  res = run(ws, ['workspace', 'remove', 'projeto-a'])
+  assert.equal(res.status, 0, res.stdout + res.stderr)
+  assert.equal(loadRegistry(ws).projects.length, 0)
+  assert.ok(fs.existsSync(target), 'projeto não deveria ser apagado')
+
+  await newProject(ws, ['projeto-b'])
+  const targetB = path.join(ws, 'projects', 'projeto-b')
+  res = run(ws, ['workspace', 'remove', 'projeto-b', '--delete', '--force'])
+  assert.equal(res.status, 0, res.stdout + res.stderr)
+  assert.ok(!fs.existsSync(targetB), 'projeto deveria ser apagado com --force')
+})

@@ -47,6 +47,8 @@ async function dispatchWorkspace(root, sub, rest) {
       return newProject(root, rest)
     case 'add':
       return addProject(root, rest)
+    case 'remove':
+      return removeProject(root, rest)
     case 'list':
     case 'status':
       return listWorkspace(root, rest, sub === 'status')
@@ -82,6 +84,7 @@ Subcomandos:
   init <dir>                Cria um workspace novo [--source <harness>] [--projects-dir <nome>] [--dry-run]
   new <nome>                Cria um projeto novo dentro do workspace [--prisma] [--git] [--bare]
   add <path>                Registra projeto existente [--name <nome>] [--sync] [--dry-run]
+  remove <nome>             Remove do registro [--delete --force] (apaga a pasta; exige --force)
   list | status             Lista os projetos (queue/active/done, versão, onboarded)
   check [--all]             Valida o registro (isolamento) e, com --all, o check de cada projeto
   sync --all                Reindexa o banco de cada projeto
@@ -306,8 +309,36 @@ export async function addProject(root, args) {
   )
 }
 
-function createContextSkeleton(root) {
-  for (const d of [
+function removeProject(root, args) {
+  const name = args.find((a) => !a.startsWith('--'))
+  if (!name) throw new Error('uso: harness workspace remove <nome> [--delete --force]')
+
+  const reg = loadRegistry(root)
+  const idx = reg.projects.findIndex((p) => p.name.toLowerCase() === name.toLowerCase())
+  if (idx === -1) throw new Error(`projeto não registrado: ${name}`)
+
+  const project = reg.projects[idx]
+  const removeDir = args.includes('--delete')
+  if (removeDir && !args.includes('--force')) {
+    throw new Error('--delete é destrutivo e exige --force')
+  }
+
+  if (removeDir) {
+    const rel = path.relative(root, project.path)
+    if (!rel || rel === '' || rel.startsWith('..') || path.isAbsolute(rel)) {
+      throw new Error(`remoção bloqueada: ${project.path} não está dentro do workspace`)
+    }
+    fs.rmSync(project.path, { recursive: true, force: true })
+  }
+
+  reg.projects.splice(idx, 1)
+  saveRegistry(root, reg)
+  process.stdout.write(
+    `✅ projeto ${project.name} ${removeDir ? 'removido do workspace e do disco' : 'desregistrado do workspace'}.\n`
+  )
+}
+
+function createContextSkeleton(root) {  for (const d of [
     'context/project/adr',
     'context/modules',
     'tasks/queue',

@@ -226,6 +226,7 @@ D:\projetos\                        ← raiz do workspace
 | `harness workspace init <dir>` | Cria o workspace (camada harness + registro + cache do AGENTS.md). Flags: `--source`, `--projects-dir`, `--dry-run` |
 | `harness workspace new <nome>` | Cria um projeto novo dentro do workspace. Flags: `--prisma`, `--git`, `--bare` |
 | `harness workspace add <path>` | Registra projeto existente; se não tiver a camada, faz **onboarding** (backup do AGENTS.md, instala camada + esqueleto `context/`). Flags: `--name`, `--sync`, `--dry-run` |
+| `harness workspace remove <nome>` | Desregistra o projeto; `--delete --force` também apaga a pasta (bloqueado fora da raiz) |
 | `harness workspace list` / `status` | Tabela: queue/active/done, versão do harness, onboarded |
 | `harness workspace check [--all]` | Valida o registro e o **isolamento** (duplicados, árvores aninhadas, raiz, paths inexistentes); `--all` também roda o check de cada projeto |
 | `harness workspace sync --all` | Reindexa o banco de cada projeto |
@@ -467,6 +468,8 @@ Cada projeto declara seu perfil em `harness.json` na raiz:
   `gate_failed`. `harness worktree finish` roda `gates.merge` antes do squash merge.
 - `harness gates [--phase finish|merge] [--json]` roda os gates manualmente.
 - `harness check` valida o arquivo quando presente; projetos antigos sem ele continuam válidos.
+- `harness profile set <p>` troca o perfil (adota gates/WIP do perfil e preserva `git.baseBranch`);
+  `harness profile current` mostra o perfil atual.
 - `git.model: "trunk"` é o default (worktree por task + squash merge); `"gitflow"` fica como opção futura.
 
 ## Protocolo de execução de tarefa
