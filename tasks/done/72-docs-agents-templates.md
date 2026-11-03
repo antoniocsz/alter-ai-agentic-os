@@ -4,6 +4,8 @@
 - `AGENTS.md`
 - `.agents/`
 - `scripts/harness/templates/project/`
+- `scripts/harness/templates/workspace/`
+- `scripts/harness/src/workspace.js`
 ## Depende de: [ ] 71-docs-readme.md
 ## O que corrigir:
 - `context/agents` → `tasks/`; protocolo/paths; `stack.md` base neutra por perfil.

@@ -8,11 +8,13 @@ Projeto inicializado com o harness — perfil **{{PROFILE}}**.
 # se o perfil tiver package.json:
 pnpm install
 
-pnpm harness status        # WIP + próximas tasks
-pnpm harness task "<desc>" # planejar
-pnpm harness start <n>     # iniciar (valida escopo)
-pnpm harness finish <n>    # concluir (gates do perfil)
-pnpm harness kanban --serve
+harness status        # WIP + próximas tasks
+harness task "<desc>" # planejar
+harness start <n>     # iniciar (valida escopo)
+harness finish <n>    # concluir (gates do perfil)
+harness kanban --serve
+
+# sem o comando global: node scripts/harness/bin/harness.js <cmd>
 ```
 
 ## Contexto e memória local

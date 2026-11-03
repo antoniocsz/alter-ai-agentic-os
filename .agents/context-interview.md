@@ -55,7 +55,7 @@ context/
 ├── project/overview.md
 ├── project/domain-model.md
 ├── project/stack.md
-└── agents/queue/
+└── tasks/queue/
     ├── 01-<task>.md
     └── 02-<task>.md
 ```

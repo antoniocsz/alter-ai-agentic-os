@@ -10,4 +10,4 @@ Projeto de documentação/pesquisa (perfil **docs**). Sem código de aplicação
 
 ## Fluxo
 
-`spec → tasks → rascunho → revisão → done`. Gates do perfil: markdown/links (Fase 8).
+`spec → tasks → rascunho → revisão → done`. Gates do perfil: `scope`, `secrets` e `links`.

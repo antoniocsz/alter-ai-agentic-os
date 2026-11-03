@@ -9,7 +9,7 @@ Workspace: `{{NAME}}` · projetos em: `{{PROJECTS_DIR}}/`
 
 ## Descobrir os projetos
 
-- `pnpm harness workspace list` (ou `status`) — tabela com queue/active/done, versão do harness e onboarded.
+- `harness workspace list` (ou `status`) — tabela com queue/active/done, versão do harness e onboarded.
 - O registro vive em `.harness-workspace.json` (paths relativos à raiz do workspace, resolvidos
   para absoluto em memória).
 
@@ -17,15 +17,18 @@ Workspace: `{{NAME}}` · projetos em: `{{PROJECTS_DIR}}/`
 
 | Comando | O que faz |
 |---|---|
-| `pnpm harness workspace new <nome>` | Cria um projeto novo no workspace |
-| `pnpm harness workspace add <path>` | Registra projeto existente (onboarding se não tiver a camada) |
-| `pnpm harness workspace check --all` | Valida o registro/isolamento + check de cada projeto |
-| `pnpm harness workspace sync --all` | Reindexa o banco de cada projeto |
-| `pnpm harness workspace update --all` | Atualiza a camada do workspace e de todos os projetos |
-| `pnpm harness workspace report --all` | Métricas de cada projeto |
-| `pnpm harness workspace run <projeto> <cmd...>` | Roda um comando harness dentro do projeto |
-| `pnpm harness <cmd> ... --project <projeto>` | Roda um comando harness no projeto, de qualquer lugar |
-| `pnpm harness workspace kanban [--serve]` | Kanban agregado com detalhamento das tasks |
+| `harness workspace new <nome>` | Cria um projeto novo no workspace |
+| `harness workspace add <path>` | Registra projeto existente (onboarding se não tiver a camada) |
+| `harness workspace remove <nome>` | Desregistra (`--delete --force` apaga a pasta) |
+| `harness workspace task <projeto> "<desc>"` | Cria task no projeto |
+| `harness workspace check --all` | Valida o registro/isolamento + check de cada projeto |
+| `harness workspace sync --all` | Reindexa o banco de cada projeto |
+| `harness workspace update --all` | Atualiza a camada do workspace e de todos os projetos |
+| `harness workspace report --all` | Métricas de cada projeto |
+| `harness workspace run <projeto> <cmd...>` | Roda um comando harness dentro do projeto |
+| `harness <cmd> ... --project <projeto>` | Roda um comando harness no projeto, de qualquer lugar |
+| `harness workspace kanban [--serve]` | Kanban agregado com detalhamento das tasks |
+| `harness workspace run <projeto> <cmd...>` | Roda um comando harness dentro do projeto |
 
 ## Isolamento entre projetos — regras para agentes
 
@@ -43,5 +46,5 @@ Workspace: `{{NAME}}` · projetos em: `{{PROJECTS_DIR}}/`
 
 ## Registrar interações
 
-- `pnpm harness log "<resumo>" --kind note --source agent` na raiz do workspace para
+- `harness log "<resumo>" --kind note --source agent` na raiz do workspace para
   registrar handoffs entre lotes.

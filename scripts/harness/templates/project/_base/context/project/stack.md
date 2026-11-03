@@ -1,20 +1,25 @@
-# Stack Técnica — Sistema
+# Stack
 
-[Preencha com a stack decidida na context-interview. Estrutura de referência:]
+> Preencher via context-interview. A stack é específica do projeto/perfil.
 
-## Monorepo
-- Turborepo + pnpm workspaces
-- TypeScript strict
-- ESLint flat config (lint + formatação via @stylistic)
+## Linguagem e runtime
 
-## Backend
-- Runtime, framework, ORM, cache, validação, email, storage, pagamentos, filas, testes
+- [ex.: Node.js 22 / Python 3.12 / GDScript]
 
-## Frontend Web
-- Framework, estado servidor/cliente, forms, UI, testes
+## Framework / plataforma
 
-## Mobile
-- Framework, estilização, estado, forms, testes
+- [ex.: Next.js, Fastify, Expo, Godot, nenhum]
 
-## Infraestrutura
-- Banco, cache, deploy, CI/CD, analytics
+## Testes e lint
+
+- Testes: [comando/framework]
+- Lint/format: [comando]
+
+## Dados e infraestrutura
+
+- Banco: [se houver]
+- Deploy/ambiente: [ver runbook.md]
+
+## Restrições
+
+- [performance, plataforma, compatibilidade, licenças]

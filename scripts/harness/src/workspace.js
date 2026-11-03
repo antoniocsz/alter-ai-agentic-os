@@ -273,7 +273,7 @@ export async function addProject(root, args) {
       `🔎 dry-run: onboarding de ${target}\n` +
         `  - backup do AGENTS.md existente em .harness/backups/\n` +
         '  - copiaria a camada do harness (AGENTS.md, .agents/, .opencode/agent/, scripts/harness/)\n' +
-        '  - criaria o esqueleto context/ (project/, modules/, agents/queue|active|done)\n' +
+        '  - criaria o esqueleto context/ (project/, modules/, tasks/queue|active|done)\n' +
         `  - registraria como "${name}"\n`
     )
     return
