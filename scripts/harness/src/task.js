@@ -5,6 +5,7 @@ import { templatesDir } from './lib/paths.js'
 import { render } from './lib/templates.js'
 import { slugifyFeature } from './feature.js'
 import { normalizeCommitType } from './lib/commits.js'
+import { parseArgs, flagString } from './lib/flags.js'
 
 const AGENT_REF = {
   backend: 'backend.md',
@@ -16,29 +17,25 @@ const AGENT_REF = {
 
 export async function task(args) {
   const root = process.cwd()
-  const description = args.find((a) => !a.startsWith('--'))
+  const { positionals, flags } = parseArgs(args)
+  const description = positionals.join(' ').trim()
   if (!description) {
     throw new Error(
-      'uso: harness task "<descrição>" [--module <m>] [--agent backend|frontend|mobile] [--scope "p1,p2"] [--dep <task>] [--complexity baixa|média|alta]'
+      'uso: harness task "<descrição>" [--module <m>] [--agent backend|frontend|mobile] [--scope "p1,p2"] [--dep <task>] [--complexity baixa|média|alta] [--feature <slug>] [--acs AC-1,AC-2] [--priority P0..P3] [--type feat|fix|...]'
     )
   }
 
-  const flag = (names) => {
-    const i = args.findIndex((a) => names.includes(a))
-    return i !== -1 ? args[i + 1] : null
-  }
-
-  const module = flag(['--module']) ?? ''
-  const agent = flag(['--agent']) ?? 'backend'
-  const dep = flag(['--dep']) ?? '-'
-  const complexity = flag(['--complexity']) ?? 'baixa'
-  const scopeRaw = flag(['--scope']) ?? ''
-  const priorityRaw = (flag(['--priority']) ?? 'P2').toUpperCase()
+  const module = flagString(flags, 'module', '')
+  const agent = flagString(flags, 'agent', 'backend')
+  const dep = flagString(flags, 'dep', '-')
+  const complexity = flagString(flags, 'complexity', 'baixa')
+  const scopeRaw = flagString(flags, 'scope', '')
+  const priorityRaw = flagString(flags, 'priority', 'P2').toUpperCase()
   if (!/^P[0-3]$/.test(priorityRaw)) {
     throw new Error(`prioridade inválida: ${priorityRaw} (use P0 | P1 | P2 | P3)`)
   }
-  const commitType = normalizeCommitType(flag(['--type']) ?? 'feat')
-  const acsRaw = flag(['--acs'])
+  const commitType = normalizeCommitType(flagString(flags, 'type', 'feat'))
+  const acsRaw = flagString(flags, 'acs')
   const acs = acsRaw
     ? acsRaw
         .split(',')
@@ -48,7 +45,7 @@ export async function task(args) {
   for (const ac of acs) {
     if (!/^AC-\d+$/.test(ac)) throw new Error(`AC inválido: ${ac} (use AC-1, AC-2...)`)
   }
-  const featureRaw = flag(['--feature'])
+  const featureRaw = flagString(flags, 'feature')
   const feature = featureRaw ? slugifyFeature(featureRaw) : '—'
 
   const moduleName = module.match(/modules\/([a-z0-9-]+)/)?.[1] ?? module.replace(/^@saas\//, '')

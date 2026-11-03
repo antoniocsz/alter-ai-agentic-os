@@ -1,32 +1,31 @@
 import { openDb, recordInteraction, taskHistory, resolveTaskId } from './lib/db.js'
+import { parseArgs, flagString } from './lib/flags.js'
 
 export async function logCmd(args) {
   const root = process.cwd()
-  const content = args.find((a) => !a.startsWith('--'))
+  const { positionals, flags } = parseArgs(args)
+  const content = positionals.join(' ').trim()
   if (!content) {
     throw new Error(
       'uso: harness log "<texto>" [--task <id>] [--kind prompt|response|note|system] [--source agent|human|cli]'
     )
   }
-  const flag = (names) => {
-    const i = args.findIndex((a) => names.includes(a))
-    return i !== -1 ? args[i + 1] : null
-  }
 
-  const taskId = resolveTaskId(root, flag(['--task']))
+  const taskId = resolveTaskId(root, flagString(flags, 'task'))
   const db = openDb(root)
   recordInteraction(db, {
     taskId,
-    kind: flag(['--kind']) ?? 'note',
+    kind: flagString(flags, 'kind', 'note'),
     content,
-    source: flag(['--source']) ?? 'human'
+    source: flagString(flags, 'source', 'human')
   })
   process.stdout.write(`✅ interação registrada${taskId ? ` (task ${taskId})` : ''}.\n`)
 }
 
 export async function historyCmd(args) {
   const root = process.cwd()
-  const taskId = resolveTaskId(root, args.find((a) => !a.startsWith('--')))
+  const { positionals } = parseArgs(args)
+  const taskId = resolveTaskId(root, positionals[0])
   if (!taskId) throw new Error('uso: harness history <task>')
 
   const db = openDb(root)

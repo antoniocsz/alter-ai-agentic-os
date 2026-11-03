@@ -6,6 +6,7 @@
 - `scripts/harness/src/worktree.js`
 - `scripts/harness/src/task.js`
 - `scripts/harness/src/log.js`
+- `scripts/harness/tests/flags.test.js`
 ## Depende de: [ ] 64-sqlite-robustez.md
 ## O que criar:
 - `--k v` / `--k=v` com validação de valor; fim do posicional frágil.

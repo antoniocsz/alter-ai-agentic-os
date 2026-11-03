@@ -1,13 +1,13 @@
 import { finishTask } from './lib/pipeline.js'
 import { summarize } from './lib/gates.js'
+import { parseArgs, flagString, flagBool } from './lib/flags.js'
 
 export async function finish(args) {
-  const handoffIdx = args.indexOf('--handoff')
-  const handoff = handoffIdx !== -1 ? args.slice(handoffIdx + 1).join(' ').trim() : null
-  const skipGates = args.includes('--skip-gates')
-  const positional = args.filter((a) => !a.startsWith('--'))
+  const { positionals, flags } = parseArgs(args)
+  const handoff = flagString(flags, 'handoff')
+  const skipGates = flagBool(flags, 'skip-gates')
 
-  const res = finishTask(process.cwd(), positional[0], { handoff, skipGates })
+  const res = finishTask(process.cwd(), positionals[0], { handoff, skipGates })
   if (!res.ok) throw new Error(res.error)
   if (!res.gitRepo) process.stdout.write('   ⚠️  não é repositório git — enforcement de escopo pulado.\n')
   if (res.gates?.length) {

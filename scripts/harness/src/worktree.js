@@ -1,12 +1,14 @@
 import { startWorktree, finishWorktree, listWorktrees, pruneWorktrees } from './lib/worktree.js'
+import { parseArgs, flagString, flagBool } from './lib/flags.js'
 
 export async function worktreeCmd(args = []) {
-  const [sub, ...rest] = args
+  const { positionals, flags } = parseArgs(args)
+  const [sub] = positionals
   const root = process.cwd()
 
   switch (sub) {
     case 'start': {
-      const res = startWorktree(root, rest[0])
+      const res = startWorktree(root, positionals[1])
       process.stdout.write(
         `🌳 worktree criada: ${res.entry.path}\n` +
           `   branch: ${res.entry.branch} (base: ${res.base})\n` +
@@ -15,13 +17,11 @@ export async function worktreeCmd(args = []) {
       return
     }
     case 'finish': {
-      const keep = rest.includes('--keep')
-      const skipGates = rest.includes('--skip-gates')
-      const handoffIdx = rest.indexOf('--handoff')
-      const handoff = handoffIdx !== -1 ? rest.slice(handoffIdx + 1).join(' ').trim() : null
-      const positional = rest.filter((a) => !a.startsWith('--'))
+      const keep = flagBool(flags, 'keep')
+      const skipGates = flagBool(flags, 'skip-gates')
+      const handoff = flagString(flags, 'handoff')
 
-      const res = finishWorktree(root, positional[0], { keep, skipGates, handoff })
+      const res = finishWorktree(root, positionals[1], { keep, skipGates, handoff })
       for (const g of res.gates) {
         const label = g.status === 'passed' ? '✅' : g.status === 'failed' ? '❌' : '⏭️'
         process.stdout.write(`   ${label} gate ${g.gate}${g.reason ? ` (${g.reason})` : ''}\n`)
