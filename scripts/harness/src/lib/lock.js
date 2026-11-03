@@ -1,10 +1,13 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { randomBytes } from 'node:crypto'
 
 const DEFAULT_TIMEOUT_MS = 10_000
-const DEFAULT_STALE_MS = 60_000
+// Gates longos rodam com timeout próprio (10 min); o lock só é considerado
+// órfão bem depois disso, para nunca ser "roubado" durante um gate.
+const DEFAULT_STALE_MS = 30 * 60_000
 
-const held = new Set()
+const held = new Map()
 
 function lockPath(root) {
   return path.join(root, '.harness', 'lock')
@@ -23,32 +26,43 @@ function isStale(file, staleMs) {
   }
 }
 
-/**
- * Adquire o lock do pipeline. Reentrante no mesmo processo (Set de caminhos).
- * Lock obsoleto (mais velho que staleMs) é removido.
- */
+function readLock(file) {
+  try {
+    return JSON.parse(fs.readFileSync(file, 'utf8'))
+  } catch {
+    return null
+  }
+}
+
 export function acquireLock(root, opts = {}) {
   const file = lockPath(root)
   const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS
   const staleMs = opts.staleMs ?? DEFAULT_STALE_MS
 
-  if (held.has(file)) return { release() {}, reentrant: true }
+  const existingToken = held.get(file)
+  if (existingToken) return { release() {}, reentrant: true, token: existingToken }
 
   fs.mkdirSync(path.dirname(file), { recursive: true })
   const started = Date.now()
+  const token = randomBytes(8).toString('hex')
 
   while (true) {
     try {
       const fd = fs.openSync(file, 'wx')
-      fs.writeSync(fd, JSON.stringify({ pid: process.pid, at: new Date().toISOString() }) + '\n')
+      fs.writeSync(fd, JSON.stringify({ pid: process.pid, token, at: new Date().toISOString() }) + '\n')
       fs.closeSync(fd)
-      held.add(file)
+      held.set(file, token)
       return {
+        token,
         release() {
           held.delete(file)
-          try {
-            fs.rmSync(file)
-          } catch {}
+          // Só remove se ainda formos os donos (nunca apaga lock de outro).
+          const current = readLock(file)
+          if (current?.token === token) {
+            try {
+              fs.rmSync(file)
+            } catch {}
+          }
         }
       }
     } catch (err) {
@@ -82,14 +96,10 @@ export function withLock(root, fn, opts = {}) {
 export function lockStatus(root, opts = {}) {
   const file = lockPath(root)
   if (!fs.existsSync(file)) return { locked: false }
-  let info = null
-  try {
-    info = JSON.parse(fs.readFileSync(file, 'utf8'))
-  } catch {}
   return {
     locked: true,
     stale: isStale(file, opts.staleMs ?? DEFAULT_STALE_MS),
-    info,
+    info: readLock(file),
     file: path.relative(root, file)
   }
 }

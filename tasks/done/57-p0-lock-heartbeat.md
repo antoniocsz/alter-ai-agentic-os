@@ -14,3 +14,7 @@
 - [ ] release do processo antigo não apaga o lock do novo
 - [ ] gate lento não é interrompido pelo stale
 ## Complexidade: média
+
+## Baseline (git)
+- scripts/harness/src/lib/gates.js
+- scripts/harness/src/lib/lock.js

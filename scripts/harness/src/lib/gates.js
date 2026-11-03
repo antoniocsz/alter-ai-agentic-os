@@ -37,10 +37,14 @@ function runArgs(bin, args, root) {
     // No Windows, pnpm é um .cmd e precisa de shell; os args são validados
     // (gate ^[a-z0-9:_-]+$) para não permitir injeção.
     if (process.platform === 'win32') opts.shell = true
+    opts.timeout = Number(process.env.HARNESS_GATE_TIMEOUT_MS ?? 10 * 60_000)
     const stdout = execFileSync(bin, args, opts)
     return { ok: true, output: stdout.slice(-2000) }
   } catch (err) {
-    const output = `${err.stdout ?? ''}${err.stderr ?? ''}`.trim().slice(-4000)
+    const output =
+      err.code === 'ETIMEDOUT'
+        ? 'gate excedeu o timeout (HARNESS_GATE_TIMEOUT_MS)'
+        : `${err.stdout ?? ''}${err.stderr ?? ''}`.trim().slice(-4000)
     return { ok: false, output }
   }
 }

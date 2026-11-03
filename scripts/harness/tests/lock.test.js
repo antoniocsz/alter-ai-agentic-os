@@ -25,7 +25,7 @@ test('lock: remove lock obsoleto automaticamente', () => {
   const root = tmpdir()
   fs.mkdirSync(path.join(root, '.harness'), { recursive: true })
   fs.writeFileSync(lockFile(root), '{"pid":999}\n')
-  const old = new Date(Date.now() - 120_000)
+  const old = new Date(Date.now() - 31 * 60_000)
   fs.utimesSync(lockFile(root), old, old)
 
   const lock = acquireLock(root, { staleMs: 60_000 })
@@ -52,7 +52,7 @@ test('check: reporta lock órfão', () => {
 
   fs.mkdirSync(path.join(root, '.harness'), { recursive: true })
   fs.writeFileSync(lockFile(root), '{"pid":999,"at":"2026-01-01T00:00:00Z"}\n')
-  const old = new Date(Date.now() - 120_000)
+  const old = new Date(Date.now() - 31 * 60_000)
   fs.utimesSync(lockFile(root), old, old)
 
   const r = validate(root)
@@ -65,4 +65,14 @@ test('withLock: libera mesmo quando a função lança', () => {
     throw new Error('boom')
   }), /boom/)
   assert.equal(fs.existsSync(lockFile(root)), false)
+})
+
+test('lock: release não apaga lock roubado por outro dono', () => {
+  const root = tmpdir()
+  const lock = acquireLock(root)
+  fs.writeFileSync(lockFile(root), JSON.stringify({ pid: 999, token: 'outro-dono' }) + '\n')
+
+  lock.release()
+  assert.ok(fs.existsSync(lockFile(root)), 'não deveria remover lock de outro dono')
+  assert.equal(JSON.parse(fs.readFileSync(lockFile(root), 'utf8')).token, 'outro-dono')
 })
