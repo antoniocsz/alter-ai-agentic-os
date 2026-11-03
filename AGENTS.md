@@ -79,6 +79,29 @@ O pipeline é operado pelo CLI: `pnpm harness start <task> | finish <task> | req
 
 ---
 
+### Execução com worktree (isolamento por task)
+
+O modo recomendado de execução é **1 task = 1 worktree**:
+
+```bash
+pnpm harness start <task>            # queue → active (valida escopo)
+pnpm harness worktree start <task>   # cria .worktrees/task-<n>-<slug> + branch task/<n>-<slug>
+# ... trabalhe dentro da worktree ...
+pnpm harness worktree finish <task> [--handoff "resumo"]
+#   commit do que estiver sujo → rebase na base → gates.merge → squash merge → task done
+pnpm harness worktree list | prune   # inspeção e limpeza
+```
+
+Regras:
+
+- A base vem de `harness.json → git.baseBranch` (fallback `main`/`master`).
+- O repositório principal precisa estar na base; o comando **não troca de branch** sozinho.
+- Gate que falha aborta antes do merge e **preserva a worktree** para inspeção.
+- `--keep` mantém a worktree após o merge; `--skip-gates` só para emergência explícita.
+- Ao final, a worktree e a branch são removidas — nada de lixo em disco.
+
+---
+
 ## Regras inegociáveis (genéricas)
 
 Violação bloqueia a conclusão da task (e o merge):

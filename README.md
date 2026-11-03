@@ -110,6 +110,9 @@ tasks/
 | `harness module <nome>` | Scaffold de módulo. Flags: `--with-prisma`, `--with-http` |
 | `harness update [--source <cam>]` | Re-sincroniza a camada harness a partir do harness-fonte (ou `HARNESS_SOURCE`) |
 | `harness feature <slug>` | Cria `context/features/<slug>/` com `spec.md` (critérios AC-N) e `plan.md` |
+| `harness worktree start <task>` | Cria `.worktrees/task-<n>-<slug>` e branch `task/<n>-<slug>` a partir da base |
+| `harness worktree finish <task>` | Commita, rebase, roda gates.merge, squash merge, conclui a task e remove a worktree |
+| `harness worktree list` / `prune` | Lista worktrees registradas / limpa entradas órfãs |
 | `harness task "<desc>"` | Cria task na queue com numeração automática e `## Escopo`. Flags: `--module`, `--agent`, `--scope`, `--dep`, `--complexity` |
 | `harness start <task>` | Move `queue/` → `active/`, bloqueando conflito de escopo com tasks ativas |
 | `harness finish <task>` | Valida `git diff` contra o `## Escopo` e move `active/` → `done/`. Flag: `--handoff "<resumo>"` |
@@ -271,16 +274,33 @@ Regras:
 5. Conteúdo da task: título, escopo, referências a módulos afetados e checklist.
 6. Toda task declara `## Escopo` com os arquivos que vai tocar — é o que permite paralelismo seguro.
 
+## Worktree por task
+
+O modo recomendado de execução paralela é **1 task = 1 worktree**:
+
+```bash
+pnpm harness start 12                          # queue → active
+pnpm harness worktree start 12                 # cria .worktrees/task-12-<slug> + branch task/12-<slug>
+# subagent trabalha dentro da worktree
+pnpm harness worktree finish 12 --handoff "..." # rebase + gates.merge + squash merge + finish
+```
+
+- Base: `harness.json → git.baseBranch` (fallback `main`/`master`); o repositório principal precisa estar na base.
+- Gate que falha aborta antes do merge e preserva a worktree para inspeção.
+- Worktree e branch são removidas ao finalizar; `--keep` mantém, `prune` limpa registro órfão.
+- `git.model: "trunk"` (default): branches curtas + squash merge; sem `develop` permanente.
+
 ## Execução em paralelo (subagents)
 
-Tasks ativas com `## Escopo` disjuntos rodam em paralelo. O `harness start` garante isso: se uma nova task sobrepuser o escopo de uma ativa, o start é bloqueado com a indicação do conflito.
+Tasks ativas com `## Escopo` disjuntos rodam em paralelo. O `harness start` garante isso: se uma nova task sobrepuser o escopo de uma ativa, o start é bloqueado com a indicação do conflito. Com worktrees, o isolamento é físico: cada subagent trabalha em `.worktrees/task-<n>-<slug>` e o merge passa pelo `worktree finish`.
 
 Fluxo com subagents:
 
 1. Planejar as tasks em `queue/` (via feature-planning), cada uma com `## Escopo` explícito.
 2. Para cada task, rodar `harness start <task>` — o CLI valida o paralelismo e move para `active/`.
-3. Spawnar um subagent por task ativa, cada um lendo o próprio arquivo de task (especificação + escopo).
-4. Cada subagent executa o protocolo obrigatório e termina rodando `harness finish <task>` — que falha se o subagent tocou arquivo fora do escopo.
+3. `harness worktree start <task>` por task ativa; spawnar um subagent apontando para a worktree.
+4. Cada subagent executa o protocolo obrigatório e termina com `harness worktree finish <task>` — que valida escopo, roda gates e mergeia.
+5. Ao final, `harness check` valida o conjunto e o coordenador revisa as tasks em `done/`.
 5. Ao final, `harness check` valida o conjunto e o coordenador revisa as tasks em `done/`.
 
 Exemplo de prompt de orquestração:

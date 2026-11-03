@@ -74,7 +74,9 @@ export function finishTask(root, arg, opts = {}) {
       ...activeTasks.flatMap((t) => t.scope),
       ...doneTasks.flatMap((t) => t.scope),
       'context/',
-      norm(path.relative(root, pipelineRoot(root))) + '/'
+      norm(path.relative(root, pipelineRoot(root))) + '/',
+      '.worktrees/',
+      '.tmp/'
     ]
     const out = outOfScopeFiles(root, baseline, allowedScopes)
     if (out.length > 0) {
