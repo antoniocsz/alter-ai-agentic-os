@@ -58,3 +58,25 @@ test('finish: gate que falha bloqueia a task e mantém active', () => {
   assert.equal(ok.ok, true, ok.error)
   assert.ok(fs.existsSync(path.join(root, 'tasks/done/01-doc.md')))
 })
+
+test('gates: não deixa pnpm-lock.yaml criado pelo script', () => {
+  const root = tmpdir()
+  write(
+    root,
+    'package.json',
+    JSON.stringify({
+      scripts: { test: 'node -e "require(\'fs\').writeFileSync(\'pnpm-lock.yaml\',\'x\')"' }
+    })
+  )
+  const results = runGates(root, ['test'])
+  assert.equal(results[0].status, 'passed')
+  assert.ok(!fs.existsSync(path.join(root, 'pnpm-lock.yaml')), 'lockfile residual')
+})
+
+test('gates: preserva pnpm-lock.yaml pré-existente', () => {
+  const root = tmpdir()
+  write(root, 'pnpm-lock.yaml', 'lockfileVersion: 9\n')
+  write(root, 'package.json', JSON.stringify({ scripts: { test: 'node -e "process.exit(0)"' } }))
+  runGates(root, ['test'])
+  assert.ok(fs.existsSync(path.join(root, 'pnpm-lock.yaml')))
+})

@@ -41,6 +41,22 @@ function run(command, root) {
   }
 }
 
+// `pnpm run` pode criar pnpm-lock.yaml como efeito colateral. Removemos apenas
+// se o arquivo não existia antes do gate — nunca apagamos um lockfile real.
+function runClean(command, root) {
+  const lock = path.join(root, 'pnpm-lock.yaml')
+  const existed = fs.existsSync(lock)
+  try {
+    return run(command, root)
+  } finally {
+    if (!existed) {
+      try {
+        fs.rmSync(lock, { force: true })
+      } catch {}
+    }
+  }
+}
+
 const MD_LINK = /\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g
 
 export function checkLinks(root) {
@@ -151,7 +167,7 @@ export function runGates(root, gates = [], opts = {}) {
       const command = pkg?.devDependencies?.vitest
         ? 'pnpm exec vitest run --changed'
         : 'pnpm run test'
-      const res = run(command, root)
+      const res = runClean(command, root)
       push(gate, res.ok ? 'passed' : 'failed', res.ok ? {} : { output: res.output })
       continue
     }
@@ -164,7 +180,7 @@ export function runGates(root, gates = [], opts = {}) {
       push(gate, 'skipped', { reason: 'node_modules ausente' })
       continue
     }
-    const res = run(`pnpm run ${gate}`, root)
+    const res = runClean(`pnpm run ${gate}`, root)
     push(gate, res.ok ? 'passed' : 'failed', res.ok ? {} : { output: res.output })
   }
 
