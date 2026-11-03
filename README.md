@@ -333,22 +333,35 @@ pnpm harness check --db                 # detecta drift entre markdown e banco
   colunas (vermelho quando no limite) e o servidor **bloqueia** o move que estoure o limite
   (toast com o motivo). No kanban agregado, o limite é avaliado por projeto dono do card.
 
+## Perfis e `harness.json`
+
+Cada projeto declara seu perfil em `harness.json` na raiz:
+
+```jsonc
+{
+  "profile": "web",                       // web | api | cli | script | game | docs | design | bare
+  "gates": {
+    "finish": ["scope", "lint", "typecheck"],
+    "merge": ["test", "build"]
+  },
+  "git": { "model": "trunk", "featureBranch": false },
+  "wip": { "active": 3, "queue": 8 }
+}
+```
+
+- O perfil define o peso do protocolo e os gates esperados (motor de gates chega na Fase 4;
+  até lá os comandos continuam operando só a validação de escopo).
+- `harness check` valida o arquivo quando presente; projetos antigos sem ele continuam válidos.
+- `git.model: "trunk"` é o default (worktree por task + squash merge); `"gitflow"` fica como opção futura.
+
 ## Protocolo de execução de tarefa
 
-Toda tarefa segue esta ordem:
+O protocolo completo (8 passos, regras inegociáveis, guard rails e checklist de conclusão)
+vive no **`AGENTS.md`** — fonte única. Este README não duplica o protocolo: leia o AGENTS.md
+antes de operar o pipeline.
 
-```
-1. Ler o AGENTS.md
-2. Ler context/modules/<modulo>/context.md e status.md do módulo alvo
-3. Carregar a referência modular relevante de .agents/<especialidade>.md
-4. Carregar .agents/codegen.md ANTES de gerar qualquer código
-5. Executar a tarefa
-6. Atualizar context/modules/<modulo>/status.md ao terminar
-7. Mover o arquivo de tasks/active/ para tasks/done/
-8. Finalizar tarefas antigas da queue que foram concluídas
-```
-
-Os passos 2, 3 e 4 nunca são pulados. Nunca gerar código sem ler `.agents/codegen.md`.
+Resumo do que o agente faz: registra a task na queue → lê `context/` e `.agents/` →
+executa com escopo estrito → atualiza `status.md` → conclui com `harness finish`.
 
 ## Planejamento de features
 
@@ -415,28 +428,19 @@ Via `.agents/codegen.md` — 5 passos antes de gerar qualquer código:
 5. ANOTAR     → indicar o que foi reaproveitado vs criado
 ```
 
-Nunca pular para o passo 4 sem completar 1, 2 e 3. Priorizar reuso de `@<escopo>/contracts` (erros, EventBus, eventos), `@<escopo>/ui`, `@<escopo>/ui-mobile` e `@<escopo>/api-client` — nunca recriar o que já existe.
+Nunca pular para o passo 4 sem completar 1, 2 e 3. Reuso de pacotes compartilhados segue a
+referência de stack (ex.: `.agents/stack-ts-monorepo.md` para `@<escopo>/contracts`, `ui`,
+`ui-mobile`, `api-client`) — nunca recriar o que já existe.
 
 ## Guard rails — execução somente com consentimento
 
-1. **Consentimento prévio obrigatório** — nenhuma alteração de código, dependências, configs, git ou arquivos (exceto os do plano aprovado) sem aprovação explícita. Apresentar plano → aguardar "pode executar".
-2. **Escopo estrito** — tocar somente nos arquivos do plano aprovado. Qualquer descoberta fora do escopo: reportar e parar, nunca agir.
-3. **Nunca `git checkout`/`restore`/`reset` sem aprovação** — se o working tree estiver num estado inesperado, parar e decidir junto com o usuário.
-4. **`pnpm install` / `expo install` / package.json / lockfile só com aprovação** — instalar ou reconciliar dependências é mudança estrutural.
-5. **Pipeline queue→active→done** — limpar a queue antes de iniciar, registrar a tarefa antes de começar, tasks ativas apenas com `## Escopo` disjuntos (validado por `harness start`/`check`), mover para `done/` via `harness finish`.
-6. **Sem tarefas "bônus"** — não executar melhorias, limpezas ou correções não pedidas no plano aprovado.
-7. **Sempre que houver dúvida sobre o estado do repositório, reportar antes de qualquer ação.**
+As regras completas estão no `AGENTS.md` (fonte única). Em resumo: consentimento prévio,
+escopo estrito, nada destrutivo em git/análise de dependências sem aprovação, pipeline
+queue→active→done sempre, sem tarefas "bônus", e na dúvida: reportar e parar.
 
 ## Checklist de conclusão de tarefa
 
-- [ ] Código gerado segue as regras de `.agents/codegen.md`
-- [ ] `context/modules/<modulo>/status.md` atualizado
-- [ ] Arquivo em `tasks/active/` movido para `tasks/done/` (via `harness finish`)
-- [ ] `git diff` dentro do `## Escopo` declarado (validado por `harness finish`)
-- [ ] Decisão arquitetural nova registrada em `context/project/adr/` (se houver)
-- [ ] Barrel export (`index.ts`) atualizado com novos exports
-- [ ] Sem imports entre módulos diretos (ESLint boundaries)
-- [ ] Typecheck passando: `pnpm turbo typecheck`
+O checklist vive no `AGENTS.md` (com itens de stack conforme o perfil em `harness.json`).
 
 ## Índice de referências modulares
 
@@ -446,6 +450,7 @@ Carregue o arquivo relevante de `.agents/` antes de iniciar a tarefa:
 |---|---|
 | Projeto novo ou módulo novo | `.agents/context-interview.md` |
 | Nova feature para planejar | `.agents/feature-planning.md` |
+| **Stack TypeScript + monorepo** (barrel, tenancy, MVVM, eventos, DI) | `.agents/stack-ts-monorepo.md` |
 | Decisão de estrutura, novo package, fronteiras | `.agents/architecture.md` |
 | **Qualquer geração de código** | `.agents/codegen.md` (sempre) |
 | Tarefa de API (use-case, controller, repository) | `.agents/backend.md` |

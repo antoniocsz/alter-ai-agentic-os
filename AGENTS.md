@@ -24,6 +24,20 @@ pacotes do seu projeto (ex: `@saas`, `@acme`).
 
 ---
 
+## Peso por perfil
+
+O `harness.json` do projeto declara o **perfil** (`web`, `api`, `cli`, `script`, `game`, `docs`,
+`design`, `bare`). O perfil define:
+
+- quais gates rodam no `finish`/merge (motor de gates na Fase 4);
+- quais seções de contexto e refs de `.agents/` são obrigatórias;
+- o peso do protocolo: perfis `script`/`docs`/`design` usam o caminho enxuto (sem módulos,
+  sem refs de stack TS), `web`/`api` usam o protocolo completo.
+
+Se o perfil não estiver claro, leia `harness.json` e `context/project/stack.md` antes de assumir.
+
+---
+
 ## Protocolo obrigatório — toda tarefa segue esta ordem
 
 ```
@@ -64,37 +78,21 @@ O pipeline é operado pelo CLI: `pnpm harness start <task> | finish <task> | req
 
 ---
 
-## Regras inegociáveis — violação bloqueia PR
+## Regras inegociáveis (genéricas)
 
-### Fronteiras de módulo
-```typescript
-// ❌ NUNCA — import direto interno de outro módulo
-import { algo } from '@<escopo>/outro-modulo/src/interno'
+Violação bloqueia a conclusão da task (e o merge):
 
-// ✅ SEMPRE — apenas via barrel export público
-import { algo } from '@<escopo>/outro-modulo'
-```
+1. **Escopo estrito** — somente os arquivos declarados em `## Escopo` (validado por `harness finish`).
+2. **Arquitetura declarada** — respeite `context/project/stack.md`, ADRs e as referências de
+   `.agents/` aplicáveis. Não introduza padrões novos sem registrar ADR.
+3. **Contratos públicos** — mudanças de interface entre partes (módulos, pacotes, apps, APIs)
+   exigem atualização do contrato e do consumidor no mesmo escopo.
+4. **Isolamento de dados** — nunca cruze limites de tenant/usuário/projeto sem filtro explícito.
+5. **Dependências** — instalar/atualizar pacotes é mudança estrutural: exige aprovação (guard rail 4).
 
-### tenantId em toda query tenant-scoped (se multi-tenant)
-O middleware do ORM injeta automaticamente. Nunca confie em query sem o filtro.
-Teste sempre: "tenant A não consegue ver dado de tenant B".
-
-### MVVM estrito no frontend e mobile
-- **View** → só JSX, zero `useQuery`/`useMutation`/`useForm` diretamente
-- **ViewModel** → hook que orquestra tudo, retorna dados + callbacks prontos
-- **Model** → tipos, schemas de validação, repository (sem hooks, sem JSX)
-
-### Comunicação entre módulos via eventos
-Módulos nunca se importam diretamente.
-Publicar em `packages/contracts` → outro módulo assina. Nunca importar módulo B dentro de módulo A.
-
-### Dependency Inversion no domínio
-Use cases dependem de interfaces (repositories, providers), nunca de implementações.
-```typescript
-// ✅ UseCase recebe interface
-constructor(private repo: OcorrenciaRepository, private eventBus: EventBus) {}
-// ❌ UseCase instancia o ORM diretamente
-```
+> Regras específicas de stack ficam nas referências modulares. Para TypeScript + monorepo
+> (barrel exports, tenancy, MVVM, eventos, dependency inversion): `.agents/stack-ts-monorepo.md`.
+> Outras stacks mantêm suas regras na referência correspondente do projeto.
 
 ---
 
@@ -120,6 +118,7 @@ Carregue o arquivo relevante de `.agents/` antes de iniciar a tarefa:
 |---|---|
 | Projeto novo ou módulo novo | `.agents/context-interview.md` |
 | Nova feature para planejar | `.agents/feature-planning.md` |
+| **Stack TypeScript + monorepo** (barrel, tenancy, MVVM, eventos, DI) | `.agents/stack-ts-monorepo.md` |
 | Decisão de estrutura, novo package, fronteiras | `.agents/architecture.md` |
 | **Qualquer geração de código** | `.agents/codegen.md` (sempre) |
 | Tarefa de API (use-case, controller, repository) | `.agents/backend.md` |
@@ -146,12 +145,11 @@ Exemplo: criar endpoint + regra de permissão → `codegen.md` + `backend.md` + 
 
 ## Checklist de conclusão de tarefa
 
-Antes de marcar a tarefa como concluída:
+Antes de marcar a tarefa como concluída (itens de stack conforme o perfil):
 - [ ] Código gerado segue as regras de `.agents/codegen.md`
-- [ ] `context/modules/<modulo>/status.md` atualizado
+- [ ] `context/modules/<modulo>/status.md` atualizado (perfis com código)
 - [ ] Arquivo em `tasks/active/` movido para `tasks/done/` (via `harness finish`)
 - [ ] `git diff` dentro do `## Escopo` declarado (validado por `harness finish`)
 - [ ] Decisão arquitetural nova registrada em `context/project/adr/` (se houver)
-- [ ] Barrel export (`index.ts`) atualizado com novos exports
-- [ ] Sem imports entre módulos diretos (ESLint boundaries)
-- [ ] Typecheck passando: `pnpm turbo typecheck`
+- [ ] Gates do perfil (`harness.json`) aplicáveis ao tipo de projeto
+- [ ] Ref de stack carregada e cumprida (ex.: `.agents/stack-ts-monorepo.md`)

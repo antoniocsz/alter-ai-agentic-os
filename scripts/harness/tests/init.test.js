@@ -38,7 +38,8 @@ test('init: gera projeto com a camada harness genérica', () => {
   assert.ok(!agents.includes('## Stack do projeto'))
   assert.ok(!agents.includes('## Hierarquia de tenancy'))
   assert.ok(!agents.includes('## Estrutura do monorepo'))
-  assert.ok(agents.includes('@<escopo>'))
+  assert.ok(agents.includes('## Peso por perfil'))
+  assert.ok(agents.includes('stack-ts-monorepo.md'))
 
   assert.ok(fs.existsSync(path.join(target, 'context', 'modules', 'tenancy', 'context.md')))
   assert.ok(fs.existsSync(path.join(target, 'tasks', 'queue', '01-module-tenancy.md')))
