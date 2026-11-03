@@ -141,16 +141,15 @@ context/
 O AlterAI - Agentic OS segue o modelo **1 fonte + N projetos independentes**: a camada do harness é *copiada* para cada projeto (não compartilhada via import), então cada projeto é dono da própria camada e pode divergir quando quiser.
 
 ```
-~/dev/
-├── harness/          ← FONTE (única): o repo onde o harness evolui
+D:\projetos\
+├── harness\               ← FONTE (única): o repo onde o harness evolui
 │   ├── scripts/harness/   ← o produto (CLI, templates, agents)
 │   ├── .agents/ .opencode/ AGENTS.md
 │   └── context/           ← dogfood: só serve para desenvolver o harness
 │
-└── projetos/         ← N projetos independentes (git próprios)
-    ├── projeto-a/
-    ├── projeto-b/
-    └── ...
+├── projeto-a/             ← N projetos independentes (git próprios)
+├── projeto-b/
+└── ...
 ```
 
 Cada projeto gerado é um monorepo próprio (pnpm/Turbo) que guarda a identidade em `context/project/` (overview, stack, ADRs). A camada do harness fica uniforme entre todos.
@@ -160,20 +159,20 @@ Cada projeto gerado é um monorepo próprio (pnpm/Turbo) que guarda a identidade
 1. **A fonte não é um projeto.** Mexe-se nela apenas para evoluir o harness e commitar; todo trabalho real acontece dentro de cada projeto.
 2. **A identidade do projeto vive em `context/project/`.** É ali que se lê "qual é esse projeto?"; a camada do harness é idêntica em todos.
 3. **Customizações de projeto ficam em `context/`, não na camada.** `harness update` sobrescreve `AGENTS.md`/`.agents/`/`.opencode/`/`scripts/` (com backup do AGENTS.md em `.harness/backups/`).
-4. **Para divergir de verdade**, o projeto deixa de rodar `update` e evolui a própria camada — ou você mantém uma fonte por família de projeto (ex: `~/dev/harness-web`, `~/dev/harness-mobile`).
+4. **Para divergir de verdade**, o projeto deixa de rodar `update` e evolui a própria camada — ou você mantém uma fonte por família de projeto (ex: `D:\projetos\harness-web`, `D:\projetos\harness-mobile`).
 
 **Criar um projeto novo (a partir da fonte):**
 
 ```bash
-node ~/dev/harness/scripts/harness/bin/harness.js init ~/dev/projetos/projeto-a [--prisma] [--git] [--bare]
+node D:/projetos/harness/scripts/harness/bin/harness.js init D:/projetos/projeto-a [--prisma] [--git] [--bare]
 ```
 
 **Atualizar a camada (de dentro de cada projeto):**
 
 ```bash
-pnpm harness update --source ~/dev/harness                     # uma vez, ou
-echo 'export HARNESS_SOURCE=~/dev/harness' >> ~/.bashrc        # memorizar a fonte
-pnpm harness update                                            # daí em diante
+pnpm harness update --source D:/projetos/harness            # uma vez, ou
+export HARNESS_SOURCE=/d/projetos/harness                  # memorizar a fonte (git bash)
+pnpm harness update                                        # daí em diante
 ```
 
 O `update` traz CLI/agents/AGENTS.md novos com backup automático e registra a versão da fonte.
@@ -186,15 +185,17 @@ camada harness próprios) e oferece comandos agregados — mantendo **isolamento
 os projetos.
 
 ```
-~/dev/projetos/                      ← raiz do workspace (sem context/ próprio)
-├── AGENTS.md                        ← roteia para os projetos + comandos de workspace
-├── .agents/  .opencode/  scripts/harness/   ← camada harness (fonte p/ new e add)
-├── package.json                     ← pnpm harness
-├── .harness-workspace.json          ← registro (paths relativos à raiz; resolvidos p/ absoluto em memória)
-└── projects/
-    ├── projeto-a/                   ← monorepo independente (git + context/ próprios)
-    └── projeto-b/
+D:\projetos\                        ← raiz do workspace
+├── AGENTS.md                       ← roteia para os projetos + comandos de workspace
+├── .agents/  .opencode/  scripts/  ← camada harness (fonte p/ new e add)
+├── package.json                    ← pnpm harness
+├── .harness-workspace.json         ← registro (paths relativos à raiz; resolvidos p/ absoluto em memória)
+├── harness\                        ← FONTE do kit (repo próprio)
+├── projeto-a\                      ← monorepo independente (git + context/ próprios)
+└── projeto-b\
 ```
+
+> Projetos direto na raiz: crie o workspace com `--projects-dir .`. O padrão (`projects/`) também funciona; este workspace usa a raiz.
 
 **Comandos:**
 
