@@ -17,6 +17,9 @@ import { profileCmd } from '../profile.js'
 import { featureCmd } from '../feature.js'
 import { worktreeCmd } from '../worktree.js'
 import { gatesCmd } from '../gates.js'
+import { sessionCmd } from '../session.js'
+import { recallCmd } from '../recall.js'
+import { statusCmd } from '../status.js'
 
 export const usage = `harness <comando> [args]
 
@@ -27,6 +30,9 @@ Comandos:
   feature <slug>      Cria context/features/<slug>/ (spec.md + plan.md)
   worktree <sub>      start <task> | finish <task> [--keep] [--skip-gates] | list | prune
   gates [--phase finish|merge] [--json]   Roda os gates do harness.json
+  status              WIP, ativas, worktrees, próximas e últimas sessões (prime de sessão)
+  session <end|list>  Memória local: end "<resumo>" | list [--limit n]
+  recall "<termo>"    Busca em sessões, tasks, notas e docs [--limit n] [--json]
   module <nome>       Scaffold de módulo [--with-prisma] [--with-http]
   task "<descrição>"  Cria task na queue com numeração automática e ## Escopo
   start <task>        Move queue/<task> → active/ com checagem de conflito de escopo
@@ -69,6 +75,9 @@ export const commands = {
   feature: featureCmd,
   worktree: worktreeCmd,
   gates: gatesCmd,
+  status: statusCmd,
+  session: sessionCmd,
+  recall: recallCmd,
   task,
   start,
   finish,

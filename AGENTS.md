@@ -102,6 +102,23 @@ Regras:
 
 ---
 
+### Sessão (memória local)
+
+O harness não depende de memória externa. O protocolo de sessão é:
+
+```bash
+pnpm harness status                          # ao iniciar: WIP, ativas, worktrees, últimas sessões
+pnpm harness session end "<resumo do que foi feito>"   # ao encerrar
+pnpm harness recall "<termo>"                # quando precisar lembrar de algo
+```
+
+- `status` evita "recomeçar do zero": mostra o que está ativo e o último handoff.
+- `session end` grava em `.harness/harness.db` e em `context/sessions/YYYY-MM-DD-<slug>.md`.
+- `recall` busca em sessões, tasks, notas, eventos e markdown do projeto (e de todos os
+  projetos quando rodado na raiz do workspace).
+
+---
+
 ## Regras inegociáveis (genéricas)
 
 Violação bloqueia a conclusão da task (e o merge):

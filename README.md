@@ -14,8 +14,7 @@ Camada de operação que padroniza como agentes de IA trabalham em um projeto de
 - [Pipeline de tarefas (queue → active → done)](#pipeline-de-tarefas-queue--active--done)
 - [Execução em paralelo (subagents)](#execução-em-paralelo-subagents)
 - [Agentes (subagents opencode)](#agentes-subagents-opencode)
-- [Banco de dados (memória, andamento e interações)](#banco-de-dados-memória-andamento-e-interações)
-- [Painel kanban](#painel-kanban)
+- [Memória local (sessões, recall, status)](#memória-local-sessões-recall-status)- [Painel kanban](#painel-kanban)
 - [Protocolo de execução de tarefa](#protocolo-de-execução-de-tarefa)
 - [Planejamento de features](#planejamento-de-features)
 - [Exemplo de prompt](#exemplo-de-prompt)
@@ -114,6 +113,9 @@ tasks/
 | `harness worktree finish <task>` | Commita, rebase, roda gates.merge, squash merge, conclui a task e remove a worktree |
 | `harness worktree list` / `prune` | Lista worktrees registradas / limpa entradas órfãs |
 | `harness gates [--phase finish\|merge]` | Roda os gates declarados no `harness.json` |
+| `harness status` | Prime de sessão: WIP, ativas, worktrees, últimas sessões e handoff |
+| `harness session end "<resumo>"` / `list` | Memória local: grava/lista sessões (db + `context/sessions/`) |
+| `harness recall "<termo>"` | Busca em sessões, tasks, notas e docs (agrega no workspace) |
 | `harness task "<desc>"` | Cria task na queue com numeração automática e `## Escopo`. Flags: `--module`, `--agent`, `--scope`, `--dep`, `--complexity` |
 | `harness start <task>` | Move `queue/` → `active/`, bloqueando conflito de escopo com tasks ativas |
 | `harness finish <task>` | Valida `git diff` contra o `## Escopo` e move `active/` → `done/`. Flag: `--handoff "<resumo>"` |
@@ -327,15 +329,38 @@ O harness inclui agents prontos em `.opencode/agent/` (copiados pelo `harness in
 
 Cada agente segue o protocolo do AGENTS.md, carrega as referências de `.agents/` da sua especialidade e respeita o `## Escopo`. O `coordinator` pode ser acionado por prompt para processar a queue inteira em paralelo.
 
-## Banco de dados (memória, andamento e interações)
+## Memória local (sessões, recall, status)
+
+A memória é 100% local — sem serviço externo, sem cota de tokens:
+
+| Camada | Onde | O que guarda |
+|---|---|---|
+| Contexto curado | `context/` (markdown) | overview, stack, ADRs, módulos, features, sessões |
+| Pipeline e eventos | `.harness/harness.db` (SQLite) | tasks, eventos, interações, sessões |
+| Sessões | `context/sessions/YYYY-MM-DD-<slug>.md` | resumo do que foi feito em cada sessão |
+
+```bash
+pnpm harness status                        # prime de sessão: WIP, ativas, worktrees, últimas sessões
+pnpm harness session end "implementei o webhook; falta idempotência"
+pnpm harness session list --limit 5
+pnpm harness recall "webhook"              # busca em sessões, tasks, notas e docs
+pnpm harness recall "webhook" --json
+```
+
+- `status` na raiz de um workspace lista os projetos (sem entrar em loop).
+- `recall` agrega resultados de todos os projetos quando rodado na raiz do workspace.
+- O banco é regenerável (`harness sync`) e gitignored; as sessões em markdown são versionadas.
+
+### Banco de dados (índice e histórico)
 
 `scripts/harness` mantém um banco SQLite (`node:sqlite`, sem dependências) em `.harness/harness.db` (gitignored, regenerável via `harness sync`). O markdown continua sendo a **fonte da verdade** das tasks; o banco é um índice/histórico que auxilia a memorização:
 
 - `tasks` — metadados das tasks (status, escopo, agente, módulo, dependência, timestamps de início/fim)
-- `task_events` — trilha de eventos: `started`, `finished`, `requeued`, `reopened`, `out_of_scope`, `check_violation`, `synced`
+- `task_events` — trilha de eventos: `started`, `finished`, `requeued`, `reopened`, `out_of_scope`, `check_violation`, `synced`, `gate_failed`, `worktree_started`, `worktree_finished`
 - `interactions` — registros livres (`prompt`/`response`/`note`/`system`) via `harness log`, associados ou não a uma task
+- `sessions` — resumos de sessão (memória local)
 
-O CLI grava eventos automaticamente em `start`/`finish`/`requeue`/`reopen`/`check`. Consultas:
+O CLI grava eventos automaticamente em `start`/`finish`/`requeue`/`reopen`/`check`/`worktree`. Consultas:
 
 ```
 pnpm harness sync                       # reindexa do markdown (idempotente)
