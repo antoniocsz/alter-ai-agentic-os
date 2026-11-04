@@ -12,3 +12,4 @@ packages/database/src/generated/
 .worktrees/
 coverage/
 kanban.html
+*.tsbuildinfo
