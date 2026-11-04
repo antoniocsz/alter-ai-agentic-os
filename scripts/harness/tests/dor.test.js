@@ -80,3 +80,16 @@ test('prioridade: check valida P0..P3 e status ordena a fila', () => {
   const r = validate(root)
   assert.ok(r.errors.some((e) => e.includes('prioridade inválida')), r.errors.join('\n'))
 })
+
+test('DoR: múltiplas dependências separadas por vírgula', () => {
+  const root = makeRoot()
+  write(root, 'tasks/done/01-a.md', '# Task: a\n')
+  write(root, 'tasks/done/02-b.md', '# Task: b\n')
+  write(root, 'tasks/queue/03-c.md', taskMd({ dep: '01-a.md, 02-b.md' }))
+
+  const ok = startTask(root, '03')
+  assert.equal(ok.ok, true, ok.error)
+
+  write(root, 'tasks/queue/04-d.md', taskMd({ dep: '01-a.md, 99-x.md' }))
+  assert.match(startTask(root, '04').error, /99-x\.md/)
+})

@@ -33,11 +33,15 @@ function checkDoR(root, task) {
     .replace(/\[[ x]\]/gi, '')
     .replace(/`/g, '')
     .trim()
-  if (depRaw && depRaw !== '-' && depRaw !== '—') {
+  const deps = depRaw
+    .split(',')
+    .map((d) => d.trim())
+    .filter((d) => d && d !== '-' && d !== '—')
+  for (const dep of deps) {
     try {
-      resolveTaskName(doneDir(root), depRaw)
+      resolveTaskName(doneDir(root), dep)
     } catch {
-      issues.push(`dependência não concluída: ${depRaw} (não está em tasks/done/)`)
+      issues.push(`dependência não concluída: ${dep} (não está em tasks/done/)`)
     }
   }
 
