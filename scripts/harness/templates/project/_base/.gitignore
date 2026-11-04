@@ -13,3 +13,4 @@ packages/database/src/generated/
 coverage/
 kanban.html
 *.tsbuildinfo
+.next/
