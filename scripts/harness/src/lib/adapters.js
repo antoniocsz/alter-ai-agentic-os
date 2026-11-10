@@ -18,6 +18,134 @@ export const TOOL_INFO = {
   browser: 'Browser MCP (Playwright via npx, zero deps — opencode.json | .mcp.json | .codex/prompts)'
 }
 
+/**
+ * Camada de sandbox (feature `sandbox-por-tool`): perfis de permissão declarados
+ * e aplicados por tool no `installAdapter`. O deny é POR PREFIXO de comando — o
+ * `*` só marca "tudo depois", sem glob/lógica extra.
+ *
+ * allow explícito do pipeline em TODOS os perfis: o harness usa `git` internamente
+ * (via node) e `pnpm harness …`/`node scripts/harness/…` nunca podem casar nos denies.
+ */
+export const SANDBOX_DEFAULT = 'minimal'
+
+export const SANDBOX_ALLOW = ['pnpm harness*', 'node scripts/harness*']
+
+export const SANDBOX_PROFILES = {
+  minimal: {
+    label: 'minimal (default)',
+    note: 'git destrutivos, rm -rf e escalada de privilégio',
+    deny: [
+      'git reset*',
+      'git checkout*',
+      'git restore*',
+      'git clean*',
+      'git push*',
+      'rm -rf*',
+      'sudo *'
+    ]
+  },
+  strict: {
+    label: 'strict',
+    note: 'minimal + instaladores de dependência e rede — guard rails 4 e 9',
+    deny: [
+      'git reset*',
+      'git checkout*',
+      'git restore*',
+      'git clean*',
+      'git push*',
+      'rm -rf*',
+      'sudo *',
+      'pnpm install*',
+      'npm install*',
+      'expo install*',
+      'curl *',
+      'wget *'
+    ]
+  }
+}
+
+/** Onde o perfil de sandbox aterrissa em cada tool. */
+export const SANDBOX_SUPPORT = {
+  opencode: 'frontmatter `permission:` dos agents gerados (reviewer preserva `edit: deny`)',
+  claude: 'allow/deny em .claude/settings.json',
+  codex: 'documentação honesta nos arquivos gerados (a tool não reforça deny)',
+  browser: 'n/a — camada MCP de navegador, sem execução de comandos declarada'
+}
+
+export function resolveSandbox(value = SANDBOX_DEFAULT) {
+  const profile = value ?? SANDBOX_DEFAULT
+  if (!SANDBOX_PROFILES[profile]) {
+    throw new Error(
+      `perfil de sandbox desconhecido: "${profile}" (use: ${Object.keys(SANDBOX_PROFILES).join(' | ')})`
+    )
+  }
+  return profile
+}
+
+/**
+ * Semântica de casamento: o comando casa com o deny quando COMEÇA com o prefixo
+ * do pattern (`git reset*` ⇢ `git reset`). O pipeline é inocente por construção —
+ * `pnpm harness worktree finish <task>` e `node scripts/harness/…` não casam com
+ * nenhum deny dos dois perfis.
+ */
+export function matchesSandboxDeny(command, profile = SANDBOX_DEFAULT) {
+  const name = resolveSandbox(profile)
+  const normalized = String(command).toLowerCase().trim()
+  return SANDBOX_PROFILES[name].deny.some((pattern) =>
+    normalized.startsWith(pattern.toLowerCase().replace(/\*+$/, ''))
+  )
+}
+
+/** opencode → itens do mapa `permission.bash` (4 espaços de indentação por linha). */
+export function opencodeDenyLines(profile = SANDBOX_DEFAULT) {
+  return SANDBOX_PROFILES[resolveSandbox(profile)]
+    .deny.map((pattern) => `    "${pattern}": deny`)
+    .join('\n')
+}
+
+/** claude → regra de prefixo `Bash(comando:*)` (sintaxe do settings.json). */
+function toClaudeRule(pattern) {
+  return `Bash(${pattern.replace(/\s*\*+$/, '')}:*)`
+}
+
+export function claudePermissions(profile = SANDBOX_DEFAULT) {
+  const name = resolveSandbox(profile)
+  return {
+    allow: SANDBOX_ALLOW.map(toClaudeRule),
+    deny: SANDBOX_PROFILES[name].deny.map(toClaudeRule)
+  }
+}
+
+/** Escreve (sobrescreve) o `.claude/settings.json` do projeto com as regras do perfil. */
+export function writeClaudeSettings(target, profile = SANDBOX_DEFAULT) {
+  const settings = { permissions: claudePermissions(profile) }
+  const file = path.join(target, '.claude', 'settings.json')
+  fs.mkdirSync(path.dirname(file), { recursive: true })
+  fs.writeFileSync(file, JSON.stringify(settings, null, 2) + '\n')
+}
+
+/** codex → seção markdown do perfil (o que declarar e o que a tool NÃO reforça). */
+export function codexSandboxSection(profile = SANDBOX_DEFAULT) {
+  const name = resolveSandbox(profile)
+  const profileInfo = SANDBOX_PROFILES[name]
+  const list = (patterns) => patterns.map((p) => `\`${p}\``).join(', ')
+  return [
+    '## Sandbox do harness',
+    '',
+    `Perfil aplicado nesta instalação: **${profileInfo.label}** — deny por prefixo de comando.`,
+    '',
+    `Sempre bloqueados (${profileInfo.note}): ${list(profileInfo.deny)}.`,
+    `Sempre permitidos (o pipeline não pode quebrar): ${list(SANDBOX_ALLOW)}.`,
+    '',
+    'Fidelidade honesta: o Codex **não reforça** essas negações automaticamente —',
+    'não há engine de allowlist/denylist nativa nos prompts do harness. Trate a lista',
+    'acima como instrução vinculante: um comando bloqueado só sai com consentimento',
+    'humano explícito (guard rails do AGENTS.md). A fonte de verdade do perfil e a',
+    'matriz por tool (harness × codex) estão em `.agents/sandbox.md`; mudar o deny',
+    'do perfil é decisão estrutural e exige ADR.'
+  ].join('\n')
+}
+
 export function resolveTools(args = []) {
   const idx = args.indexOf('--tools')
   if (idx === -1) return ['opencode']
@@ -55,11 +183,16 @@ export function installAdapter(tool, target, opts = {}) {
   }
   const name = opts.name ?? path.basename(target)
   const profile = opts.profile ?? 'web'
+  const sandbox = resolveSandbox(opts.sandbox)
   const vars = { NAME: name, PROFILE: profile }
 
   if (tool === 'opencode') {
-    copyDir(path.join(kit, '.opencode', 'agent'), path.join(target, '.opencode', 'agent'), {
-      vars,
+    // Template da tool layer (sandbox-aware em adapters/opencode e entregue por init)
+    // com fallback para os agents ao vivo do kit (instalações anteriores ao sandbox).
+    const sandboxed = path.join(kit, 'adapters', 'opencode', '.opencode', 'agent')
+    const agentSrc = fs.existsSync(sandboxed) ? sandboxed : path.join(kit, '.opencode', 'agent')
+    copyDir(agentSrc, path.join(target, '.opencode', 'agent'), {
+      vars: { ...vars, SANDBOX_DENY: opencodeDenyLines(sandbox) },
       renderAll: true
     })
     copyDir(path.join(kit, 'adapters', 'shared', 'skill'), path.join(target, '.opencode', 'skill'), {
@@ -89,11 +222,15 @@ export function installAdapter(tool, target, opts = {}) {
       vars,
       renderAll: true
     })
+    writeClaudeSettings(target, sandbox)
     return
   }
 
   if (tool === 'codex') {
-    copyDir(path.join(kit, 'adapters', 'codex'), target, { vars, renderAll: true })
+    copyDir(path.join(kit, 'adapters', 'codex'), target, {
+      vars: { ...vars, SANDBOX_SECTION: codexSandboxSection(sandbox) },
+      renderAll: true
+    })
     return
   }
 

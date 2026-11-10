@@ -6,3 +6,5 @@ diretório de prompts do Codex (normalmente `~/.codex/prompts/`) para usá-los c
 
 O protocolo canônico continua em `AGENTS.md` (lido nativamente pelo Codex) e o estado vive no
 próprio repositório (`context/`, `tasks/`, `.harness/`) — trocar de tool não perde trabalho.
+
+{{SANDBOX_SECTION}}

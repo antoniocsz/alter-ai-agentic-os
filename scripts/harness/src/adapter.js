@@ -6,7 +6,10 @@ import {
   TOOL_INFO,
   MCP_TARGETS,
   BROWSER_DEFAULT_PACKAGE,
-  BROWSER_SERVER_NAME
+  BROWSER_SERVER_NAME,
+  SANDBOX_DEFAULT,
+  SANDBOX_SUPPORT,
+  resolveSandbox
 } from './lib/adapters.js'
 import { parseArgs, flagString } from './lib/flags.js'
 
@@ -31,9 +34,14 @@ export async function adapterCmd(args = []) {
   const root = process.cwd()
 
   if (!layer || layer === 'list') {
+    const sandbox = resolveSandbox(flagString(flags, 'sandbox', SANDBOX_DEFAULT))
     process.stdout.write('Adapters disponíveis:\n')
     for (const t of TOOLS) process.stdout.write(`  ${t.padEnd(9)} ${TOOL_INFO[t]}\n`)
-    process.stdout.write('\nuse: harness adapter <tool>\n')
+    process.stdout.write(
+      `\nperfil de sandbox aplicado: ${sandbox} (default: minimal; troque com \`--sandbox strict|minimal\`)\n`
+    )
+    for (const t of TOOLS) process.stdout.write(`  ${t.padEnd(9)} ${SANDBOX_SUPPORT[t]}\n`)
+    process.stdout.write('\nuse: harness adapter <tool> [--sandbox minimal|strict]\n')
     return
   }
 
@@ -43,11 +51,14 @@ export async function adapterCmd(args = []) {
     throw new Error(`tool desconhecida: ${layer} (use: ${TOOLS.join(' | ')})`)
   }
 
+  const sandbox = resolveSandbox(flagString(flags, 'sandbox', SANDBOX_DEFAULT))
   installAdapter(layer, root, {
     name: path.basename(root),
-    profile: resolveConfig(root).profile
+    profile: resolveConfig(root).profile,
+    sandbox
   })
   process.stdout.write(`✅ adapter "${layer}" instalado em ${root}\n`)
+  process.stdout.write(`🔒 sandbox "${sandbox}": ${SANDBOX_SUPPORT[layer]}\n`)
 }
 
 function browserCmd(sub, flags, root) {

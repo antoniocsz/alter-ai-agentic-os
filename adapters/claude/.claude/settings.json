@@ -1,9 +1,14 @@
 {
   "permissions": {
+    "allow": [
+      "Bash(pnpm harness:*)",
+      "Bash(node scripts/harness:*)"
+    ],
     "deny": [
       "Bash(git reset:*)",
       "Bash(git checkout:*)",
       "Bash(git restore:*)",
+      "Bash(git clean:*)",
       "Bash(git push:*)",
       "Bash(rm -rf:*)",
       "Bash(sudo:*)"

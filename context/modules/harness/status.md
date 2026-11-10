@@ -1,5 +1,10 @@
 # harness — Status
 
+## Fase 10 — Sandbox por tool (task 87)
+- [x] `SANDBOX_PROFILES` (minimal default, strict superset) com deny por prefixo em `lib/adapters.js`
+- [x] Perfil aplicado na instalação dos adapters claude/opencode/codex + `--sandbox` no `adapterCmd` + painel no `list`
+- [x] `.agents/sandbox.md` (matriz de garantias harness × tool + política: mudar deny ⇒ ADR) entregue por init/update
+
 ## Fase 1 — Fundação do harness
 - [x] CLI `scripts/harness` (init, module, task, start, finish, requeue, reopen, sync, log, history, report, kanban, check, update)
 - [x] Banco SQLite `.harness/harness.db` (tasks, task_events, interactions; regenerável via `harness sync`)
@@ -51,6 +56,44 @@
   `node --test` (que trafega no stdout do subprocesso como Buffers v8-serializados,
   nodejs/node#56802) e os testes "sumiriam" do resultado — por isso o helper engole
   apenas strings (banners do produto) e repassa Buffers (protocolo do runner).
+
+## Handoff (task 87 — sandbox por tool: perfis de permissão declarados)
+- Feito: `SANDBOX_PROFILES` + `matchesSandboxDeny` + emissores por tool em `lib/adapters.js`
+  (`resolveSandbox`, `opencodeDenyLines`, `claudePermissions`/`writeClaudeSettings`,
+  `codexSandboxSection`, `SANDBOX_ALLOW`, `SANDBOX_SUPPORT`). Deny MAIOR por prefixo de
+  comando — minimal: `git reset*`, `git checkout*`, `git restore*`, `git clean*`,
+  `git push*`, `rm -rf*`, `sudo *`; strict (superset): + `pnpm install*`, `npm install*`,
+  `expo install*`, `curl *`, `wget *`; allow explícito `pnpm harness*`/`node
+  scripts/harness*` em todos os perfis (AC-6: pipeline nunca casa nos denies e o
+  negativo está em teste). Templates consomem o perfil: claude →
+  `adapters/claude/.claude/settings.json` regenerado do perfil (allow/deny; template
+  == saída minimal, adicionado `git clean` que faltava); opencode → NOVOS templates
+  em `adapters/opencode/.opencode/agent/` (5 agents, espelhos byte-faithful dos ao
+  vivo + `{{SANDBOX_DENY}}`; reviewer preserva `edit: deny`, executores recebem
+  `permission.bash` por glob); codex → seção `{{SANDBOX_SECTION}}` honesta no
+  `.codex/README.md` (admitindo que a tool não reforça deny). `adapterCmd` ganha
+  `--sandbox strict|minimal` (default minimal, inválido falha) e `adapter list`
+  mostra o perfil + onde ele aterrissa por tool (AC-7). `.agents/sandbox.md` (NOVA)
+  com matriz de garantias, tabela de comandos e política de evolução (mudar deny ⇒
+  ADR); entra em projetos por `init` (copia `.agents` inteiro) e `update` — nenhum
+  toque em init.js/update.js. Suíte 194/194 (181 baseline + 13 novos), `harness
+  check` ok, zero regressão no adapter claude (settings JSON válido + CLAUDE.md/
+  agents/skills intactos), nada em package.json/lockfile, AGENTS.md não tocado
+  (índice de `.agents/` fica para a task 89).
+- Pendências: `harness update` não sincroniza `adapters/` — projetos antigos que
+  rodarem `harness adapter opencode` após update caem no fallback
+  (`.opencode/agent`, agents sem `permission:`) até o `adapters/opencode` chegar
+  ao projeto (mesmo débito já existe para claude/codex/browser; sugerir
+  HARNESS_LAYER += 'adapters' numa task de pipeline/debt — forasteiro do escopo
+  desta task). README/matriz de capacidades continua na task 89.
+- Decisões: fonte dos agents da tool layer passou a ser
+  `adapters/opencode/.opencode/agent/` (convenção espelhada da task 83:
+  `adapters/browser/.codex/...`), com fallback silencioso para `.opencode/agent`
+  do kit — os agents ao vivo do kit NÃO foram alterados (fora do escopo; a sessão
+  continua usando `.opencode/agent`); teste guard-rail de drift compara corpo
+  (sem bloco `permission:`) template vs ao vivo. `settings.json` do claude é
+  sobrescrito pelo perfil na instalação e o template estático permanece igual à
+  saída minimal (init copia stash de `adapters/` sem render; install re-renderiza).
 
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
