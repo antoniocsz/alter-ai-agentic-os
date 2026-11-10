@@ -105,3 +105,24 @@
   SLUG do título (mesma normalização do nome de arquivo `NN-<slug>.md`); erros de disparo não
   se propagam (resultado `{ ok, error }`), e schema de `routines.json` ignora campos
   desconhecidos mas valida tipos de `id/every/dedupe/task.title/priority/type/scope`.
+
+## Handoff (task 83 — adapter browser: MCP Playwright por tool)
+- Feito: `harness adapter browser <tool>` (AC-1..AC-5) — camada `browser` em `TOOLS`+
+  `TOOL_INFO` (`list` mostra browser) e subcomando no `adapterCmd` (sem `<tool>` → ajuda de
+  uso, exit 0; flag `--browser-package`, default `@playwright/mcp@latest`). Injeção via
+  `upsertJsonSection` (lib/adapters.js): arquivo ausente → JSON canônico (opencode.json
+  ganha `$schema`), parse estrito ok → insere `mcp.browser`/`mcpServers.browser` preservando
+  o resto, server "browser" já presente → no-op idempotente (exit 0), JSONC/comentário,
+  raiz não-objeto ou seção não-objeto → fail-safe: NADA é escrito e o erro carrega o bloco
+  de merge manual (bin imprime em stderr → exit 1). codex → `adapters/browser/.codex/prompts/
+  browser.md` copiado (config.toml comentado; Codex não tem .mcp.json). `init --tools
+  opencode,claude,browser` instala a config no scaffold (loop passa `tools` p/ o
+  `installAdapter`); `.agents/browser.md` (NOVA) entra por init/update via `.agents`
+  inteiro (AC-6). Suíte: 174/174, `harness check` ok (AC-8: zero deps — nada toca
+  package.json/lockfile, coberto por teste).
+- Pendências: índice de `.agents/` no `AGENTS.md` não lista `browser.md` (fora do escopo;
+  task seguinte da feature/docs pode incluir a linha na tabela de referências). Nada mais.
+- Decisões: engine de injeção morou em `lib/adapters.js` (escopo fixo — novo arquivo não
+  seria permitido); `lib/templates.js` não precisou de mudança (copyDir+render já cobre o
+  elemento codex); targets de MCP são `opencode|claude|codex` (`MCP_TARGETS`) e a camada
+  browser em si não é tool-alvo; fail-safe prefere falhar a sobrescrever config do usuário.

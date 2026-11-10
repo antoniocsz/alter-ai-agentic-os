@@ -18,7 +18,7 @@ const DB_SCRIPTS =
 
 export async function init(args) {
   const [dir] = args
-  if (!dir) throw new Error('uso: harness init <dir> [--profile <p>] [--tools opencode,claude,codex] [--prisma] [--git [--branch <nome>]]')
+  if (!dir) throw new Error('uso: harness init <dir> [--profile <p>] [--tools opencode,claude,codex,browser] [--prisma] [--git [--branch <nome>]]')
 
   const branchIdx = args.indexOf('--branch')
   const profile = resolveProfile(args)
@@ -90,7 +90,7 @@ export async function createProject(target, opts = {}, sourceRoot = harnessRoot(
   copyDir(path.join(sourceRoot, 'scripts', 'harness'), path.join(target, 'scripts', 'harness'))
   copyDir(baseTemplateDir(), target, { vars, renderAll: true })
   copyDir(profileTemplateDir(profile), target, { vars, renderAll: true })
-  for (const tool of tools) installAdapter(tool, target, { name, profile })
+  for (const tool of tools) installAdapter(tool, target, { name, profile, tools })
 
   const profileLines = {
     web: '  - Monorepo pnpm/Turbo: apps/api (Fastify) + apps/web (Next.js) + packages/contracts|api-client',
