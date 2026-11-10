@@ -39,3 +39,6 @@ Anotações do escopo: `init.js` só para aceitar `browser` em `--tools`; `adapt
 ## Baseline (git)
 - tasks/queue/82-backend-rotinas-core.md
 - tasks/active/82-backend-rotinas-core.md
+- scripts/harness/src/routines.js
+- scripts/harness/src/task.js
+- scripts/harness/tests/routines.test.js
