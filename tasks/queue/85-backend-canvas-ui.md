@@ -4,8 +4,10 @@
 ## Feature: agent-canvas
 ## ACs: AC-1, AC-5, AC-7
 ## Escopo (arquivos que esta task vai tocar):
-- `scripts/harness/src/kanban.js` (vista `/canvas`: página, CSS, JS de refresh)
-- `scripts/harness/tests/kanban.test.js` (testes da vista)
+- `scripts/harness/src/kanban.js`
+- `scripts/harness/tests/kanban.test.js`
+
+Anotações do escopo: `kanban.js` para a vista `/canvas` (página, CSS, JS de refresh); testes da vista. Detalhes em "O que criar".
 ## Depende de: 84-backend-canvas-dados.md
 ## Contexto para ler: context/modules/harness/context.md · context/features/agent-canvas/spec.md · scripts/harness/src/kanban.js (renderPage/serveBoard) · context/modules/harness/status.md (handoff da 84)
 ## Skills a carregar: codegen.md

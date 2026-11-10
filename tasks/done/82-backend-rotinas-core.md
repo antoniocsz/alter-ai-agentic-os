@@ -4,9 +4,10 @@
 ## Feature: rotinas
 ## ACs: AC-1, AC-2, AC-3, AC-6
 ## Escopo (arquivos que esta task vai tocar):
-- `scripts/harness/src/routines.js` (NOVO)
-- `scripts/harness/src/task.js` (apenas extrair/preservar criação de task para reuso)
-- `scripts/harness/tests/routines.test.js` (NOVO)
+- `scripts/harness/src/routines.js`
+- `scripts/harness/src/task.js`
+- `scripts/harness/tests/routines.test.js`
+(anotações originais dos bullets: routines.js NOVO; task.js apenas extrair/preservar criação de task para reuso; routines.test.js NOVO)
 ## Depende de: —
 ## Contexto para ler: context/modules/harness/context.md · context/features/rotinas/spec.md · scripts/harness/src/task.js
 ## Skills a carregar: codegen.md

@@ -5,12 +5,14 @@
 ## ACs: AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7
 ## Escopo (arquivos que esta task vai tocar):
 - `scripts/harness/src/lib/adapters.js`
-- `scripts/harness/src/adapter.js` (flag `--sandbox` + perfil no `list`)
-- `adapters/claude/` (template settings.json)
-- `adapters/opencode/` (frontmatter de permissions dos agents)
-- `adapters/codex/` (seção sandbox documentada)
-- `.agents/sandbox.md` (NOVO)
-- `scripts/harness/tests/adapter-sandbox.test.js` (NOVO)
+- `scripts/harness/src/adapter.js`
+- `adapters/claude/`
+- `adapters/opencode/`
+- `adapters/codex/`
+- `.agents/sandbox.md`
+- `scripts/harness/tests/adapter-sandbox.test.js`
+
+Anotações do escopo: `adapter.js` para a flag `--sandbox` + perfil no `list`; templates de settings.json (claude), permissions (opencode) e seção sandbox (codex); `.agents/sandbox.md` e o teste são novos. Detalhes em "O que criar".
 ## Depende de: 83-backend-browser-adapter.md
 ## Contexto para ler: context/modules/harness/context.md · context/features/sandbox-por-tool/spec.md · scripts/harness/src/lib/adapters.js · adapters/claude/ (settings atual)
 ## Skills a carregar: codegen.md

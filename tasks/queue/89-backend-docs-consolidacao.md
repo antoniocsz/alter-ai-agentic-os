@@ -3,9 +3,11 @@
 ## Módulo: `harness`
 ## Escopo (arquivos que esta task vai tocar):
 - `README.md`
-- `context/modules/harness/status.md` (fecho do ciclo)
-- `scripts/harness/package.json` (bump `harness version --bump minor` → 0.4.0)
-- `CHANGELOG.md` (gerado via `node scripts/harness/bin/harness.js changelog`)
+- `context/modules/harness/status.md`
+- `scripts/harness/package.json`
+- `CHANGELOG.md`
+
+Anotações do escopo: status.md para o fecho do ciclo; package.json via `harness version --bump minor` (0.3.4 → 0.4.0); CHANGELOG via `harness changelog`. Detalhes em "O que criar".
 ## Depende de: 82-backend-rotinas-core.md, 83-backend-browser-adapter.md, 84-backend-canvas-dados.md, 85-backend-canvas-ui.md, 86-backend-serve-webhook.md, 87-backend-sandbox-por-tool.md, 88-backend-rotinas-ui.md
 ## Contexto para ler: README.md · context/modules/harness/status.md · context/features/*/spec.md · CHANGELOG.md
 ## Skills a carregar: codegen.md

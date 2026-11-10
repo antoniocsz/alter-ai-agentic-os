@@ -4,11 +4,13 @@
 ## Feature: rotinas
 ## ACs: AC-4, AC-5, AC-6
 ## Escopo (arquivos que esta task vai tocar):
-- `scripts/harness/src/serve.js` (NOVO)
-- `scripts/harness/src/routines.js` (apenas API de disparo/scheduler na integração)
-- `scripts/harness/src/kanban.js` (rota `POST /webhook/routines/:id` + payload `/api/routines`)
-- `scripts/harness/src/commands/index.js` (registro do comando `serve`)
-- `scripts/harness/tests/serve.test.js` (NOVO)
+- `scripts/harness/src/serve.js`
+- `scripts/harness/src/routines.js`
+- `scripts/harness/src/kanban.js`
+- `scripts/harness/src/commands/index.js`
+- `scripts/harness/tests/serve.test.js`
+
+Anotações do escopo: `serve.js` e o teste são novos; `routines.js` para a API de disparo/scheduler; `kanban.js` para a rota `POST /webhook/routines/:id` + payload `/api/routines`; `commands/index.js` registra o comando `serve`. Detalhes em "O que criar".
 ## Depende de: 82-backend-rotinas-core.md, 85-backend-canvas-ui.md
 ## Contexto para ler: context/modules/harness/context.md · context/features/rotinas/spec.md · scripts/harness/src/routines.js · scripts/harness/src/kanban.js (serveBoard) · context/modules/harness/status.md (handoffs 82/84/85)
 ## Skills a carregar: codegen.md

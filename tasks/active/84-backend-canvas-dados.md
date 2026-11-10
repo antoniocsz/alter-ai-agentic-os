@@ -4,9 +4,11 @@
 ## Feature: agent-canvas
 ## ACs: AC-2, AC-3, AC-4, AC-6
 ## Escopo (arquivos que esta task vai tocar):
-- `scripts/harness/src/lib/canvas.js` (NOVO)
-- `scripts/harness/src/kanban.js` (apenas rota `GET /api/canvas`; a vista de UI é a task 85)
-- `scripts/harness/tests/canvas.test.js` (NOVO)
+- `scripts/harness/src/lib/canvas.js`
+- `scripts/harness/src/kanban.js`
+- `scripts/harness/tests/canvas.test.js`
+
+Anotações do escopo: `canvas.js` e o teste são novos; `kanban.js` recebe APENAS a rota `GET /api/canvas` (a vista de UI é a task 85). Detalhes em "O que criar".
 ## Depende de: —
 ## Contexto para ler: context/modules/harness/context.md · context/features/agent-canvas/spec.md · scripts/harness/src/kanban.js · scripts/harness/src/lib/db.js
 ## Skills a carregar: codegen.md
@@ -30,3 +32,9 @@
 ## Ao terminar: atualizar `context/modules/harness/status.md`, rodar `node scripts/harness/bin/harness.js finish 84`
 ## Complexidade: média
 ## Baseline (git): main (queue planejada 2026-11-09)
+
+## Baseline (git)
+- tasks/queue/82-backend-rotinas-core.md
+- tasks/queue/83-backend-browser-adapter.md
+- tasks/active/82-backend-rotinas-core.md
+- tasks/active/83-backend-browser-adapter.md

@@ -7,10 +7,12 @@
 - `scripts/harness/src/adapter.js`
 - `scripts/harness/src/lib/adapters.js`
 - `scripts/harness/src/lib/templates.js`
-- `scripts/harness/src/init.js` (aceitar `browser` em `--tools`)
-- `adapters/browser/` (NOVO diretório, paridade com claude/codex/opencode)
-- `.agents/browser.md` (NOVO)
-- `scripts/harness/tests/adapter-browser.test.js` (NOVO)
+- `scripts/harness/src/init.js`
+- `adapters/browser/`
+- `.agents/browser.md`
+- `scripts/harness/tests/adapter-browser.test.js`
+
+Anotações do escopo: `init.js` só para aceitar `browser` em `--tools`; `adapters/browser/`, `.agents/browser.md` e o teste são novos. Detalhes em "O que criar".
 ## Depende de: —
 ## Contexto para ler: context/modules/harness/context.md · context/features/browser-adapter/spec.md · scripts/harness/src/adapter.js · scripts/harness/src/lib/adapters.js
 ## Skills a carregar: codegen.md
@@ -33,3 +35,7 @@
 ## Ao terminar: atualizar `context/modules/harness/status.md`, rodar `node scripts/harness/bin/harness.js finish 83`
 ## Complexidade: média
 ## Baseline (git): main (queue planejada 2026-11-09)
+
+## Baseline (git)
+- tasks/queue/82-backend-rotinas-core.md
+- tasks/active/82-backend-rotinas-core.md

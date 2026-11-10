@@ -4,8 +4,10 @@
 ## Feature: rotinas
 ## ACs: AC-7
 ## Escopo (arquivos que esta task vai tocar):
-- `scripts/harness/src/kanban.js` (painel de rotinas no board)
-- `scripts/harness/tests/kanban.test.js` (testes do painel)
+- `scripts/harness/src/kanban.js`
+- `scripts/harness/tests/kanban.test.js`
+
+Anotações do escopo: painel de rotinas no board e seus testes. Detalhes em "O que criar".
 ## Depende de: 86-backend-serve-webhook.md
 ## Contexto para ler: context/modules/harness/context.md · context/features/rotinas/spec.md (AC-7) · scripts/harness/src/kanban.js · scripts/harness/src/serve.js · context/modules/harness/status.md (handoff da 86)
 ## Skills a carregar: codegen.md
