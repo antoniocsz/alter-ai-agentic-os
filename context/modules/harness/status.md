@@ -83,3 +83,25 @@
 ## Handoff (v0.3.3)
 - Feito: suite em 136 testes; `harness check`/`gates` verdes; release v0.3.3.
 - Pendências: Sprint 2 docs (71–76) e revisão contínua.
+
+## Handoff (task 82 — rotinas: núcleo do schema, agendador e disparo)
+- Feito: `scripts/harness/src/routines.js` (novo) — `loadRoutines` valida `.harness/routines.json`
+  (AC-1: rotina inválida sai em `errors` com mensagem clara e NÃO entra em `routines`;
+  arquivo ausente é estado válido — serve não morre), parser `parseEvery`
+  (`<n>m`, `<n>h`, `daily@HH:MM`, `weekly@<seg..dom>@HH:MM`), `nextRun` no fuso local
+  (daily/weekly cruzando meia-noite cobertos), `fireRoutine(id)` criando task na queue pela
+  lógica extraída de `task.js`, dedupe por título normalizado considerando queue/active
+  (done não bloqueia) e eventos do disparo no banco (`routine_fired` / `routine_skipped` /
+  `routine_error` + interação `source: routines`, task_id `routine:<id>` quando não há task
+  associada — AC-6). `task.js`: criação extraída para `createTaskFile` (export) e `slugify`
+  (export); `task(args)` e `harness workspace task` preservam o comportamento legado
+  (regressão coberta por spawn do CLI real). `startScheduler()` exportado como stub
+  (o loop em si é task 86). Suíte: 156/156 (`node --test`), `harness check` ok.
+- Pendências: loop do agendador, `harness serve` (kanban + ticker + webhook) e painel de
+  rotinas chegam nas próximas tasks da feature `rotinas` — consumam `loadRoutines`,
+  `nextRun`, `fireRoutine` e `startScheduler` de `src/routines.js`.
+- Decisões: criação de task vira função única (`createTaskFile`) — CLI e rotinas compartilham
+  defaults (agent backend, priority P2, type feat) e normalização de título; dedupe compara o
+  SLUG do título (mesma normalização do nome de arquivo `NN-<slug>.md`); erros de disparo não
+  se propagam (resultado `{ ok, error }`), e schema de `routines.json` ignora campos
+  desconhecidos mas valida tipos de `id/every/dedupe/task.title/priority/type/scope`.
