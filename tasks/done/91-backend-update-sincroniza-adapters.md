@@ -34,3 +34,7 @@ Anotações do escopo: `adapter.js` para gravar o marcador de adapters instalado
 ## Ao terminar: atualizar `context/modules/harness/status.md`, rodar `node scripts/harness/bin/harness.js finish 91`
 ## Complexidade: média
 ## Baseline (git): main pós-lote 2 do ciclo Superfik (2026-11-10)
+
+## Baseline (git)
+- tasks/queue/88-backend-rotinas-ui.md
+- tasks/active/88-backend-rotinas-ui.md
