@@ -38,3 +38,17 @@ Anotações do escopo: `canvas.js` e o teste são novos; `kanban.js` recebe APEN
 - tasks/queue/83-backend-browser-adapter.md
 - tasks/active/82-backend-rotinas-core.md
 - tasks/active/83-backend-browser-adapter.md
+- .agents/browser.md
+- adapters/browser/.codex/prompts/browser.md
+- scripts/harness/src/adapter.js
+- scripts/harness/src/init.js
+- scripts/harness/src/lib/adapters.js
+- scripts/harness/src/routines.js
+- scripts/harness/src/task.js
+- scripts/harness/tests/adapter-browser.test.js
+- scripts/harness/tests/routines.test.js
+
+Nota do agente (2026-11-10): as entradas acima (das tasks 82/83) foram flagadas pelo
+finish porque o `startHead` da task 84 é anterior aos merges intercalados de 82 (1937ffd)
+e 83 (47645cc), que já estão integrados no main — débito conhecido da validação
+(pipeline.js dife startHead → HEAD). Nada foi revertido; arquivos de ninguém tocados.

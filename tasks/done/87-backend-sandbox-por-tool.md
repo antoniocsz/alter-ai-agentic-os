@@ -37,3 +37,11 @@ Anotações do escopo: `adapter.js` para a flag `--sandbox` + perfil no `list`; 
 ## Ao terminar: atualizar `context/modules/harness/status.md`, rodar `node scripts/harness/bin/harness.js finish 87`
 ## Complexidade: média
 ## Baseline (git): main (queue planejada 2026-11-09)
+
+## Baseline (git)
+- tasks/active/84-backend-canvas-dados.md
+- tasks/queue/85-backend-canvas-ui.md
+- tasks/active/85-backend-canvas-ui.md
+- tasks/done/84-backend-canvas-dados.md
+- scripts/harness/src/kanban.js
+- scripts/harness/tests/kanban.test.js

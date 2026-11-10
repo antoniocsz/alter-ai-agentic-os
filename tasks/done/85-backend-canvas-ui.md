@@ -32,3 +32,7 @@ Anotações do escopo: `kanban.js` para a vista `/canvas` (página, CSS, JS de r
 ## Ao terminar: atualizar `context/modules/harness/status.md`, rodar `node scripts/harness/bin/harness.js finish 85`
 ## Complexidade: média
 ## Baseline (git): main (queue planejada 2026-11-09)
+
+## Baseline (git)
+- tasks/active/84-backend-canvas-dados.md
+- tasks/done/84-backend-canvas-dados.md
