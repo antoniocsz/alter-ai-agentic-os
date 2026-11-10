@@ -2,6 +2,7 @@ import http from 'node:http'
 import fs from 'node:fs'
 import path from 'node:path'
 import { openDb, boardQuery, taskDetails, resolveTaskId, syncFromMarkdown } from './lib/db.js'
+import { canvasState } from './lib/canvas.js'
 import { startTask, finishTask, requeueTask, reopenTask } from './lib/pipeline.js'
 import { taskLocation, queueDir, activeDir, doneDir } from './lib/tasks.js'
 import { templatesDir } from './lib/paths.js'
@@ -199,6 +200,14 @@ function route(req, res, ctx, page) {
   if (req.method === 'GET' && pathname === '/api/board') {
     try {
       return json(res, 200, { ok: true, board: buildBoard(ctx) })
+    } catch (err) {
+      return sendError(res, 500, err.message)
+    }
+  }
+
+  if (req.method === 'GET' && pathname === '/api/canvas') {
+    try {
+      return json(res, 200, { ok: true, ...canvasState(ctx) })
     } catch (err) {
       return sendError(res, 500, err.message)
     }

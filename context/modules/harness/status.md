@@ -126,3 +126,23 @@
   seria permitido); `lib/templates.js` não precisou de mudança (copyDir+render já cobre o
   elemento codex); targets de MCP são `opencode|claude|codex` (`MCP_TARGETS`) e a camada
   browser em si não é tool-alvo; fail-safe prefere falhar a sobrescrever config do usuário.
+
+## Handoff (task 84 — canvas: coleção de estado de execução + endpoint)
+- Feito: `lib/canvas.js` (NOVO) — `canvasState(ctx)` produz `{ generated_at, canvas[] }` com
+  um cartão por task ativa: agente/título via `taskFromMarkdown`/`boardQuery` (sem re-parse),
+  worktree + branch do registro `.harness/worktrees.json` (`readRegistry`) ou `'raiz'` +
+  branch da raiz (AC-2), `started_at` + `running_ms` pré-computado, contagem de arquivos
+  via `git status --porcelain` com timeout defensivo 2000ms → `'n/d'` em não-repo/timeout,
+  último `task_event` e última interação `note` (já redigida no storage) — AC-3,
+  `last_activity_at` = max(started, evento, nota) e `staleness` booleano calculado no
+  servidor com `STALE_MS` = 15min (AC-4). Degradação graciosa: db indisponível (corrompida)
+  → só markdown + git (histórico `null`); worktree registrada mas ausente no disco → raiz.
+  Nenhuma UI: `kanban.js` recebeu APENAS a rota `GET /api/canvas` (bind 127.0.0.1 inalterado,
+  mesma diretriz do `/api/board`) — a vista/cartões são a task 85. Suíte 181/181.
+- Pendências: task 85 (vista Execução /cartão, badge de staleness, modal, auto-refresh 3s)
+  consome `GET /api/canvas` — payload já vem pré-computado para a UI não recomputar (AC-6).
+- Decisões: `canvasState` itera `ctx.projects` (mesmo formato multi-projeto do `buildBoard`,
+  cartões marcados com `project`); disco vence registro — worktree listada e ausente degrada
+  para raiz; `changed_files: 'n/d'` é string por convenção da task e os demais campos
+  desconhecidos ficam `null` (a UI formata); sem atividade alguma → `stale: false` (sem
+  dados, sem julgamento); `STALE_MS` exportado para os testes usarem o limiar real.
