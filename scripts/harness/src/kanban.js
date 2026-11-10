@@ -12,17 +12,17 @@ import { readRegistry } from './lib/worktree.js'
 const DEFAULT_PORT = 4310
 const VALID_MOVES = { queue: ['active'], active: ['queue', 'done'], done: ['active'] }
 
-/**
- * Contexto do board: projeto único ({ kind: 'project', root }) ou
- * workspace ({ kind: 'workspace', projects: [{name, root, wip}] }).
- */
-function ctxFromCwd() {
-  const root = process.cwd()
+/** Contexto do board para uma raiz de projeto explícita (usada pelo `harness serve`). */
+export function ctxFromRoot(root) {
   return {
     kind: 'project',
     projects: [{ name: '', root, wip: readWipConfig(root) }],
     title: 'AlterAI - Agentic OS — Tasks'
   }
+}
+
+function ctxFromCwd() {
+  return ctxFromRoot(process.cwd())
 }
 
 export async function kanban(args) {
@@ -142,12 +142,18 @@ export function readTaskFile(ctx, project, id) {
   }
 }
 
-export function serveBoard(ctx, port, host = '127.0.0.1') {
+/**
+ * Servidor do kanban (`harness kanban --serve`) e — com `extras.routines` — o
+ * modo `harness serve` (task 86): a MESMA instância preside o webhook de rotinas
+ * (POST /webhook/routines/:id?token=) e o payload do painel (GET /api/routines).
+ * extras: { routines } — sem eles o modo kanban puro continua igual (rotas 404).
+ */
+export function serveBoard(ctx, port, host = '127.0.0.1', extras = {}) {
   const page = withCanvasLink(renderPage(null, ctx.title))
   const canvasPage = renderCanvasPage(ctx.title)
   const server = http.createServer((req, res) => {
     try {
-      route(req, res, ctx, page, canvasPage)
+      route(req, res, ctx, page, canvasPage, extras)
     } catch (err) {
       sendError(res, 500, `erro interno: ${err.message}`)
     }
@@ -196,7 +202,7 @@ function sendError(res, status, message) {
   json(res, status, { ok: false, error: message })
 }
 
-function route(req, res, ctx, page, canvasPage) {
+function route(req, res, ctx, page, canvasPage, extras = {}) {
   let url
   try {
     url = new URL(req.url, `http://${req.headers.host ?? 'localhost'}`)
@@ -231,6 +237,21 @@ function route(req, res, ctx, page, canvasPage) {
     }
   }
 
+  // Modo `harness serve` (task 86): payload do painel de rotinas e o webhook.
+  const routines = extras.routines ?? null
+  if (routines && req.method === 'GET' && pathname === '/api/routines') {
+    try {
+      return json(res, 200, { ok: true, routines: routines.snapshot() })
+    } catch (err) {
+      return sendError(res, 500, err.message)
+    }
+  }
+
+  const webhook = req.method === 'POST' && pathname.match(/^\/webhook\/routines\/([a-z0-9][a-z0-9-]*)$/)
+  if (webhook && routines) {
+    return handleWebhook(res, routines, webhook[1], url, req)
+  }
+
   const detail = pathname.match(/^\/api\/tasks\/([^/]+)\/detail$/)
   if (req.method === 'GET' && detail) {
     const id = safeDecodeId(detail[1])
@@ -252,6 +273,44 @@ function route(req, res, ctx, page, canvasPage) {
   }
 
   return sendError(res, 404, 'não encontrado')
+}
+
+/**
+ * POST /webhook/routines/:id?token=<t> (AC-4): 401 sem/errado token (auditado),
+ * 404 rotina inexistente, 200 com o resultado ({criada} ou {skip:dedupe}).
+ * O body é drenado (v1 ignora: a task vem do routines.json declarativo).
+ */
+async function handleWebhook(res, routines, id, url, req) {
+  if (!routines.checkToken(url.searchParams.get('token'))) {
+    routines.record('webhook_rejected', id, 'token ausente ou inválido')
+    return json(res, 401, { ok: false, error: 'token ausente ou inválido' })
+  }
+
+  try {
+    let body = ''
+    for await (const chunk of req) {
+      body += chunk
+      if (body.length > 64 * 1024) {
+        return json(res, 413, { ok: false, error: 'body muito grande' })
+      }
+    }
+  } catch {
+    return json(res, 400, { ok: false, error: 'falha ao ler body' })
+  }
+
+  routines.record('webhook_received', id, 'disparo da rotina por webhook')
+  const result = routines.fire(id)
+  if (!result.ok) {
+    const notFound = /rotina não encontrada/.test(result.error ?? '')
+    return json(res, notFound ? 404 : 500, { ok: false, error: result.error })
+  }
+  return json(
+    res,
+    200,
+    result.created
+      ? { ok: true, criada: result.task, num: result.num }
+      : { ok: true, skip: 'dedupe', task: result.task }
+  )
 }
 
 async function handleMove(req, res, ctx, id) {

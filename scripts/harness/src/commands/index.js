@@ -7,6 +7,7 @@ import { check } from '../check.js'
 import { sync } from '../sync.js'
 import { logCmd, historyCmd } from '../log.js'
 import { kanban } from '../kanban.js'
+import { serve } from '../serve.js'
 import { requeue, reopen } from '../requeue.js'
 import { task } from '../task.js'
 import { report } from '../report.js'
@@ -51,6 +52,7 @@ Comandos:
   history <task>      Mostra eventos e interações de uma task
   report              Métricas do banco [--format table|json|csv] [--module] [--days]
   kanban [--serve [porta] [--host <h>]] | --out <arquivo>   Painel kanban (servidor ou HTML)
+  serve [--port <n>] [--host <h>]    Kanban + agendador das rotinas + webhook num único processo
   update [--source <cam>] [--dry-run] Re-sincroniza a camada harness a partir da fonte (ou HARNESS_SOURCE)
   workspace ...       Opera sobre múltiplos projetos (ver "harness workspace help")
   check [--json]      Valida o protocolo (pipeline, escopos, seções, módulos)
@@ -98,6 +100,7 @@ export const commands = {
   report,
   update,
   kanban,
+  serve,
   workspace,
   check,
   changelog: changelogCmd,

@@ -6,6 +6,7 @@ import { createTaskFile, slugify } from './task.js'
 import { normalizeCommitType } from './lib/commits.js'
 
 export const ROUTINES_FILE = 'routines.json'
+export const DEFAULT_TICK_MS = 30_000
 
 const WEEKDAYS = { dom: 0, seg: 1, ter: 2, qua: 3, qui: 4, sex: 5, sab: 6, sáb: 6 }
 const EVERY_HINT = 'use <n>m, <n>h, daily@HH:MM ou weekly@<seg|ter|qua|qui|sex|sab|dom>@HH:MM'
@@ -261,7 +262,7 @@ function findExistingTask(root, slug) {
   return null
 }
 
-function recordRoutineEvent(root, taskId, event, routineId, message) {
+export function recordRoutineEvent(root, taskId, event, routineId, message) {
   const db = tryOpenDb(root)
   if (!db) return
   try {
@@ -280,8 +281,100 @@ function recordRoutineEvent(root, taskId, event, routineId, message) {
   }
 }
 
-/** Stub do loop do agendador — a integração com `harness serve` (ticker + webhook)
- *  chega com a task 86; por ora o disparo é explícito via fireRoutine(id). */
-export function startScheduler() {
-  return { running: false, reason: 'agendador em loop chega com o harness serve (task 86)' }
+/**
+ * Loop do agendador (task 86): tick periódico que recarrega o `routines.json`,
+ * planeja a próxima execução de cada rotina (`nextRun`) e dispara `onDue(rotina)`
+ * quando o horário chega — por padrão, `fireRoutine(id)`. O horário é CONSUMIDO
+ * mesmo com falha de disparo (sem re-disparo em loop / martelada de eventos);
+ * rotina inválida ou removida sai do plano. Chamado SEM `root` mantém o contrato
+ * legado da task 82 (descritor "não rodando"); o loop real vive no `harness serve`.
+ *
+ * Retorno: { running, tickMs, tick(now?), nextRunAt(id), stop() }.
+ */
+export function startScheduler(root, opts = {}) {
+  if (!root) {
+    return {
+      running: false,
+      reason: 'agendador em loop mora no `harness serve` (task 86): chame startScheduler(cwd, { tickMs, clock, onDue })'
+    }
+  }
+
+  const tickMs = opts.tickMs ?? DEFAULT_TICK_MS
+  const clock = opts.clock ?? (() => new Date())
+  const onDue = opts.onDue ?? ((routine) => fireRoutine(routine.id, root))
+  const planned = new Map() // id → { at: Date | null } (null: every virou inválido)
+  let lastErrors = null
+  let timer = null
+  let stopped = false
+
+  const safeNext = (every, now) => {
+    try {
+      return nextRun(every, now)
+    } catch {
+      return null
+    }
+  }
+
+  function plan(routines, now) {
+    const alive = new Set(routines.map((r) => r.id))
+    for (const r of routines) {
+      if (!planned.has(r.id)) planned.set(r.id, { at: safeNext(r.every, now) })
+    }
+    for (const id of [...planned.keys()]) {
+      if (!alive.has(id)) planned.delete(id) // rotina removida do arquivo
+    }
+  }
+
+  function reportLoadErrors(errors) {
+    const msg = errors.join('\n')
+    if (msg === lastErrors) return // mesmo conjunto já reportado — não re-loga a cada tick
+    for (const e of errors) process.stderr.write(`⚠️ rotinas: ${e}\n`)
+    lastErrors = msg
+  }
+
+  /** Um passo do agendador (export p/ testes e para aquecer o plano no build). */
+  function tick(now = clock()) {
+    const { routines, errors } = loadRoutines(root)
+    reportLoadErrors(errors)
+    plan(routines, now)
+    for (const [id, p] of planned) {
+      if (!p.at || p.at.getTime() > now.getTime()) continue
+      const routine = routines.find((r) => r.id === id)
+      try {
+        onDue(routine)
+      } catch (err) {
+        process.stderr.write(`⚠️ rotinas: falha no tick de "${id}": ${err.message}\n`)
+      }
+      // consome o horário e re-planeja (criada ou falha) na próxima janela
+      p.at = routine ? safeNext(routine.every, clock()) : null
+    }
+  }
+
+  function schedule() {
+    timer = setTimeout(() => {
+      if (stopped) return
+      try {
+        tick()
+      } catch (err) {
+        process.stderr.write(`⚠️ rotinas: tick falhou: ${err.message}\n`)
+      }
+      schedule()
+    }, tickMs)
+  }
+
+  schedule()
+
+  return {
+    get running() {
+      return !stopped
+    },
+    tickMs,
+    tick,
+    nextRunAt: (id) => planned.get(id)?.at ?? null,
+    stop() {
+      stopped = true
+      if (timer) clearTimeout(timer)
+      timer = null
+    }
+  }
 }

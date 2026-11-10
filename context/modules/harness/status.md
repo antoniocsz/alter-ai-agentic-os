@@ -255,3 +255,61 @@
   são atribuíveis a outras tasks — o estado sujo é o delta da task em validação
   (rematado por teste negativo); (4) fail-closed em toda a atribuição: git
   erro/range vazio/ou ownId ausente → nada é liberado de graça.
+
+## Fase 11 — Rotinas servidas: `harness serve` (task 86)
+- [x] `harness serve [--port n] [--host h]` — kanban + agendador das rotinas + webhook num único processo zero-deps
+- [x] Scheduler real (`startScheduler`, routines.js): tick recarrega routines.json, dispara `fireRoutine` no horário, erro de schema reportado sem derrubar nada
+- [x] Webhook `POST /webhook/routines/:id?token=` — 401 sem/errado token (auditado), 404 inexistente, 200 `{criada}`/`{skip:dedupe}`; token em `.harness/webhook-token` persistido e comparado em tempo constante
+- [x] `GET /api/routines` — `{id,title,every,nextRun,lastRun,fireCount}` com estado em memória + backfill do banco (payload do painel da 88)
+
+## Handoff (task 86 — `harness serve`: scheduler real + webhook com token)
+- Feito: `src/serve.js` (NOVO) — comando `harness serve [--port n] [--host h]` (AC-5):
+  um processo onde `serveBoard` segue presidindo board/`/api/board`/`/api/canvas`/
+  `/canvas`/detail/move e, via `extras.routines`, ganha o webhook e o payload das rotinas.
+  Token: `readOrCreateWebhookToken` (`crypto.randomUUID` na 1ª execução, reusado depois;
+  arquivo vazio regenera), comparação `tokensMatch` em tempo constante (sha256+
+  timingSafeEqual). `createRoutinesApi`: fire (webhook/agenda) atualiza estado em memória
+  `{lastRun, fireCount}`; hydrate semeia ids AUSENTES do banco (servir de novo não perde o
+  histórico); snapshot = payload do painel 88. `buildServe` = wiring injetável
+  (root/port/host/tickMs/clock) para testes; `stop()` gracioso — scheduler.stop +
+  closeIdleConnections + close (força em 3s) + `releaseOwnLock` (lock do pipeline com pid
+  deste processo é removido; lock alheio intocado). CLI: bind 127.0.0.1 default; WARNING
+  quando `--host` fica fora do loopback; banner NUNCA imprime o token (só onde ele mora);
+  SIGINT/SIGTERM → stop + exit(0). `routines.js`: stub `startScheduler` → loop real — tick
+  recarrega routines.json, planeja `nextRun` por rotina, dispara `onDue` (default
+  `fireRoutine`) e CONSOME o horário mesmo em falha (sem martelada de `routine_error`);
+  erros de schema reportados com dedupe por mudança de conjunto (AC-1: servem sem morrer);
+  contrato legado sem-args preservado (descritor "não rodando") para o pin de testes da 82.
+  `recordRoutineEvent` exportado (reuso). `kanban.js`: `ctxFromRoot` extraído de
+  `ctxFromCwd` + rotas novas — POST `/webhook/routines/:id` (401 sem/errado token auditado
+  como `webhook_rejected`; válido → `webhook_received` + fireRoutine: 200 `{criada}` |
+  `{skip:'dedupe'}` | 404 quando "rotina não encontrada" | 500 em falha de criação; body
+  drenado e ignorado na v1) e GET `/api/routines`
+  ([{id,title,every,nextRun,lastRun,fireCount}]) — modo kanban puro (sem extras) NÃO expõe
+  as rotas (404, regressão em teste). `commands/index.js`: `serve` no mapa + linha no
+  usage. Testes: `tests/serve.test.js` (NOVO, 13) — tokensMatch, token
+  persistido/reusado/regenerado, happy path (200 criada + task com defaults do CLI +
+  eventos `webhook_received`/`routine_fired` + interação system), 401 ×2 (nada disparado +
+  `webhook_rejected`), 404 fantasma (`routine_error`) e id fora do padrão sem tocar o
+  banco, dedupe via HTTP (200 skip + fireCount 2), payload do painel, hidratação do
+  restart, scheduler com relógio injetável (dispara na janela e re-planeja), AC-1 no serve,
+  kanban preservado + rotas 404 no modo puro, shutdown gracioso (porta efêmera, lock do
+  próprio pid solto, alheio intacto, server fechado de verdade), CLI (warning de exposição,
+  porta inválida mostra uso, banner sem segredo). Suíte: 211/211 (198 baseline + 13
+  novos), `harness check` ok.
+- Pendências: painel de rotinas do board (AC-7) é a task 88 — consumir `GET /api/routines`
+  e o caminho do webhook ("rodar agora") confirmado por token local. Sem catch-up: se o
+  serve estava fora do ar no horário, o disparo é perdido (janelas futuras seguem normais;
+  webhook cobre a execução sob demanda). Sem rate-limit no webhook (v1 token-only; `--host`
+  fora do loopback imprime WARNING de exposição).
+- Decisões: scheduler mora no `routines.js` (a API de disparo/agenda do módulo), com o
+  contrato legado sem-args mantido; tick default 30s com `clock`/`tickMs`/`onDue`
+  injetáveis — o teste da 82 continua pinnando o descritor sem-args em vez do loop, e o
+  loop real é aplicado no serve. `fireCount` = disparos VÁLIDOS (criada OU skip dedupe);
+  hydrate do banco semeia apenas ids ausentes (memória é o valor ao vivo — nunca soma as
+  duas fontes). kanban.js não importa routines.js — a rota consome só `{snapshot, fire,
+  checkToken, record}` injetado por `extras.routines` (nenhum acoplamento novo). Token
+  comparado por digest sha256 + timingSafeEqual (tempo constante independente do tamanho).
+  Porta default 4310 — mesma do kanban, pois `serve` é o superset e a URL fica estável
+  para quem migra; `--port 0` dá porta efêmera (uso dos testes). Token NUNCA é impresso
+  no log/stdout (rastreável em `.harness/webhook-token`, gitignored junto do banco).
