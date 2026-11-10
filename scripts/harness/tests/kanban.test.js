@@ -5,6 +5,8 @@ import path from 'node:path'
 import { once } from 'node:events'
 import { openDb, syncFromMarkdown, boardQuery, taskDetails, resolveTaskId } from '../src/lib/db.js'
 import { buildBoard, renderPage, kanbanFor, projectRoot, readTaskFile, serveBoard, wipViolation } from '../src/kanban.js'
+import { createRoutinesApi } from '../src/serve.js'
+import { listTasks, queueDir } from '../src/lib/tasks.js'
 import { createProject } from '../src/init.js'
 import { tmpdir, write, withSilentStdout } from './helpers.js'
 
@@ -394,5 +396,244 @@ test('servidor kanban: vista Execução é read-only (v1) — POST nos endpoints
     } finally {
       server.close()
     }
+  })
+})
+
+// ---------- painel de rotinas no board (task 88, AC-7) ----------
+
+const ROUTINES_PANEL = {
+  routines: [
+    { id: 'run-rotina', every: '15m', task: { title: 'Rodar agora pela UI do painel' } },
+    { id: 'run-dedupe', every: '1h', task: { title: 'Retro da UI do painel' }, dedupe: true }
+  ]
+}
+
+/** Board vivo: routines.json no disco (ou não) + extras.routines (ou não). */
+async function servePanel(name, { routinesJson = true, extras = true } = {}) {
+  const root = await makeProject(name)
+  if (routinesJson) write(root, path.join('.harness', 'routines.json'), JSON.stringify(ROUTINES_PANEL))
+  const api = extras ? createRoutinesApi(root) : undefined
+  const server = serveBoard(
+    { projects: [{ name: 'A', root }], title: 't' },
+    0,
+    '127.0.0.1',
+    api ? { routines: api } : {}
+  )
+  await once(server, 'listening')
+  return { root, server, base: `http://localhost:${server.address().port}` }
+}
+
+const localToken = (root) => fs.readFileSync(path.join(root, '.harness', 'webhook-token'), 'utf8').trim()
+
+function routineEvents(root) {
+  const db = openDb(root)
+  try {
+    return db
+      .prepare("SELECT * FROM task_events WHERE event LIKE 'routine%' OR event LIKE 'webhook%' ORDER BY id")
+      .all()
+  } finally {
+    db.close()
+  }
+}
+
+test('painel de rotinas (AC-7): aparece no board do serve com routines.json — e o token nunca vai para a página', async () => {
+  await withSilentStdout(async () => {
+    const s = await servePanel('routines-on-full')
+    try {
+      const html = await (await fetch(`${s.base}/`)).text()
+      assert.ok(html.includes('id="routinesToggle"')) // link discreto no header
+      assert.ok(html.includes('id="routines-panel"')) // markup do drawer
+      assert.ok(html.includes('var API = true')) // modo serve: lista + rodar agora
+      assert.ok(html.includes('▶ rodar agora'))
+      assert.ok(html.includes("fetch('/api/routines'")) // dados vindos do payload da 86
+      assert.ok(html.includes('href="/canvas"')) // navegação da 85 preservada
+
+      // o botão confirma o token LIDO PELO SERVIDOR via webhook internamente:
+      // o segredo JAMAIS entra no HTML entregue ao browser
+      assert.ok(!html.includes(localToken(s.root)))
+    } finally {
+      s.server.close()
+    }
+  })
+})
+
+test('degradação: sem routines.json o painel NÃO aparece (mesmo com a API de rotinas viva)', async () => {
+  await withSilentStdout(async () => {
+    const s = await servePanel('routines-no-file', { routinesJson: false })
+    try {
+      const html = await (await fetch(`${s.base}/`)).text()
+      assert.ok(!html.includes('routinesToggle'))
+      assert.ok(!html.includes('routines-panel'))
+      assert.ok(html.includes('href="/canvas"')) // a vista Execução segue sozinha
+    } finally {
+      s.server.close()
+    }
+  })
+})
+
+test('degradação (kanban puro): com routines.json mas sem scheduler, o painel existe e fica "inativo — rode harness serve"; rotas de rotina → 404', async () => {
+  await withSilentStdout(async () => {
+    const s = await servePanel('routines-plain', { extras: false })
+    try {
+      const html = await (await fetch(`${s.base}/`)).text()
+      assert.ok(html.includes('id="routinesToggle"')) // painel exibível
+      assert.ok(!html.includes('var API = true')) // abre no modo inativo
+      assert.ok(html.includes('inativo — rode harness serve')) // badge no script do painel
+
+      // sem extras.routines o modo kanban puro continua sem as rotas (regressão da 86)
+      assert.equal((await fetch(`${s.base}/api/routines`)).status, 404)
+      assert.equal(
+        (await fetch(`${s.base}/api/routines/run-rotina/run`, { method: 'POST' })).status,
+        404
+      )
+    } finally {
+      s.server.close()
+    }
+  })
+})
+
+test('rodar agora (AC-7): POST /api/routines/:id/run cria a task na queue pelo MESMO fire do webhook', async () => {
+  await withSilentStdout(async () => {
+    const s = await servePanel('routines-run-now')
+    try {
+      const res = await fetch(`${s.base}/api/routines/run-rotina/run`, { method: 'POST' })
+      assert.equal(res.status, 200)
+      const body = await res.json()
+      assert.equal(body.ok, true)
+      assert.match(body.criada, /^\d+-rodar-agora-pela-ui-do-painel\.md$/)
+      assert.deepEqual(listTasks(queueDir(s.root)), [body.criada])
+
+      // auditoria idêntica à do webhook: recebimento + disparo no banco
+      const events = routineEvents(s.root)
+      assert.ok(events.some((e) => e.task_id === 'routine:run-rotina' && e.event === 'webhook_received'))
+      assert.ok(events.some((e) => e.task_id === body.criada && e.event === 'routine_fired'))
+
+      // payload do painel acompanha (disparos + última execução)
+      const payload = await (await fetch(`${s.base}/api/routines`)).json()
+      const r = payload.routines.find((x) => x.id === 'run-rotina')
+      assert.equal(r.fireCount, 1)
+      assert.ok(r.lastRun)
+
+      // caminho do webhook segue preservado (núcleo compartilhado)
+      const viaWebhook = await fetch(
+        `${s.base}/webhook/routines/run-rotina?token=${localToken(s.root)}`,
+        { method: 'POST' }
+      )
+      assert.equal(viaWebhook.status, 200)
+      const again = await (await fetch(`${s.base}/api/routines`)).json()
+      assert.equal(again.routines.find((x) => x.id === 'run-rotina').fireCount, 2)
+    } finally {
+      s.server.close()
+    }
+  })
+})
+
+test('rodar agora: dedupe ativo → 2ª chamada {skip:dedupe}, sem arquivo novo', async () => {
+  await withSilentStdout(async () => {
+    const s = await servePanel('routines-run-dedupe')
+    try {
+      const call = () => fetch(`${s.base}/api/routines/run-dedupe/run`, { method: 'POST' })
+      const first = await call()
+      assert.equal(first.status, 200)
+      const created = await first.json()
+      assert.ok(created.ok && created.criada)
+
+      const second = await call()
+      assert.equal(second.status, 200)
+      const skipped = await second.json()
+      assert.equal(skipped.ok, true)
+      assert.equal(skipped.skip, 'dedupe')
+      assert.equal(skipped.task, created.criada)
+
+      // nenhum arquivo novo + os dois disparos VÁLIDOS contam no payload
+      assert.equal(listTasks(queueDir(s.root)).length, 1)
+      const payload = await (await fetch(`${s.base}/api/routines`)).json()
+      assert.equal(payload.routines.find((x) => x.id === 'run-dedupe').fireCount, 2)
+    } finally {
+      s.server.close()
+    }
+  })
+})
+
+test('rodar agora: rotina fantasma → 404 auditada; id fora do padrão → 404 sem tocar o banco', async () => {
+  await withSilentStdout(async () => {
+    const s = await servePanel('routines-run-404')
+    try {
+      const res = await fetch(`${s.base}/api/routines/fantasma/run`, { method: 'POST' })
+      assert.equal(res.status, 404)
+      const body = await res.json()
+      assert.match(body.error, /rotina não encontrada/)
+      assert.ok(
+        routineEvents(s.root).some(
+          (e) => e.task_id === 'routine:fantasma' && e.event === 'routine_error'
+        )
+      )
+
+      // maiúsculas não casam com a rota nem gravam evento
+      const weird = await fetch(`${s.base}/api/routines/BIG-UPPER/run`, { method: 'POST' })
+      assert.equal(weird.status, 404)
+      const db = openDb(s.root)
+      try {
+        const inters = db.prepare('SELECT content FROM interactions WHERE source = ?').all('routines')
+        assert.ok(!inters.some((i) => i.content.includes('BIG-UPPER')))
+      } finally {
+        db.close()
+      }
+    } finally {
+      s.server.close()
+    }
+  })
+})
+
+test('rodar agora: origem cruzada → 403; token local ausente → 401 auditado e nada disparado', async () => {
+  await withSilentStdout(async () => {
+    const s = await servePanel('routines-run-guard')
+    try {
+      // a rota é de browser: mesmo guard de origem dos moves
+      const csrf = await fetch(`${s.base}/api/routines/run-rotina/run`, {
+        method: 'POST',
+        headers: { origin: 'http://evil.test' }
+      })
+      assert.equal(csrf.status, 403)
+      assert.equal(listTasks(queueDir(s.root)).length, 0)
+
+      // o servidor é o dono do token: arquivo fora do ar → 401 do MESMO núcleo
+      // do webhook, com o reject auditado e fireCount intocado
+      fs.rmSync(path.join(s.root, '.harness', 'webhook-token'))
+      const noToken = await fetch(`${s.base}/api/routines/run-rotina/run`, { method: 'POST' })
+      assert.equal(noToken.status, 401)
+      const body = await noToken.json()
+      assert.equal(body.ok, false)
+      assert.match(body.error, /token/)
+      assert.equal(listTasks(queueDir(s.root)).length, 0)
+      assert.ok(
+        routineEvents(s.root).some(
+          (e) => e.task_id === 'routine:run-rotina' && e.event === 'webhook_rejected'
+        )
+      )
+      const payload = await (await fetch(`${s.base}/api/routines`)).json()
+      assert.equal(payload.routines.find((x) => x.id === 'run-rotina').fireCount, 0)
+    } finally {
+      s.server.close()
+    }
+  })
+})
+
+test('kanban estático (--out): HTML segue sem o painel de rotinas (modo estático intacto)', async () => {
+  await withSilentStdout(async () => {
+    const a = await makeProject('routines-static')
+    write(a, path.join('.harness', 'routines.json'), JSON.stringify(ROUTINES_PANEL))
+    write(a, 'tasks/queue/01-foo.md', TASK)
+    syncProject(a)
+
+    const out = path.join(tmpdir(), 'kanban-routines-static.html')
+    await kanbanFor(
+      { kind: 'workspace', projects: [{ name: 'A', root: a }], title: 'Workspace teste' },
+      ['--out', out]
+    )
+    const html = fs.readFileSync(out, 'utf8')
+    assert.ok(!html.includes('routinesToggle'))
+    assert.ok(!html.includes('routines-panel'))
+    assert.ok(html.includes('agrupar por módulo')) // o board estático segue idêntico
   })
 })

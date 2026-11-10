@@ -1,7 +1,7 @@
 import http from 'node:http'
 import fs from 'node:fs'
 import path from 'node:path'
-import { openDb, boardQuery, taskDetails, resolveTaskId, syncFromMarkdown } from './lib/db.js'
+import { DB_DIR, openDb, boardQuery, taskDetails, resolveTaskId, syncFromMarkdown } from './lib/db.js'
 import { canvasState } from './lib/canvas.js'
 import { startTask, finishTask, requeueTask, reopenTask } from './lib/pipeline.js'
 import { taskLocation, queueDir, activeDir, doneDir } from './lib/tasks.js'
@@ -11,6 +11,11 @@ import { readRegistry } from './lib/worktree.js'
 
 const DEFAULT_PORT = 4310
 const VALID_MOVES = { queue: ['active'], active: ['queue', 'done'], done: ['active'] }
+// Painel de rotinas (task 88): `.harness/routines.json` decide a presença do
+// painel e `.harness/webhook-token` é o segredo que o botão "rodar agora"
+// confirma no servidor — mesmos arquivos da feature rotinas (86).
+const ROUTINES_JSON = 'routines.json'
+const WEBHOOK_TOKEN_FILE = 'webhook-token'
 
 /** Contexto do board para uma raiz de projeto explícita (usada pelo `harness serve`). */
 export function ctxFromRoot(root) {
@@ -103,15 +108,23 @@ export function renderPage(board, title = 'AlterAI - Agentic OS — Tasks') {
     .replace('__BOARD_DATA__', JSON.stringify(board))
 }
 
-// Link board ⇄ Execução: injetado APENAS no modo serve, por string-replace no HTML
-// renderizado — o template board.html fica intacto (fora do escopo da task 85).
-function withCanvasLink(html) {
+// Links/painéis do modo serve: injetados por string-replace no HTML renderizado —
+// o template board.html fica intacto (fora do escopo das tasks 85/88).
+// A vista Execução (85) vai sempre no header; o painel de rotinas (AC-7) entra
+// APENAS quando `.harness/routines.json` existe. Sem o arquivo, o painel não
+// aparece (degradação); com o arquivo e sem `extras.routines` (kanban puro), o
+// script do painel já nasce em modo inativo e mostra o badge "rode harness serve".
+function withBoardExtras(html, opts = {}) {
   const anchor = '<span class="spacer"></span>'
   if (!html.includes(anchor)) return html
-  return html.replace(
-    anchor,
-    '<a class="mode" href="/canvas" style="color:var(--accent)">▶ vista Execução</a>' + anchor
-  )
+  const canvasLink = '<a class="mode" href="/canvas" style="color:var(--accent)">▶ vista Execução</a>'
+  const toggle = opts.panel
+    ? '<a class="mode" href="#" id="routinesToggle" style="color:var(--accent)" aria-expanded="false" title="painel de rotinas (agenda + rodar agora)">⏱ Rotinas</a>'
+    : ''
+  const panel = opts.panel ? renderRoutinesPanel(opts.api) : ''
+  return html
+    .replace(anchor, canvasLink + toggle + anchor)
+    .replace('</body>', `${panel}</body>`)
 }
 
 function renderStatic(ctx, outFile) {
@@ -143,13 +156,41 @@ export function readTaskFile(ctx, project, id) {
 }
 
 /**
+ * Existência de `.harness/routines.json` (AC-7): decide a presença do painel.
+ * Leitura direta de arquivo — kanban.js continua SEM importar routines.js
+ * (decisão da 86): o acoplamento funcional da rota vem só do extras injetado
+ * e do arquivo (fonte declarativa igualmente consumida por serve/routines).
+ */
+function routinesJsonAvailable(ctx) {
+  try {
+    return fs.existsSync(path.join(projectRoot(ctx, ''), DB_DIR, ROUTINES_JSON))
+  } catch {
+    return false
+  }
+}
+
+/** Token local do webhook (`.harness/webhook-token`): o processo serve é o dono
+ *  do arquivo, então o botão "rodar agora" passa esse valor para o MESMO
+ *  checkToken do webhook — sem o segredo trafegar pela UI. */
+function localWebhookToken(root) {
+  try {
+    return fs.readFileSync(path.join(root, DB_DIR, WEBHOOK_TOKEN_FILE), 'utf8').trim() || null
+  } catch {
+    return null
+  }
+}
+
+/**
  * Servidor do kanban (`harness kanban --serve`) e — com `extras.routines` — o
  * modo `harness serve` (task 86): a MESMA instância preside o webhook de rotinas
  * (POST /webhook/routines/:id?token=) e o payload do painel (GET /api/routines).
  * extras: { routines } — sem eles o modo kanban puro continua igual (rotas 404).
  */
 export function serveBoard(ctx, port, host = '127.0.0.1', extras = {}) {
-  const page = withCanvasLink(renderPage(null, ctx.title))
+  const page = withBoardExtras(renderPage(null, ctx.title), {
+    panel: routinesJsonAvailable(ctx),
+    api: extras.routines != null
+  })
   const canvasPage = renderCanvasPage(ctx.title)
   const server = http.createServer((req, res) => {
     try {
@@ -252,6 +293,22 @@ function route(req, res, ctx, page, canvasPage, extras = {}) {
     return handleWebhook(res, routines, webhook[1], url, req)
   }
 
+  // Task 88: "rodar agora" do painel — MESMO caminho do webhook (núcleo
+  // compartilhado: token → fire → resposta), sem HTTP self-call. Rota de
+  // browser: mesmo guard de origem dos moves; o token vem do ARQUIVO local,
+  // nunca do cliente.
+  const runNow = req.method === 'POST' ? pathname.match(/^\/api\/routines\/([a-z0-9][a-z0-9-]*)\/run$/) : null
+  if (runNow && routines) {
+    if (!sameOrigin(req)) return sendError(res, 403, 'origem não permitida')
+    let target
+    try {
+      target = projectRoot(ctx, url.searchParams.get('project') ?? '')
+    } catch (err) {
+      return sendError(res, 400, err.message)
+    }
+    return handleRunRoutine(req, res, routines, runNow[1], target)
+  }
+
   const detail = pathname.match(/^\/api\/tasks\/([^/]+)\/detail$/)
   if (req.method === 'GET' && detail) {
     const id = safeDecodeId(detail[1])
@@ -276,12 +333,13 @@ function route(req, res, ctx, page, canvasPage, extras = {}) {
 }
 
 /**
- * POST /webhook/routines/:id?token=<t> (AC-4): 401 sem/errado token (auditado),
- * 404 rotina inexistente, 200 com o resultado ({criada} ou {skip:dedupe}).
- * O body é drenado (v1 ignora: a task vem do routines.json declarativo).
+ * Núcleo ÚNICO de disparo (AC-4/AC-7): webhook HTTP e botão "rodar agora" do
+ * painel compartilham o caminho token → body drenado → registro do recebimento
+ * → fire → resposta ({criada} | {skip:dedupe} | 404 | 500). `received` difere
+ * só na mensagem auditada; o disparo em si é o MESMO `routines.fire`.
  */
-async function handleWebhook(res, routines, id, url, req) {
-  if (!routines.checkToken(url.searchParams.get('token'))) {
+async function respondRoutineFire(req, res, routines, id, token, received) {
+  if (!routines.checkToken(token)) {
     routines.record('webhook_rejected', id, 'token ausente ou inválido')
     return json(res, 401, { ok: false, error: 'token ausente ou inválido' })
   }
@@ -298,7 +356,7 @@ async function handleWebhook(res, routines, id, url, req) {
     return json(res, 400, { ok: false, error: 'falha ao ler body' })
   }
 
-  routines.record('webhook_received', id, 'disparo da rotina por webhook')
+  routines.record('webhook_received', id, received)
   const result = routines.fire(id)
   if (!result.ok) {
     const notFound = /rotina não encontrada/.test(result.error ?? '')
@@ -310,6 +368,38 @@ async function handleWebhook(res, routines, id, url, req) {
     result.created
       ? { ok: true, criada: result.task, num: result.num }
       : { ok: true, skip: 'dedupe', task: result.task }
+  )
+}
+
+/**
+ * POST /webhook/routines/:id?token=<t> (AC-4): 401 sem/errado token (auditado),
+ * 404 rotina inexistente, 200 com o resultado ({criada} ou {skip:dedupe}).
+ * O body é drenado (v1 ignora: a task vem do routines.json declarativo).
+ */
+async function handleWebhook(res, routines, id, url, req) {
+  return respondRoutineFire(
+    req,
+    res,
+    routines,
+    id,
+    url.searchParams.get('token'),
+    'disparo da rotina por webhook'
+  )
+}
+
+/**
+ * POST /api/routines/:id/run (AC-7): o botão "rodar agora" do painel confirma
+ * o token LIDO DO ARQUIVO LOCAL (o processo serve o tem) e passa pelo mesmo
+ * núcleo do webhook — dedupe e auditoria idênticos, sem HTTP self-call.
+ */
+function handleRunRoutine(req, res, routines, id, root) {
+  return respondRoutineFire(
+    req,
+    res,
+    routines,
+    id,
+    localWebhookToken(root),
+    'disparo da rotina pelo painel (rodar agora)'
   )
 }
 
@@ -402,6 +492,227 @@ function handleDetail(res, ctx, id, project) {
 function json(res, status, data) {
   res.writeHead(status, { 'content-type': 'application/json; charset=utf-8' })
   res.end(JSON.stringify(data))
+}
+
+/**
+ * Painel "Rotinas" (task 88, AC-7): drawer lateral do board com o mesmo tema
+ * da vista Execução. Os dados vêm de GET /api/routines ({id, title, every,
+ * nextRun, lastRun, fireCount}) e o botão "rodar agora" POSTa em
+ * /api/routines/:id/run — que no servidor passa pelo MESMO núcleo de fire do
+ * webhook (token confirmado no servidor, sem HTTP self-call). Degradações:
+ * - sem routines.json: este markup não é nem injetado (painel não aparece);
+ * - routines.json sem scheduler (kanban puro): `api=false` → ao abrir, o
+ *   painel mostra o badge "inativo — rode harness serve" e dispensa o botão.
+ * routines.json é SEMPRE manual: a UI nunca o edita e nenhum endpoint de
+ * escrita além do "rodar agora" existe.
+ */
+function renderRoutinesPanel(apiEnabled) {
+  return `
+<style>
+  #routines-panel {
+    position: fixed; top: 0; right: 0; bottom: 0; z-index: 25;
+    width: min(440px, 94vw); background: var(--col);
+    border-left: 1px solid var(--border); box-shadow: -14px 0 32px rgba(0,0,0,.35);
+    padding: 16px 18px; overflow-y: auto; display: none;
+  }
+  #routines-panel.open { display: block; }
+  #routines-panel .rp-heading { font-size: 14px; margin: 0 26px 0 0; }
+  #routines-panel .rp-sub { color: var(--muted); font-size: 11px; margin: 3px 0 14px; line-height: 1.5; }
+  #routines-panel .rp-close { position: absolute; top: 10px; right: 10px; padding: 2px 9px; }
+  .rp-row {
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px 12px; margin-bottom: 10px;
+  }
+  .rp-row .rp-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .rp-row .rp-title { font-size: 13px; font-weight: 600; margin: 0; word-break: break-word; }
+  .rp-row .rp-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
+  .rp-row .rp-line {
+    display: flex; justify-content: space-between; gap: 8px;
+    font-size: 12px; color: var(--muted); margin-top: 5px;
+  }
+  .rp-row .rp-val { color: var(--text); text-align: right; }
+  .rp-row .rp-foot {
+    display: flex; justify-content: space-between; color: var(--muted); font-size: 11px;
+    margin-top: 7px; font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  }
+  .rp-run { white-space: nowrap; border-color: var(--accent); }
+  .rp-run:disabled { opacity: .55; cursor: progress; }
+  .rp-state { margin-top: 4px; }
+</style>
+<aside id="routines-panel" role="region" aria-label="Rotinas" aria-hidden="true">
+  <button type="button" class="rp-close" id="routinesClose" title="fechar painel">✕</button>
+  <h2 class="rp-heading">⏱ Rotinas</h2>
+  <p class="rp-sub" id="routines-mode"></p>
+  <div id="routines-list"><p class="empty">carregando…</p></div>
+</aside>
+<script>
+(function () {
+  var API = ${apiEnabled ? 'true' : 'false'};
+  var panel = document.getElementById('routines-panel');
+  var toggle = document.getElementById('routinesToggle');
+  var list = document.getElementById('routines-list');
+  var mode = document.getElementById('routines-mode');
+  var timer = null;
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function fmtWhen(iso) {
+    if (!iso) return '—';
+    var d = new Date(iso);
+    return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  }
+  function relAgo(iso) {
+    if (!iso) return '';
+    var s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+    if (s < 0) s = 0;
+    if (s < 60) return 'agora';
+    if (s < 3600) return Math.floor(s / 60) + ' min atrás';
+    if (s < 86400) return Math.floor(s / 3600) + 'h atrás';
+    return Math.floor(s / 86400) + 'd atrás';
+  }
+  function relIn(iso) {
+    var s = Math.floor((new Date(iso).getTime() - Date.now()) / 1000);
+    if (isNaN(s)) return '';
+    if (s <= 0) return 'agora';
+    if (s < 3600) return 'em ' + Math.max(1, Math.floor(s / 60)) + ' min';
+    if (s < 86400) return 'em ' + Math.floor(s / 3600) + 'h';
+    return 'em ' + Math.floor(s / 86400) + 'd';
+  }
+
+  /* toast — mesmo elemento do board, cinzas de sucesso quando o disparo sai */
+  function rpToast(msg, kind) {
+    var el = document.getElementById('toast');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'toast';
+      document.body.appendChild(el);
+    }
+    el.textContent = msg;
+    var ok = kind === 'ok';
+    el.style.background = ok ? '#14532d' : '#7f1d1d';
+    el.style.color = ok ? '#bbf7d0' : '#fecaca';
+    el.style.borderColor = ok ? '#16a34a' : '#b91c1c';
+    el.style.display = 'block';
+    clearTimeout(rpToast._t);
+    rpToast._t = setTimeout(function () { el.style.display = 'none'; }, 6000);
+  }
+
+  function rowHtml(r) {
+    var next = r.nextRun ? fmtWhen(r.nextRun) + ' (' + esc(relIn(r.nextRun)) + ')' : '—';
+    var last = r.lastRun ? fmtWhen(r.lastRun) + ' · ' + esc(relAgo(r.lastRun)) : 'nunca';
+    var fireCount = Number(r.fireCount || 0);
+    return '<div class="rp-row" data-id="' + esc(r.id) + '">' +
+      '<div class="rp-head">' +
+        '<p class="rp-title">' + esc(r.title || r.id) + '</p>' +
+        '<button type="button" class="rp-run" data-id="' + esc(r.id) + '" title="dispara a rotina agora pelo mesmo caminho do webhook (token fica no servidor)">▶ rodar agora</button>' +
+      '</div>' +
+      '<div class="rp-meta">' +
+        '<span class="tag" title="recorrência declarada em routines.json">⏰ ' + esc(r.every) + '</span>' +
+        '<span class="tag" title="disparos válidos (task criada ou skip por dedupe)">🔥 ' + fireCount + ' disparo(s)</span>' +
+      '</div>' +
+      '<div class="rp-line"><span>próxima execução</span><span class="rp-val">' + next + '</span></div>' +
+      '<div class="rp-line"><span>última execução</span><span class="rp-val">' + last + '</span></div>' +
+      '<div class="rp-foot"><span>' + esc(r.id) + '</span><span>routines.json</span></div>' +
+    '</div>';
+  }
+
+  function inactive() {
+    mode.textContent = 'routines.json existe, sem agendador neste processo';
+    list.innerHTML =
+      '<div class="rp-state">' +
+      '<span class="tag" style="color:var(--queue);border-color:var(--queue)">⚠ inativo — rode harness serve</span>' +
+      '<p class="empty" style="text-align:left">' +
+      'o agendador e o webhook das rotinas vivem no processo <code>harness serve</code>' +
+      ' (kanban + scheduler num processo só). Neste modo, "rodar agora" e as execuções' +
+      ' seguintes/última não estão disponíveis. O arquivo .harness/routines.json nunca é editado pela UI.' +
+      '</p>' +
+      '</div>';
+  }
+
+  function load() {
+    fetch('/api/routines').then(function (res) {
+      return res.json().then(function (data) { return { status: res.status, data: data }; });
+    }).then(function (r) {
+      var rows = (r.data && r.data.routines) || [];
+      if (r.status === 200 && r.data && r.data.ok) {
+        mode.textContent = 'de .harness/routines.json · "rodar agora" usa o mesmo caminho do webhook (token fica no servidor)';
+        list.innerHTML = rows.length
+          ? rows.map(rowHtml).join('')
+          : '<p class="empty">nenhuma rotina válida em .harness/routines.json (a edição é manual, nunca pela UI)</p>';
+      } else {
+        inactive();
+        if (timer) { clearInterval(timer); timer = null; }
+      }
+    }).catch(function () { /* servidor caiu — aguarda o próximo tick */ });
+  }
+
+  function runNow(id, btn) {
+    btn.disabled = true;
+    fetch('/api/routines/' + encodeURIComponent(id) + '/run', { method: 'POST' }).then(function (res) {
+      return res.json().then(function (data) { return { status: res.status, data: data }; });
+    }).then(function (r) {
+      var d = r.data || {};
+      if (r.status === 200 && d.ok && d.criada) {
+        rpToast('✅ task criada: ' + (d.num ? '#' + d.num + ' ' : '') + d.criada, 'ok');
+        load();
+      } else if (r.status === 200 && d.ok && d.skip) {
+        rpToast('⏭ dedupe: task já existe (' + d.task + ') — nada recriado', 'ok');
+        load();
+      } else {
+        rpToast('erro: ' + (d.error || 'HTTP ' + r.status));
+        if (r.status === 404) load(); // routines.json editado por fora
+      }
+      btn.disabled = false;
+    }).catch(function (err) {
+      rpToast('erro de conexão: ' + err.message);
+      btn.disabled = false;
+    });
+  }
+
+  /* delegação: as linhas re-renderizam a cada refresh */
+  list.addEventListener('click', function (e) {
+    var btn = e.target.closest && e.target.closest('.rp-run');
+    if (btn) runNow(btn.getAttribute('data-id'), btn);
+  });
+
+  function openPanel() {
+    panel.classList.add('open');
+    panel.setAttribute('aria-hidden', 'false');
+    toggle.setAttribute('aria-expanded', 'true');
+    if (API) {
+      mode.textContent = 'carregando…';
+      load();
+      if (!timer) {
+        timer = setInterval(function () {
+          if (panel.classList.contains('open')) load();
+        }, 30000);
+      }
+    } else {
+      inactive();
+    }
+  }
+
+  function closePanel() {
+    panel.classList.remove('open');
+    panel.setAttribute('aria-hidden', 'true');
+    toggle.setAttribute('aria-expanded', 'false');
+    if (timer) { clearInterval(timer); timer = null; }
+  }
+
+  toggle.addEventListener('click', function (e) {
+    e.preventDefault();
+    if (panel.classList.contains('open')) closePanel(); else openPanel();
+  });
+  document.getElementById('routinesClose').addEventListener('click', closePanel);
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && panel.classList.contains('open')) closePanel();
+  });
+})();
+</script>
+`
 }
 
 /**

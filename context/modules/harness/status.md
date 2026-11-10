@@ -357,3 +357,43 @@
   Porta default 4310 — mesma do kanban, pois `serve` é o superset e a URL fica estável
   para quem migra; `--port 0` dá porta efêmera (uso dos testes). Token NUNCA é impresso
   no log/stdout (rastreável em `.harness/webhook-token`, gitignored junto do banco).
+
+## Handoff (task 88 — painel de rotinas no board: lista, "rodar agora", degradação)
+- Feito: `kanban.js` — (1) painel "⏱ Rotinas" no board do modo serve, injetado por
+  string-replace junto ao link da vista Execução (85): drawer lateral `#routines-panel`
+  com a mesma estética/tokens da vista canvas (classes `rp-*` para não colidir com os
+  handlers de drag&drop do board), lista de `GET /api/routines` (id, título, `every`,
+  próxima execução absoluta+relativa, última execução, disparos válidos), refresh
+  manual, auto-refresh 30s só com o painel aberto e toast no elemento `#toast` do board
+  (verde ok / vermelho erro, mesmo visual dos moves). (2) Botão "rodar agora" → rota
+  NOVA `POST /api/routines/:id/run` que reusa o MESMO núcleo de disparo do webhook
+  (`respondRoutineFire`, extraído de `handleWebhook`): `checkToken` com o token LIDO DO
+  ARQUIVO local (`.harness/webhook-token` — o serve é o dono do processo; sem acoplamento
+  novo e o segredo JAMAIS chega à página, coberto por teste), record do recebimento com
+  mensagem "pelo painel", e fire/dedupe/resposta (`{criada|skip}`/404/401/500)
+  idênticos ao webhook; guard `sameOrigin` como nos moves (a rota autentica pelo
+  arquivo local, então a origem é o que impede uso de fora). (3) Degradações: sem
+  `.harness/routines.json` o painel não é injetado (nem o toggle); routines.json
+  presente sem `extras.routines` (kanban puro) → painel abre em modo inativo com badge
+  "⚠ inativo — rode harness serve" e `/api/routines`|`/run` seguem 404. routines.json
+  é SEMPRE manual (nenhum endpoint de edição). Testes: +8 em `tests/kanban.test.js`
+  (painel on/off, kanban puro, run criada + auditoria + payload, dedupe, fantasma/
+  BIG-UPPER sem tocar o banco, CSRF 403, token-local-ausente 401, estático sem painel).
+  Suíte 225/225 (217 baseline + 8), `harness check` ok e smoke E2E ao vivo no browser:
+  criada→dedupe→fireCount/board atualizando ao vivo, zero erros de console e JSON
+  inválido (BOM) não derrubou o serve.
+- Pendências: nenhuma na feature rotinas (AC-7 fechado). Evolutivo: o painel decide a
+  presença no BOOT do serve (routines.json criado com o serve no ar exige restart para
+  o toggle surgir) — mesmo padrão do link da Execução (85).
+- Decisões: (1) "rodar agora" é rota própria mas reusa o núcleo do webhook
+  (`respondRoutineFire`) — dedupe, auditoria e códigos HTTP exatamente iguais, sem HTTP
+  self-call; `POST /webhook/routines/:id` segue 1:1 (os 13 testes da 86 intactos).
+  (2) kanban.js continua SEM importar routines.js (decisão da 86): presença do painel é
+  `fs.existsSync(.harness/routines.json)` (a fonte declarativa, lida diretamente) e o
+  funcional vem da injeção de extras. (3) Constante nomeada `WEBHOOK_TOKEN_FILE` (como
+  no serve.js): `WEBHOOK_TOKEN = 'webhook-token'` casava no padrão de segredos do gate
+  (`X_TOKEN = valor`) e reprovava 2 testes do gate na suíte — renomear mantém o valor
+  e o nome honestos (o nome aponta o ARQUIVO). (4) Toast com cor por kind no elemento
+  existente do board (sucesso verde) — feedback igual aos moves, com sinal positivo.
+  (5) Sem framework: HTML server-side + JS inline (`var`/function, padrão do
+  board/canvas).
