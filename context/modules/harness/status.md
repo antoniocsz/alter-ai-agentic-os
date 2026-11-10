@@ -262,6 +262,50 @@
 - [x] Webhook `POST /webhook/routines/:id?token=` — 401 sem/errado token (auditado), 404 inexistente, 200 `{criada}`/`{skip:dedupe}`; token em `.harness/webhook-token` persistido e comparado em tempo constante
 - [x] `GET /api/routines` — `{id,title,every,nextRun,lastRun,fireCount}` com estado em memória + backfill do banco (payload do painel da 88)
 
+## Fase 12 — Marcador de adapters e sync no `update` (task 91)
+- [x] `.harness/adapters.json` (gitignored) gravado pelo `adapter <tool>` — `{ tools, sandbox, browser }`, merge idempotente
+- [x] `harness update`: pós-cópia da camada re-instala cada tool do marcador com `installAdapter` (kit da fonte + sandbox salvo)
+- [x] Sem marcador → comportamento anterior; fonte sem `adapters/` ou marcador ilegível → aviso claro e skip (não erro)
+
+## Handoff (task 91 — `update` ressincroniza os adapters instalados)
+- Feito: (1) Marcador `.harness/adapters.json` (gitignored junto dos demais artefatos do
+  `.harness/`) gravado pelo `adapter <tool>` pós-instalação (`recordAdapterInstall` em
+  `lib/adapters.js`, chamado por `adapter.js`) com `{ "tools": [...], "sandbox": "minimal|strict|null",
+  "browser": { target, package }? }` — merge idempotente (tool nova entra; re-run não duplica nem
+  reordenou), nunca substitui entradas de outros adapters; `sandbox` só é atualizado quando a flag
+  `--sandbox` foi usada explicitamente (re-install sem flag nunca derruba o perfil salvo);
+  `adapter browser <tool>` grava tool-alvo + pacote para o replay. Corruption → marcador é
+  reconstruído com aviso (`recovered`). (2) `harness update`: `HARNESS_LAYER += 'adapters'`
+  (fecha o débito do handoff 87 — o projeto passa a receber os templates frescos) e pós-cópia
+  re-executa `installAdapter` para cada tool do marcador (`syncInstalledAdapters`), com
+  `kit` = fonte (`opts.kit` novo em `installAdapter`, default `harnessRoot()`), perfil do
+  `resolveConfig` do projeto e sandbox do marcador (null → default minimal) — idempotente.
+  Sem marcador → nada de sync (comportamento anterior); fonte sem `adapters/` ou marcador
+  ilegível/inválido → `⚠️ aviso:` e skip (não erro); erro por-tool (`fail-safe` do browser,
+  p.ex.) vira warning e não derruba o update. Mensagens: linha
+  `adapters ressincronizados: ...` + interação no banco com o resumo. (3) README/docs NÃO
+  tocados (task 89); nada de CSV/JSON de reports tocado; `kanban.js` intocado (task 88 paralela).
+- Testes: `tests/update-adapters.test.js` (NOVO, 11) — marcador gravado/preservado/merge
+  idempotente via CLI `adapterCmd`, browser com detalhes, `readAdaptersMarker` normalizando
+  (`issues` para shape/JSON/sandbox/tools desconhecidas), update sem marcador (no-op),
+  replay com templates da fonte v1→v2 (NAME/PROFILE/SANDBOX_DENY renderizados), sandbox
+  salvo respeitado no replay (claude strict), fonte sem `adapters/` → aviso + preservação,
+  marcador corrompido → aviso + skip, dry-run não ressincroniza. Suíte completa 228/228
+  (217 baseline + 11), `harness check` ok, zero deps (nada toca package.json/lockfile).
+- Pendências: docs do update (marcador/behavior) sobem na task 89. Marcador não é escrito
+  pelo `init --tools` (fora do escopo — projetos initados instalando adapters não ressincronizam
+  via marcador até rodarem `adapter <tool>` uma vez); decidir se `init` também grava o marcador
+  numa task futura da feature.
+- Decisões: (1) helpers do marcador moram em `lib/adapters.js` (fonte única entre CLI e
+  update; `adapter.js` grava no fluxo do comando como pedia a task) e a leitura/validação é
+  tolerante — problemas viram `issues` que o consumidor imprime, o update nunca trava por
+  arquivo recriável; (2) sync usa `kit` = fonte em vez de copiar e depois instalar do projeto —
+  elimina dependência de ordem e garante templates frescos mesmo com a cópia da camada;
+  (3) `adapters` entrou no `HARNESS_LAYER` (o débito sugerido no handoff 87) — sem isso o
+  `adapter <tool>` do projeto pós-update continuaria instando templates antigos; o `found`/
+  `synced` do update passam a incluí-los automaticamente; (4) mensagens de aviso padronizadas
+  `⚠️ aviso: <detalhe>` — coerentes com o estilo de erro/aviso do produto.
+
 ## Handoff (task 86 — `harness serve`: scheduler real + webhook com token)
 - Feito: `src/serve.js` (NOVO) — comando `harness serve [--port n] [--host h]` (AC-5):
   um processo onde `serveBoard` segue presidindo board/`/api/board`/`/api/canvas`/

@@ -168,13 +168,17 @@ export function resolveTools(args = []) {
 /**
  * Renderiza um adaptador de tool dentro do projeto. A saída é descartável:
  * pode ser regenerada a qualquer momento com `harness adapter <tool>`.
+ *
+ * `opts.kit` sobrepõe a raiz de onde os templates de `adapters/` são lidos
+ * (usado pelo `update` para ressincronizar com a fonte do harness e não com
+ * a cópia possivelmente antiga do projeto).
  */
 export function installAdapter(tool, target, opts = {}) {
   if (!TOOLS.includes(tool)) {
     throw new Error(`tool desconhecida: ${tool} (use: ${TOOLS.join(' | ')})`)
   }
 
-  const kit = harnessRoot()
+  const kit = opts.kit ?? harnessRoot()
   if (!fs.existsSync(path.join(kit, 'adapters'))) {
     throw new Error(
       `adapters não encontrados em ${kit} — rode \`harness update --source <harness>\` ` +
@@ -340,4 +344,126 @@ function manualMergeError(file, sectionKey, serverName, entry, reason) {
     `fail-safe: ${file} não foi alterado (${reason}).\n` +
       `Funde manualmente este bloco em ${file}:\n\n${block}\n`
   )
+}
+
+const ADAPTERS_MARKER_DIR = '.harness'
+const ADAPTERS_MARKER_FILE = 'adapters.json'
+
+/**
+ * Lê o marcador de adapters instalados (`.harness/adapters.json`, gitignored —
+ * junto dos demais artefatos do `.harness/`). Sempre retorna um objeto
+ * normalizado; problemas de shape/JSON viram `issues` (o consumidor decide
+ * avisar e pular — nunca trava o `update` por causa de um arquivo recriável).
+ *
+ * Formato: `{ "tools": ["opencode", …], "sandbox": "minimal|strict|null",
+ * "browser": { "target": "opencode|claude|codex", "package": "pkg" }? }`.
+ */
+export function readAdaptersMarker(root) {
+  const file = path.join(root, ADAPTERS_MARKER_DIR, ADAPTERS_MARKER_FILE)
+  const fresh = () => ({ tools: [], sandbox: null, browser: null, issues: [] })
+  if (!fs.existsSync(file)) return fresh()
+
+  let raw
+  try {
+    raw = JSON.parse(fs.readFileSync(file, 'utf8'))
+  } catch (err) {
+    return { ...fresh(), issues: [`${ADAPTERS_MARKER_FILE} não é JSON estrito: ${err.message}`] }
+  }
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+    return {
+      ...fresh(),
+      issues: [`${ADAPTERS_MARKER_FILE} deve ser um objeto JSON com { tools, sandbox, browser }`]
+    }
+  }
+
+  const issues = []
+  let tools = []
+  if (raw.tools !== undefined) {
+    if (!Array.isArray(raw.tools)) {
+      issues.push(`"tools" deve ser uma lista de tools (recebido: ${typeof raw.tools})`)
+    } else {
+      for (const tool of raw.tools) {
+        if (typeof tool === 'string' && TOOLS.includes(tool)) tools.push(tool)
+        else issues.push(`tool desconhecida no marcador: ${JSON.stringify(tool)}`)
+      }
+      tools = [...new Set(tools)]
+    }
+  }
+
+  let sandbox = null
+  if (raw.sandbox !== undefined && raw.sandbox !== null) {
+    const name = String(raw.sandbox)
+    if (SANDBOX_PROFILES[name]) sandbox = name
+    else {
+      issues.push(
+        `"sandbox" desconhecido: ${JSON.stringify(raw.sandbox)} (use: ${Object.keys(SANDBOX_PROFILES).join(' | ')} ou null)`
+      )
+    }
+  }
+
+  let browser = null
+  if (raw.browser !== undefined && raw.browser !== null) {
+    const detail = raw.browser
+    if (
+      typeof detail === 'object' &&
+      !Array.isArray(detail) &&
+      typeof detail.target === 'string' &&
+      MCP_TARGETS.includes(detail.target)
+    ) {
+      browser = {
+        target: detail.target,
+        package: typeof detail.package === 'string' ? detail.package : BROWSER_DEFAULT_PACKAGE
+      }
+    } else {
+      issues.push(`"browser" deve ser { target: <${MCP_TARGETS.join(' | ')}>, package? }`)
+    }
+  }
+
+  return { tools, sandbox, browser, issues }
+}
+
+/**
+ * Grava (merge idempotente) uma instalação de adapter no marcador.
+ * Adiciona `tool` se ausente, sem remover entradas de outros adapters;
+ * `opts.sandbox` só troca o perfil salvo quando fornecido (a CLI só passa
+ * quando a flag `--sandbox` foi usada — nunca derruba o perfil salvo por
+ * relics da maioria). Corrompido, o marcador é reconstruído e `recovered`
+ * volta `true` para a CLI avisar. O retorno espelha o que ficou gravado.
+ */
+export function recordAdapterInstall(root, tool, opts = {}) {
+  if (!TOOLS.includes(tool)) {
+    throw new Error(`tool desconhecida: ${tool} (use: ${TOOLS.join(' | ')})`)
+  }
+  if (opts.browser && !MCP_TARGETS.includes(opts.browser.target)) {
+    throw new Error(`tool-alvo do browser desconhecida: ${JSON.stringify(opts.browser.target)} (use: ${MCP_TARGETS.join(' | ')})`)
+  }
+
+  const file = path.join(root, ADAPTERS_MARKER_DIR, ADAPTERS_MARKER_FILE)
+  let current = { tools: [], sandbox: null, browser: null }
+  let recovered = false
+  if (fs.existsSync(file)) {
+    try {
+      const raw = JSON.parse(fs.readFileSync(file, 'utf8'))
+      if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+        if (Array.isArray(raw.tools)) current.tools = raw.tools.filter((t) => typeof t === 'string')
+        if (typeof raw.sandbox === 'string' && SANDBOX_PROFILES[raw.sandbox]) current.sandbox = raw.sandbox
+        if (raw.browser && typeof raw.browser === 'object' && !Array.isArray(raw.browser)) current.browser = raw.browser
+      }
+    } catch {
+      recovered = true
+    }
+  }
+
+  const tools = [...new Set(current.tools.includes(tool) ? current.tools : [...current.tools, tool])]
+  const browser = opts.browser
+    ? { target: opts.browser.target, package: opts.browser.package ?? BROWSER_DEFAULT_PACKAGE }
+    : current.browser
+  const marker = {
+    tools,
+    sandbox: opts.sandbox ?? current.sandbox,
+    browser
+  }
+  fs.mkdirSync(path.join(root, ADAPTERS_MARKER_DIR), { recursive: true })
+  fs.writeFileSync(file, JSON.stringify(marker, null, 2) + '\n')
+  return { ...marker, recovered }
 }

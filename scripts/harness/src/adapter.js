@@ -9,7 +9,8 @@ import {
   BROWSER_SERVER_NAME,
   SANDBOX_DEFAULT,
   SANDBOX_SUPPORT,
-  resolveSandbox
+  resolveSandbox,
+  recordAdapterInstall
 } from './lib/adapters.js'
 import { parseArgs, flagString } from './lib/flags.js'
 
@@ -51,12 +52,19 @@ export async function adapterCmd(args = []) {
     throw new Error(`tool desconhecida: ${layer} (use: ${TOOLS.join(' | ')})`)
   }
 
-  const sandbox = resolveSandbox(flagString(flags, 'sandbox', SANDBOX_DEFAULT))
+  // O perfil salvo no marcador só muda quando a flag é usada explicitamente —
+  // sem flag, a instalação continua idempotente e o perfil dos relics é preservado.
+  const rawSandbox = flagString(flags, 'sandbox', null)
+  const sandbox = resolveSandbox(rawSandbox ?? SANDBOX_DEFAULT)
   installAdapter(layer, root, {
     name: path.basename(root),
     profile: resolveConfig(root).profile,
     sandbox
   })
+  const marker = recordAdapterInstall(root, layer, { sandbox: rawSandbox ?? null })
+  if (marker.recovered) {
+    process.stdout.write('⚠️  aviso: .harness/adapters.json ilegível — marcador reconstruído.\n')
+  }
   process.stdout.write(`✅ adapter "${layer}" instalado em ${root}\n`)
   process.stdout.write(`🔒 sandbox "${sandbox}": ${SANDBOX_SUPPORT[layer]}\n`)
 }
@@ -78,6 +86,10 @@ function browserCmd(sub, flags, root) {
     targetTool: sub,
     browserPackage: pkg
   })
+  const marker = recordAdapterInstall(root, 'browser', { browser: { target: sub, package: pkg } })
+  if (marker.recovered) {
+    process.stdout.write('⚠️  aviso: .harness/adapters.json ilegível — marcador reconstruído.\n')
+  }
 
   if (sub === 'codex') {
     process.stdout.write(

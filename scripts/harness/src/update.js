@@ -2,8 +2,18 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { copyPath } from './lib/templates.js'
 import { tryOpenDb, recordInteraction } from './lib/db.js'
+import { resolveConfig } from './lib/config.js'
+import {
+  installAdapter,
+  readAdaptersMarker,
+  MCP_TARGETS,
+  TOOLS,
+  BROWSER_DEFAULT_PACKAGE,
+  SANDBOX_DEFAULT,
+  resolveSandbox
+} from './lib/adapters.js'
 
-const HARNESS_LAYER = ['AGENTS.md', '.agents', '.opencode', 'scripts']
+const HARNESS_LAYER = ['AGENTS.md', '.agents', '.opencode', 'adapters', 'scripts']
 
 function sourceVersion(src) {
   try {
@@ -13,6 +23,66 @@ function sourceVersion(src) {
   } catch {
     return null
   }
+}
+
+/**
+ * Reexecuta `installAdapter` para cada tool gravada em `.harness/adapters.json`
+ * (marcador escrito pelo `adapter <tool>`), respeitando o perfil de sandbox salvo.
+ * Idempotente; projeto sem marcador → nenhum sync (comportamento anterior).
+ * Fonte sem `adapters/` → aviso claro e skip (não erro) — os adapters instalados
+ * do projeto são preservados. Problemas do marcador (JSON/shape/sandbox) também
+ * chegam como warnings para o update imprimir — nada trava a sincronização da camada.
+ *
+ * @returns {{ synced: string[], warnings: string[] }}
+ */
+function syncInstalledAdapters(src, root) {
+  const marker = readAdaptersMarker(root)
+  const warnings = [...marker.issues]
+  if (marker.tools.length === 0) return { synced: [], warnings }
+
+  if (!fs.existsSync(path.join(src, 'adapters'))) {
+    warnings.push(
+      `fonte do harness sem adapters/ (${src}) — adapters não ressincronizados (os instalados do projeto foram preservados)`
+    )
+    return { synced: [], warnings }
+  }
+
+  const profile = resolveConfig(root).profile
+  const sandbox = resolveSandbox(marker.sandbox ?? SANDBOX_DEFAULT)
+  const synced = []
+  for (const tool of marker.tools) {
+    if (!TOOLS.includes(tool)) {
+      warnings.push(`tool desconhecida no marcador: ${JSON.stringify(tool)} — pulada`)
+      continue
+    }
+    try {
+      if (tool === 'browser') {
+        if (!marker.browser || !MCP_TARGETS.includes(marker.browser.target)) {
+          warnings.push('browser no marcador sem tool-alvo válida — sync do browser ignorado')
+          continue
+        }
+        installAdapter('browser', root, {
+          kit: src,
+          name: path.basename(root),
+          profile,
+          tools: [marker.browser.target],
+          browserPackage: marker.browser.package ?? BROWSER_DEFAULT_PACKAGE
+        })
+        synced.push(`browser → ${marker.browser.target}`)
+        continue
+      }
+      installAdapter(tool, root, {
+        kit: src,
+        name: path.basename(root),
+        profile,
+        sandbox
+      })
+      synced.push(tool)
+    } catch (err) {
+      warnings.push(`${tool} não ressincronizado: ${err.message}`)
+    }
+  }
+  return { synced, warnings }
 }
 
 export async function update(args) {
@@ -54,12 +124,20 @@ export async function update(args) {
     synced.push(item)
   }
 
+  const adapterSync = syncInstalledAdapters(src, root)
+  for (const warning of adapterSync.warnings) {
+    process.stdout.write(`⚠️  aviso: ${warning}\n`)
+  }
+
+  const adaptersNote = adapterSync.synced.length
+    ? `; adapters ressincronizados: ${adapterSync.synced.join(', ')}`
+    : ''
   const db = tryOpenDb(root)
   if (db) {
     try {
       recordInteraction(db, {
         kind: 'system',
-        content: `harness update: camada sincronizada de ${source}${version ? ` (v${version})` : ''}`,
+        content: `harness update: camada sincronizada de ${source}${version ? ` (v${version})` : ''}${adaptersNote}`,
         source: 'cli'
       })
     } catch {}
@@ -68,6 +146,9 @@ export async function update(args) {
   process.stdout.write(
     `✅ camada do harness sincronizada de ${source}${version ? ` (v${version})` : ''}\n` +
       `  atualizado: ${synced.join(', ')}\n` +
+      (adapterSync.synced.length
+        ? `  adapters ressincronizados: ${adapterSync.synced.join(', ')}\n`
+        : '') +
       (args.includes('--no-restart') ? '' : '   reinicie o opencode para carregar os agents/config atualizados.\n')
   )
 }
