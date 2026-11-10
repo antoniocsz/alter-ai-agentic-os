@@ -211,3 +211,47 @@
   markup mudar); modal reusa os endpoints existentes em vez de duplicar dados no payload
   do `/api/canvas`; badge de staleness calculado no servidor (84) e apenas refletido na UI;
   stale-first na ordenação dos cartões para chamar atenção sem js de filtro extra.
+
+## Handoff (task 90 — correções de validação do pipeline: parser de escopo + merges intercalados)
+- Feito: dois bugs restritivos do mundo real dos lotes 1–2 (handoffs 82–84) corrigidos.
+  (1) `parseTask` (`tasks.js`): bullets de escopo agora tomam como path o PRIMEIRO bloco
+  entre crases (`- \`path\` (NOVO)` → `path`; anotações antes/depois ignoradas;
+  `- \`a\` e \`b\`` fica `a`) com fallback legado intacto (sem crases ou crase solta:
+  strip de pontas) — compatibilidade com tasks antigas varrida pela suíte e pelo
+  `harness check` da raiz (tasks reais parseiam igual). (2) Validação de escopo tolera
+  merges intercalados de worktrees paralelas: no `finishTask` (`pipeline.js`) o
+  out-of-scope do range `startHead..HEAD` ignora arquivos cujo ÚLTIMO commit que os
+  tocou é o squash de OUTRA task — novo export `commitTaskId` (extrai id de
+  `feat(task-<n>)`/`fix!(task-<n>)`/`feat(task-<n>)!: ...`, qualquer conventional type)
+  + `filesAttributedToOtherTasks` (um `git log --name-only --no-renames` no range,
+  atribuição pelo primeiro bloco que contém o arquivo, pois o log sai mais novo
+  primeiro). No `finishWorktree` (`worktree.js`) a checagem passou a rodar APÓS o
+  rebase: `base..HEAD` pós-rebase é exatamente o delta que o squash merge aplica — o
+  drift de merges intercalados de outras worktrees deixa de contaminar o diff
+  pré-rebase (era o "fora do escopo na worktree" falso da task 86). Bloqueio real
+  preservado (teste negativo): arquivo fora do escopo declarado (sujo) e arquivo de
+  outra task tocado na raiz (sujo) continuam reprovando com as mesmas mensagens —
+  `fora do escopo declarado` / `fora do escopo na worktree`. O mecanismo
+  `## Baseline (git)` segue valendo por cima (nada removido). Suíte 204/204
+  (198 baseline + 6 novos em `tests/pipeline-cross.test.js`): parseTask anotado/legado,
+  unit `commitTaskId`, unit de atribuição (último toque decide, fail-closed), finish
+  com 2 squash intercalados (`fix(task-03)` também), dirty fora do escopo bloqueado e
+  worktree end-to-end (2 worktrees do mesmo base, A mergeia, B fecha sem Baseline e
+  sem reprovar arquivos da A). `harness check` ok (worktree e raiz com o código novo).
+  Zero deps: nada toca package.json/lockfile.
+- Pendências: merges manuais do usuário com subject fora do padrão `type(scope):`
+  continuam precisando de `## Baseline (git)` (documentado no teste, comportamento
+  mantido). A task 86 roda em paralelo: se ela terminar após este merge, o finish
+  dela pela raiz (código atualizado) já coleta a atribuição "feat(task-90)" por si;
+  se terminar antes, seu range está limpo — nenhum deadlock.
+- Decisões: (1) atribuição por commit foi a alternativa escolhida (prescrita como
+  opção primária na task) — a alternativa "head por task no evento worktree_started/db"
+  não cobria o lado da worktree (o diff `base..HEAD` pré-rebase continua contaminado
+  pelo drift) e persistiria estado de git no banco; (2) no lado da worktree, a
+  correção moveu a checagem para pós-rebase em vez de criar range de merge-base —
+  simples e hole-free: sob lock, `base..HEAD` pós-rebase é só o delta próprio e
+  valida exatamente o payload do squash (o conteúdo do bloqueio é o mesmo, só a
+  posição dele na sequência muda); (3) arquivos sujos (working tree da raiz) não
+  são atribuíveis a outras tasks — o estado sujo é o delta da task em validação
+  (rematado por teste negativo); (4) fail-closed em toda a atribuição: git
+  erro/range vazio/ou ownId ausente → nada é liberado de graça.

@@ -174,8 +174,19 @@ function finishWorktreeUnlocked(root, arg, opts = {}) {
 
   const base = entry.base
 
-  // Valida o escopo da worktree ANTES de rebase/merge (commit local não pode
-  // esconder arquivos fora do ## Escopo).
+  try {
+    git(wt, ['rebase', base])
+  } catch (err) {
+    throw new Error(
+      `rebase em ${base} falhou — resolva na worktree ${entry.path} e rode de novo.\n${String(err.stderr ?? '').trim()}`
+    )
+  }
+
+  // Valida o escopo APÓS o rebase: `base..HEAD` passa a ser exatamente o delta
+  // desta task — o que o squash merge vai aplicar na base. Antes do rebase,
+  // `base` é a BRANCH e acumula os merges intercalados de worktrees paralelas
+  // (drift de outras tasks entra no diff e reprova arquivos por engano).
+  // O commit local não esconde nada: ele já faz parte do delta validado.
   const activePath = path.join(activeDir(root), entry.task)
   let taskMeta = null
   try {
@@ -196,14 +207,6 @@ function finishWorktreeUnlocked(root, arg, opts = {}) {
           `a worktree ${entry.path} foi preservada para inspeção.`
       )
     }
-  }
-
-  try {
-    git(wt, ['rebase', base])
-  } catch (err) {
-    throw new Error(
-      `rebase em ${base} falhou — resolva na worktree ${entry.path} e rode de novo.\n${String(err.stderr ?? '').trim()}`
-    )
   }
 
   if (!opts.skipGates) {

@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { execFileSync } from 'node:child_process'
 import { queueDir, activeDir, doneDir, listTasks, parseTask, findConflicts, moveTask, resolveTaskName, pipelineRoot, norm } from './tasks.js'
 import { captureBaseline, isGitRepo, modifiedFiles, diffNames, outOfScopeFromFiles, headSha } from './git.js'
 import { tryOpenDb, upsertTask, logEvent, taskFromMarkdown, recordInteraction } from './db.js'
@@ -115,6 +116,72 @@ export function finishTask(root, arg, opts = {}) {
   return withLock(root, () => finishTaskUnlocked(root, arg, opts))
 }
 
+// Id numérico do arquivo de task (`90-backend-...md` → '90'); null quando não tem.
+const taskIdFromName = (name) => String(name).match(/^(\d+)-/)?.[1] ?? null
+
+/**
+ * Extrai o id de um commit de task pelo subject convencional:
+ * `feat(task-82): ...`, `fix!(task-1): ...`, `feat(task-1)!: ...`.
+ * Retorna o id ou null quando o commit não é atribuído a uma task.
+ */
+export function commitTaskId(subject) {
+  const m = String(subject ?? '').trim().match(/^[a-zA-Z]+(?:!)?\(([^)]*)\)(?:!)?/)
+  if (!m) return null
+  return m[1].match(/^task-(\d+)$/)?.[1] ?? null
+}
+
+/**
+ * Atribuição por commit para merges intercalados de worktrees paralelas: um
+ * arquivo do range `from..to` é "de outra task" quando o ÚLTIMO commit que o
+ * tocou no range é o squash de outra worktree (`feat(task-<id>)/fix(task-<id>)/...`,
+ * qualquer tipo) com id ≠ `ownId`. Arquivos sem essa atribuição não são liberados
+ * — inclusive os sujos (não commitados), que seguem contando para esta task.
+ * Alternativa avaliada (head por task no evento worktree_started/db) descartada:
+ * não fecha o diff pré-rebase da worktree e persiste estado de git no banco.
+ * Fail-closed: erro de git ou range vazio → set vazio (nada liberado de graça).
+ */
+export function filesAttributedToOtherTasks(root, from, to, ownId = null) {
+  const others = new Set()
+  if (!from || !to || !ownId) return others
+  let out
+  try {
+    out = execFileSync(
+      'git',
+      [
+        '-c',
+        'core.quotePath=false',
+        'log',
+        '--name-only',
+        '--no-renames',
+        '--format=%H\t%s',
+        `${from}..${to}`
+      ],
+      { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }
+    )
+  } catch {
+    return others
+  }
+  // Log sai mais novo primeiro: o PRIMEIRO bloco que contém o arquivo é o último
+  // commit que o tocou — decide a atribuição. Bloco = cabeçalho `<sha>\t<subject>`
+  // seguido dos arquivos que o commit alterou.
+  const attributed = new Map()
+  let commitId = null
+  for (const raw of out.split('\n')) {
+    const line = raw.replace(/\r$/, '')
+    const tab = line.indexOf('\t')
+    if (!line.trim()) continue
+    if (tab === 40 && /^[0-9a-f]{40}$/.test(line.slice(0, 40))) {
+      commitId = commitTaskId(line.slice(41))
+      continue
+    }
+    const file = norm(line.trim())
+    if (!file || commitId === null) continue
+    if (!attributed.has(file)) attributed.set(file, commitId)
+  }
+  if (ownId !== null) for (const [file, id] of attributed) if (id !== ownId) others.add(file)
+  return others
+}
+
 function finishTaskUnlocked(root, arg, opts = {}) {
   const aDir = activeDir(root)
   const dDir = doneDir(root)
@@ -157,10 +224,21 @@ function finishTaskUnlocked(root, arg, opts = {}) {
       '.worktrees/',
       '.tmp/'
     ]
-    const changed = [
-      ...new Set([...modifiedFiles(root), ...(startHead ? diffNames(root, startHead, 'HEAD') : [])])
-    ]
-    const out = outOfScopeFromFiles(changed, baseline, allowedScopes)
+    const dirty = modifiedFiles(root)
+    const rangeFiles = startHead ? diffNames(root, startHead, 'HEAD') : []
+    // Worktrees paralelas mergeiam intercalado: arquivos que entraram no range
+    // (startHead → HEAD) via squash de OUTRA task são atribuídos a ela e não
+    // reprovam no escopo desta. O mecanismo `## Baseline (git)` segue valendo.
+    // Sujos (working tree) sempre contam: o estado sujo é delta desta validação.
+    const otherFiles = startHead
+      ? filesAttributedToOtherTasks(root, startHead, 'HEAD', taskIdFromName(name))
+      : new Set()
+    const changed = [...new Set([...dirty, ...rangeFiles])]
+    const out = outOfScopeFromFiles(
+      changed.filter((f) => !(otherFiles.has(f) && !dirty.includes(f))),
+      baseline,
+      allowedScopes
+    )
     if (out.length > 0) {
       const db = tryOpenDb(root)
       if (db) {

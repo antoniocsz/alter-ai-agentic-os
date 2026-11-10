@@ -62,6 +62,10 @@ export function parseTask(filePath) {
       const bullet = line.trim().match(/^[-*]\s+(.*)$/)
       if (!bullet) continue
       let p = bullet[1].replace(/^\[[ x]\]\s*/, '').trim()
+      // Path anotado: o bullet é o PRIMEIRO bloco entre crases (`path` (NOVO) → path);
+      // anotações depois do path são ignoradas. Sem crases (ou crase solta), mantém
+      // o bloco inteiro do bullet — compatível com tasks antigas.
+      p = p.match(/`([^`]+)`/)?.[1] ?? p
       p = p.replace(/^`|`$/g, '')
       p = p.replace(/['"]/g, '')
       if (p) scope.push(norm(p))
