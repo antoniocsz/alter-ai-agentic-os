@@ -6,7 +6,7 @@
 ## Escopo (arquivos que esta task vai tocar):
 - `scripts/harness/src/kanban.js` (vista `/canvas`: página, CSS, JS de refresh)
 - `scripts/harness/tests/kanban.test.js` (testes da vista)
-## Depende de: [ ] 84-backend-canvas-dados.md (mesmo arquivo — sequência obrigatória)
+## Depende de: 84-backend-canvas-dados.md
 ## Contexto para ler: context/modules/harness/context.md · context/features/agent-canvas/spec.md · scripts/harness/src/kanban.js (renderPage/serveBoard) · context/modules/harness/status.md (handoff da 84)
 ## Skills a carregar: codegen.md
 ## O que já existe (pós-84):

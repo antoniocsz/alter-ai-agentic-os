@@ -6,7 +6,7 @@
 - `context/modules/harness/status.md` (fecho do ciclo)
 - `scripts/harness/package.json` (bump `harness version --bump minor` → 0.4.0)
 - `CHANGELOG.md` (gerado via `node scripts/harness/bin/harness.js changelog`)
-## Depende de: [ ] 82 · 83 · 84 · 85 · 86 · 87 · 88 (todas concluídas)
+## Depende de: 82-backend-rotinas-core.md, 83-backend-browser-adapter.md, 84-backend-canvas-dados.md, 85-backend-canvas-ui.md, 86-backend-serve-webhook.md, 87-backend-sandbox-por-tool.md, 88-backend-rotinas-ui.md
 ## Contexto para ler: README.md · context/modules/harness/status.md · context/features/*/spec.md · CHANGELOG.md
 ## Skills a carregar: codegen.md
 ## O que já existe (pós-lote):

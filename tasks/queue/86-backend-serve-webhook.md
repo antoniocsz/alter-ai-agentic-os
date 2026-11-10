@@ -9,7 +9,7 @@
 - `scripts/harness/src/kanban.js` (rota `POST /webhook/routines/:id` + payload `/api/routines`)
 - `scripts/harness/src/commands/index.js` (registro do comando `serve`)
 - `scripts/harness/tests/serve.test.js` (NOVO)
-## Depende de: [ ] 82-backend-rotinas-core.md · [ ] 85-backend-canvas-ui.md (kanban.js sequencial)
+## Depende de: 82-backend-rotinas-core.md, 85-backend-canvas-ui.md
 ## Contexto para ler: context/modules/harness/context.md · context/features/rotinas/spec.md · scripts/harness/src/routines.js · scripts/harness/src/kanban.js (serveBoard) · context/modules/harness/status.md (handoffs 82/84/85)
 ## Skills a carregar: codegen.md
 ## O que já existe (pós-82 e 85):

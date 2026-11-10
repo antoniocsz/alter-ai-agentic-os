@@ -7,7 +7,7 @@
 - `scripts/harness/src/routines.js` (NOVO)
 - `scripts/harness/src/task.js` (apenas extrair/preservar criação de task para reuso)
 - `scripts/harness/tests/routines.test.js` (NOVO)
-## Depende de: [ ] — (nenhuma)
+## Depende de: —
 ## Contexto para ler: context/modules/harness/context.md · context/features/rotinas/spec.md · scripts/harness/src/task.js
 ## Skills a carregar: codegen.md
 ## O que já existe:

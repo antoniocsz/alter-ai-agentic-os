@@ -7,7 +7,7 @@
 - `scripts/harness/src/lib/canvas.js` (NOVO)
 - `scripts/harness/src/kanban.js` (apenas rota `GET /api/canvas`; a vista de UI é a task 85)
 - `scripts/harness/tests/canvas.test.js` (NOVO)
-## Depende de: [ ] — (nenhuma)
+## Depende de: —
 ## Contexto para ler: context/modules/harness/context.md · context/features/agent-canvas/spec.md · scripts/harness/src/kanban.js · scripts/harness/src/lib/db.js
 ## Skills a carregar: codegen.md
 ## O que já existe:

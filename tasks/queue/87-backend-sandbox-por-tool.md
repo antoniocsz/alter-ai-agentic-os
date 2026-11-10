@@ -11,7 +11,7 @@
 - `adapters/codex/` (seção sandbox documentada)
 - `.agents/sandbox.md` (NOVO)
 - `scripts/harness/tests/adapter-sandbox.test.js` (NOVO)
-## Depende de: [ ] 83-backend-browser-adapter.md (mesmo comando `adapter.js` — sequência obrigatória)
+## Depende de: 83-backend-browser-adapter.md
 ## Contexto para ler: context/modules/harness/context.md · context/features/sandbox-por-tool/spec.md · scripts/harness/src/lib/adapters.js · adapters/claude/ (settings atual)
 ## Skills a carregar: codegen.md
 ## O que já existe:

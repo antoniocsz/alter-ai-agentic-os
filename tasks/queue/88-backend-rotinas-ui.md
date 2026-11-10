@@ -6,7 +6,7 @@
 ## Escopo (arquivos que esta task vai tocar):
 - `scripts/harness/src/kanban.js` (painel de rotinas no board)
 - `scripts/harness/tests/kanban.test.js` (testes do painel)
-## Depende de: [ ] 86-backend-serve-webhook.md (payload e rota; kanban.js sequencial)
+## Depende de: 86-backend-serve-webhook.md
 ## Contexto para ler: context/modules/harness/context.md · context/features/rotinas/spec.md (AC-7) · scripts/harness/src/kanban.js · scripts/harness/src/serve.js · context/modules/harness/status.md (handoff da 86)
 ## Skills a carregar: codegen.md
 ## O que já existe (pós-86):

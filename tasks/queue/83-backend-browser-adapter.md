@@ -11,7 +11,7 @@
 - `adapters/browser/` (NOVO diretório, paridade com claude/codex/opencode)
 - `.agents/browser.md` (NOVO)
 - `scripts/harness/tests/adapter-browser.test.js` (NOVO)
-## Depende de: [ ] — (nenhuma)
+## Depende de: —
 ## Contexto para ler: context/modules/harness/context.md · context/features/browser-adapter/spec.md · scripts/harness/src/adapter.js · scripts/harness/src/lib/adapters.js
 ## Skills a carregar: codegen.md
 ## O que já existe:
