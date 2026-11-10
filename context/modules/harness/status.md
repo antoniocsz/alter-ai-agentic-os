@@ -146,3 +146,25 @@
   para raiz; `changed_files: 'n/d'` é string por convenção da task e os demais campos
   desconhecidos ficam `null` (a UI formata); sem atividade alguma → `stale: false` (sem
   dados, sem julgamento); `STALE_MS` exportado para os testes usarem o limiar real.
+
+## Handoff (task 85 — canvas: vista "Execução" com cartões ao vivo)
+- Feito: `kanban.js` — novo export `renderCanvasPage(title)` (página server-side da vista
+  `/canvas`: grid de cartões, um por task ativa, com tema/CSS idêntico ao board; cartão
+  exibe id/título, agente, worktree/branch ou "raiz", tempo de execução (`fmtDur`),
+  arquivos alterados (`'n/d'` quando indisponível), último evento + relativo, última nota
+  com prefixo "o agente reporta:", badge + fundo amarelo quando `stale`; estado vazio
+  "Nada em execução agora"; auto-refresh `setInterval(loadCanvas, 3000)` — AC-1/2/3/4).
+  Rota nova `GET /canvas` (mesma instância do `serveBoard`, página pré-renderizada);
+  `serveBoard` injeta o link "▶ vista Execução" no header do board via string-replace
+  (navegação board ⇄ Execução). Clique no cartão abre o modal de histórico reutilizando o
+  endpoint `GET /api/tasks/:id/detail` (AC-5); v1 read-only — nenhum endpoint de write novo.
+  Testes: +4 em `tests/kanban.test.js` (página+dados, navegação vice-versa, moves em tempo
+  real via pipeline do board, read-only POST → 404). Suíte 185/185; `harness check` ok.
+- Pendências: estético/evolutivo — vista Execução no kanban estático (`--out`), marcações
+  do canvas em `--host` multi-interface, animação do poll. Nada bloqueante.
+- Decisões: a página do canvas vive em `kanban.js` (template externo não seria permitido
+  fora do escopo) — o template `board.html` ficou INTACTO e o link no board é injetado no
+  modo serve por replace de `<span class="spacer"></span>` (degradação silenciosa se o
+  markup mudar); modal reusa os endpoints existentes em vez de duplicar dados no payload
+  do `/api/canvas`; badge de staleness calculado no servidor (84) e apenas refletido na UI;
+  stale-first na ordenação dos cartões para chamar atenção sem js de filtro extra.

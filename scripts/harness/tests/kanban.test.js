@@ -272,3 +272,127 @@ test('servidor kanban: rejeita id malformado/traversal e protege o move (CSRF/co
     }
   })
 })
+
+test('servidor kanban: vista Execução /canvas serve a página alimentada por /api/canvas (AC-1)', async () => {
+  await withSilentStdout(async () => {
+    const a = await makeProject('canvas-vista')
+    write(a, 'tasks/active/01-foo.md', TASK)
+    syncProject(a)
+
+    const server = serveBoard({ projects: [{ name: 'A', root: a }], title: 't' }, 0)
+    await once(server, 'listening')
+    const base = `http://localhost:${server.address().port}`
+
+    try {
+      const page = await fetch(`${base}/canvas`)
+      assert.equal(page.status, 200)
+      const html = await page.text()
+      assert.ok(html.includes('id="canvas-grid"')) // grid principal
+      assert.ok(html.includes('/api/canvas')) // dados da vista
+      assert.ok(html.includes('Nada em execução agora')) // estado vazio declarado
+      assert.ok(html.includes('stale')) // classe/badge de staleness
+      assert.ok(html.includes('/detail')) // modal de histórico chamado
+      assert.ok(html.includes('setInterval(loadCanvas, 3000)')) // auto-refresh 3s
+
+      // a mesma instância serve os dados que alimentam a vista
+      const data = await (await fetch(`${base}/api/canvas`)).json()
+      assert.equal(data.ok, true)
+      assert.equal(data.canvas.length, 1)
+      assert.equal(data.canvas[0].id, '01-foo.md')
+      assert.equal(data.canvas[0].worktree, 'raiz')
+      assert.equal(data.canvas[0].stale, false)
+    } finally {
+      server.close()
+    }
+  })
+})
+
+test('servidor kanban: link de navegação board ⇄ Execução (vice-versa, modo serve)', async () => {
+  await withSilentStdout(async () => {
+    const a = await makeProject('canvas-nav')
+    const server = serveBoard({ projects: [{ name: 'A', root: a }], title: 't' }, 0)
+    await once(server, 'listening')
+    const base = `http://localhost:${server.address().port}`
+
+    try {
+      // board visa a vista Execução (link injetado no modo serve)
+      const boardHtml = await (await fetch(`${base}/`)).text()
+      assert.ok(boardHtml.includes('href="/canvas"'))
+
+      // a vista Execução visa o board
+      const canvasHtml = await (await fetch(`${base}/canvas`)).text()
+      assert.ok(canvasHtml.includes('href="/"'))
+      assert.ok(canvasHtml.includes('← Board'))
+    } finally {
+      server.close()
+    }
+  })
+})
+
+test('servidor kanban: vista Execução reflete moves em tempo real (pipeline do board intacto — AC-7)', async () => {
+  await withSilentStdout(async () => {
+    const a = await makeProject('canvas-live')
+    write(a, 'tasks/queue/01-foo.md', TASK)
+    syncProject(a)
+
+    const server = serveBoard({ projects: [{ name: 'A', root: a }], title: 't' }, 0)
+    await once(server, 'listening')
+    const base = `http://localhost:${server.address().port}`
+
+    try {
+      // task na queue não aparece no canvas
+      const before = await (await fetch(`${base}/api/canvas`)).json()
+      assert.deepEqual(before.canvas, [])
+
+      // move pela API existente do board é a mesma mecânica de drag&drop
+      const moved = await fetch(`${base}/api/tasks/${encodeURIComponent('01-foo.md')}/move`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ to: 'active', project: 'A' })
+      })
+      assert.equal(moved.status, 200, await moved.text())
+
+      // canvas recarregado mostra a task ao vivo com tempo de execução
+      const after = await (await fetch(`${base}/api/canvas`)).json()
+      assert.equal(after.canvas.length, 1)
+      assert.equal(after.canvas[0].id, '01-foo.md')
+      assert.equal(typeof after.canvas[0].running_ms, 'number')
+      assert.ok(after.canvas[0].running_ms >= 0)
+    } finally {
+      server.close()
+    }
+  })
+})
+
+test('servidor kanban: vista Execução é read-only (v1) — POST nos endpoints da vista → 404', async () => {
+  await withSilentStdout(async () => {
+    const a = await makeProject('canvas-ro')
+    write(a, 'tasks/active/01-foo.md', TASK)
+    syncProject(a)
+
+    const server = serveBoard({ projects: [{ name: 'A', root: a }], title: 't' }, 0)
+    await once(server, 'listening')
+    const base = `http://localhost:${server.address().port}`
+
+    try {
+      const postPage = await fetch(`${base}/canvas`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ op: 'kill' })
+      })
+      assert.equal(postPage.status, 404)
+
+      const postApi = await fetch(`${base}/api/canvas`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ op: 'restart' })
+      })
+      assert.equal(postApi.status, 404)
+
+      // rota GET da vista permanece 200 (nenhuma ação mudou o board)
+      assert.equal((await fetch(`${base}/canvas`)).status, 200)
+    } finally {
+      server.close()
+    }
+  })
+})
