@@ -10,13 +10,18 @@ Camada de operação que padroniza como agentes de IA trabalham em um projeto de
 - [CLI do AlterAI - Agentic OS](#cli-do-alterai---agentic-os)
 - [Começando um projeto](#começando-um-projeto)
 - [Usar em múltiplos projetos](#usar-em-múltiplos-projetos)
+- [Update sincroniza adapters](#update-sincroniza-adapters)
 - [Bootstrap de projeto novo](#bootstrap-de-projeto-novo)
 - [Pipeline de tarefas (queue → active → done)](#pipeline-de-tarefas-queue--active--done)
 - [Execução em paralelo (subagents)](#execução-em-paralelo-subagents)
 - [Adaptadores de tool](#adaptadores-de-tool)
+- [Adaptador browser](#adaptador-browser)
+- [Sandbox por tool](#sandbox-por-tool)
 - [Agentes (subagents opencode)](#agentes-subagents-opencode)
 - [Memória local (sessões, recall, status)](#memória-local-sessões-recall-status)
 - [Painel kanban](#painel-kanban)
+- [Execução ao vivo (canvas)](#execução-ao-vivo-canvas)
+- [Rotinas e `harness serve`](#rotinas-e-harness-serve)
 - [Worktree por task](#worktree-por-task)
 - [Perfis e `harness.json`](#perfis-e-harnessjson)
 - [Workspaces (múltiplos projetos, operação unificada)](#workspaces-múltiplos-projetos-operação-unificada)
@@ -57,7 +62,7 @@ O kit instala wrappers em `harness/bin/` (`harness` para bash, `harness.cmd` par
 `harness/bin` já está no PATH do usuário e no `~/.bashrc`. Em um terminal novo:
 
 ```bash
-harness version          # 0.3.4
+harness version          # 0.4.0
 harness status           # de qualquer projeto
 harness workspace list   # da raiz do workspace
 ```
@@ -109,7 +114,7 @@ Conclusão
 AGENTS.md            — arquivo base: protocolo, regras inegociáveis, guard rails, índices
 .agents/             — referências modulares (carregar sob demanda por especialidade)
 scripts/harness/     — CLI do harness (init, module, start, finish, check)
-adapters/            — camada por tool (opencode | claude | codex)
+adapters/            — camada por tool (opencode | claude | codex | browser)
 core/                — papéis neutros (coordinator, executor, reviewer)
 context/
 ├── project/         — visão do projeto (overview, stack, glossary, runbook, ADRs)
@@ -153,6 +158,7 @@ tasks/
 | `harness history <task>` | Mostra eventos + interações de uma task (memorização) |
 | `harness report` | Métricas do banco (WIP, cycle time, aging, throughput). Flags: `--format`, `--module`, `--days` |
 | `harness kanban` | Painel kanban: `--serve [porta]` (drag&drop) ou `--out <arquivo>` (estático) |
+| `harness serve [--port n] [--host h]` | Kanban + agendador de rotinas + webhook num único processo (ver "Rotinas e `harness serve`") |
 | `harness check [flags]` | Valida o protocolo (pipeline, escopos, seções, módulos). Flags: `--json`, `--barrel`, `--lint`, `--typecheck`, `--db` |
 | `harness version [--bump patch\|minor\|major]` | Mostra ou incrementa a versão do harness (registra a mudança no banco) |
 | `harness changelog [--out <arquivo>]` | Gera `CHANGELOG.md` a partir dos handoffs (`harness finish --handoff`) |
@@ -193,7 +199,7 @@ Cada projeto gerado é um monorepo próprio (pnpm/Turbo) que guarda a identidade
 
 1. **A fonte não é um projeto.** Mexe-se nela apenas para evoluir o harness e commitar; todo trabalho real acontece dentro de cada projeto.
 2. **A identidade do projeto vive em `context/project/`.** É ali que se lê "qual é esse projeto?"; a camada do harness é idêntica em todos.
-3. **Customizações de projeto ficam em `context/`, não na camada.** `harness update` sobrescreve `AGENTS.md`/`.agents/`/`.opencode/`/`scripts/` (com backup do AGENTS.md em `.harness/backups/`).
+3. **Customizações de projeto ficam em `context/`, não na camada.** `harness update` sobrescreve `AGENTS.md`/`.agents/`/`.opencode/`/`adapters/`/`scripts/` (com backup do AGENTS.md em `.harness/backups/`).
 4. **Para divergir de verdade**, o projeto deixa de rodar `update` e evolui a própria camada — ou você mantém uma fonte por família de projeto (ex: `D:\projetos\harness-web`, `D:\projetos\harness-mobile`).
 
 **Criar um projeto novo (a partir da fonte):**
@@ -210,7 +216,26 @@ export HARNESS_SOURCE=/d/projetos/harness                  # memorizar a fonte (
 pnpm harness update                                        # daí em diante
 ```
 
-O `update` traz CLI/agents/AGENTS.md novos com backup automático e registra a versão da fonte.
+O `update` traz CLI/agents/AGENTS.md/adapters novos com backup automático, registra
+a versão da fonte e re-instala os adapters que o projeto já tiver — ver
+[Update sincroniza adapters](#update-sincroniza-adapters).
+
+## Update sincroniza adapters
+
+O `harness update --source <fonte>` copia a camada do harness (`AGENTS.md`, `.agents/`,
+`.opencode/`, `adapters/`, `scripts/`) e **re-instala os adapters que o projeto já tem**,
+usando o marcador `.harness/adapters.json` (gitignored, junto do banco):
+
+- Cada `harness adapter <tool>` grava a instalação no marcador (`{ "tools": [...], "sandbox":
+  "minimal|strict|null", "browser": { "target", "package" }? }`, merge idempotente) — perfil
+  de sandbox e, para browser, tool-alvo + pacote são preservados.
+- No `update`, cada tool do marcador volta a ser instalada com os templates **frescos da
+  fonte** (não da cópia possivelmente antiga do projeto) e o sandbox salvo é respeitado;
+  saída inclui a linha `adapters ressincronizados: ...`.
+- Sem marcador (projeto que nunca rodou `adapter <tool>`): nenhum sync — comportamento anterior.
+- Fonte sem `adapters/` ou marcador ilegível: aviso (`⚠️ aviso:`) e skip — não erro.
+- Detalhe honesto: `init --tools` **não** grava o marcador (só `adapter <tool>` grava) —
+  rode `harness adapter <tool>` uma vez no projeto para entrar no sync do update.
 
 ## Workspaces (múltiplos projetos, operação unificada)
 
@@ -341,7 +366,6 @@ Fluxo com subagents:
 3. `harness worktree start <task>` por task ativa; spawnar um subagent apontando para a worktree.
 4. Cada subagent executa o protocolo obrigatório e termina com `harness worktree finish <task>` — que valida escopo, roda gates e mergeia.
 5. Ao final, `harness check` valida o conjunto e o coordenador revisa as tasks em `done/`.
-5. Ao final, `harness check` valida o conjunto e o coordenador revisa as tasks em `done/`.
 
 Exemplo de prompt de orquestração:
 
@@ -362,12 +386,17 @@ harness adapter list
 harness adapter opencode     # .opencode/{agent,skill,command}
 harness adapter claude       # CLAUDE.md (@AGENTS.md) + .claude/{agents,skills,commands,settings.json}
 harness adapter codex        # .codex/prompts (copie para ~/.codex/prompts)
+harness adapter browser claude   # server MCP "browser" (Playwright via npx) no .mcp.json
 ```
 
-- `init --tools opencode,claude` já instala os adaptadores escolhidos (default: `opencode`).
+- `init --tools opencode,claude,browser` já instala os adaptadores escolhidos (default: `opencode`).
 - `AGENTS.md` é canônico; `CLAUDE.md` importa (`@AGENTS.md`); Codex lê `AGENTS.md` nativamente.
-- Sandbox: Claude recebe `settings.json` negando `git reset/checkout/restore/push`, `rm -rf`, `sudo`;
-  no OpenCode o `reviewer` mantém `edit: deny`. O CLI continua gatekeeper invariante em qualquer tool.
+- Sandbox: perfis declarados (`minimal` default, `strict`) aplicados na instalação com
+  `--sandbox minimal|strict` — ver [Sandbox por tool](#sandbox-por-tool). O CLI continua
+  gatekeeper invariante em qualquer tool.
+- Browser: MCP do Playwright injetado por tool — ver [Adaptador browser](#adaptador-browser).
+- Adapters instalados ressincronizam no `harness update` via marcador
+  `.harness/adapters.json` — ver [Update sincroniza adapters](#update-sincroniza-adapters).
 - Trocar de tool no meio não perde nada: a sessão seguinte roda `harness status` e retoma.
 
 ### Matriz de capacidades por tool
@@ -378,12 +407,76 @@ harness adapter codex        # .codex/prompts (copie para ~/.codex/prompts)
 | Subagents | `.opencode/agent/*.md` | `.claude/agents/*.md` | — (sem subagents nativos) |
 | Skills | `.opencode/skill/<n>/SKILL.md` | `.claude/skills/<n>/SKILL.md` | — (prompts) |
 | Comandos | `.opencode/command/*.md` | `.claude/commands/*.md` | `~/.codex/prompts/*.md` |
-| Permissões | `permission:` no frontmatter | `settings.json` (allow/deny) | sandbox/config do Codex |
-| MCP | `opencode.json` | `.mcp.json` | `config.toml` |
+| Permissões/sandbox | `permission.bash` por glob nos agents (perfis minimal/strict) | `allow`/`deny` em `.claude/settings.json` (perfis minimal/strict) | instrução no `.codex/README.md` (a tool não reforça deny) |
+| MCP | `opencode.json` (`mcp.browser` via adapter) | `.mcp.json` (`mcpServers.browser`) | `~/.codex/config.toml` (instrução em prompts) |
 | Memória | CLI `harness` | CLI `harness` | CLI `harness` |
 
-O que se perde no Codex: subagents e skills nativas. A orquestração fica sequencial via
-`AGENTS.md` + CLI. Pipeline, gates, worktrees e memória são idênticos nas três tools.
+O que se perde no Codex: subagents e skills nativas, e o reforço real de deny (sandbox fica
+como instrução vinculante). A orquestração fica sequencial via `AGENTS.md` + CLI. Pipeline,
+gates, worktrees e memória são idênticos nas três tools.
+
+## Adaptador browser
+
+Agentes que precisam de navegador (validar UI gerada, screenshots, inspecionar página) usam o
+**Playwright MCP** configurado pelo harness — zero dependências: o server resolve via `npx`
+na 1ª execução do agente (nada é instalado pelo harness; o pacote baixa no cache do npx).
+
+```bash
+harness adapter browser claude                    # .mcp.json da raiz → mcpServers.browser
+harness adapter browser opencode                  # opencode.json → mcp.browser
+harness adapter browser codex                     # instrução de MCP em .codex/prompts/browser.md
+harness adapter browser claude --browser-package <pkg>   # troca o pacote (default @playwright/mcp@latest)
+harness adapter browser                           # sem <tool>: ajuda de uso
+```
+
+Matriz por tool (fonte: `.agents/browser.md`, entregue por `init`/`update`):
+
+| tool | onde a config vive | limite |
+|---|---|---|
+| opencode | `opencode.json` → `mcp.browser` | resto do arquivo preservado |
+| claude | `.mcp.json` → `mcpServers.browser` | resto do arquivo preservado |
+| codex | `.codex/prompts/browser.md` (instrução) | server é manual no `~/.codex/config.toml` |
+
+- **Idempotente**: server "browser" já presente no arquivo-alvo → no-op com mensagem (exit 0).
+- **Fail-safe**: arquivo não-JSON-estrito (comentário/JSONC) ou estrutura inesperada → NADA
+  é escrito: o bloco a fundir manualmente é impresso e o comando falha (exit ≠ 0).
+- `harness adapter list` mostra a camada `browser` entre as disponíveis; `init --tools
+  opencode,claude,browser` já entrega a config no scaffold de projeto novo.
+- Guard rails de uso: navegação restrita às superfícies da task, screenshots em `.tmp/`
+  (gitignored, apagados ao terminar), zero mudança estrutural — detalhes em `.agents/browser.md`.
+
+## Sandbox por tool
+
+A camada de sandbox é um conjunto de **perfis de permissões declarados** entregue aos adapters
+(deny **por prefixo de comando**; não é isolamento de SO). O perfil é escolhido na instalação:
+
+```bash
+harness adapter claude --sandbox strict    # default: minimal
+harness adapter list                       # mostra o perfil aplicado e onde ele aterrissa
+```
+
+| Perfil | Bloqueado (deny por prefixo) |
+|---|---|
+| `minimal` (default) | `git reset*`, `git checkout*`, `git restore*`, `git clean*`, `git push*`, `rm -rf*`, `sudo *` |
+| `strict` | idem + `pnpm install*`, `npm install*`, `expo install*`, `curl *`, `wget *` |
+
+Sempre **permitido** (todos os perfis — o pipeline não pode se bloquear): `pnpm harness …` e
+`node scripts/harness/…` (allow explícito, coberto por teste).
+
+O que cada tool realmente reforça — matriz honesta (fonte: `.agents/sandbox.md`):
+
+| tool | onde o perfil aterrissa | o que a tool reforça | limite honesto |
+|---|---|---|---|
+| opencode | `permission.bash` por glob nos agents gerados (reviewer mantém `edit: deny`) | deny por glob no agente | só a execução do agente declarado |
+| claude | `allow`/`deny` em `.claude/settings.json` (`Bash(cmd:*)`) | deny de prefixo na sessão | usuário pode reordenar/permitir à mão |
+| codex | seção "Sandbox do harness" em `.codex/README.md` | **nada** — sem engine de deny nativa | instrução vinculante ao modelo |
+| browser | n/a — camada MCP de navegador | — | — |
+
+- Mudar o deny de um perfil (adicionar/remover prefixo) é mudança estrutural — exige ADR.
+- `adapters/` é saída descartável: regenerar com `--sandbox` sobrescreve as permissões do
+  projeto (aplicação idêntica via `update`, que re-instala com o perfil salvo no marcador).
+- Comandos neutros (`git status`, `node --test`, `pnpm test`…) seguem permitidos nos dois
+  perfis; comando bloqueado só sai com consentimento humano (guard rails do AGENTS.md).
 
 ## Agentes (subagents opencode)
 
@@ -464,6 +557,111 @@ as sessões e placeholders para lições/ações — a cadência leve de melhori
   `{ "wip": { "active": 3, "queue": 8 } }`. O board mostra badges `count/limite` no header das
   colunas (vermelho quando no limite) e o servidor **bloqueia** o move que estoure o limite
   (toast com o motivo). No kanban agregado, o limite é avaliado por projeto dono do card.
+- **Execução ao vivo:** no modo `--serve`, o header ganha o link "▶ vista Execução"
+  (rota `/canvas`) — ver [Execução ao vivo (canvas)](#execução-ao-vivo-canvas).
+
+## Execução ao vivo (canvas)
+
+Quando o coordenador spawna N subagents em paralelo, o board mostra as tasks — mas não
+**o que está rodando agora**. A vista "Execução" (rota `/canvas` do `kanban --serve`, mesmo
+servidor) mostra um cartão ao vivo por task da coluna `active`:
+
+| Campo do cartão | Origem |
+|---|---|
+| id + título + agente | markdown da task (`## Agente`) |
+| worktree / branch | registro `.harness/worktrees.json` (fallback: "raiz" + branch atual) |
+| tempo em execução | desde o evento `started` |
+| arquivos alterados | `git status --porcelain` na worktree (`n/d` fora de repo/timeout) |
+| último evento | último `task_event` no banco |
+| última nota | última interação `--kind note` ("o agente reporta: …") |
+
+- **Staleness**: task sem atividade nova (evento/interação) há mais de **15 min** ganha badge e fundo
+  amarelo (o cálculo é feito no servidor e os cartões stale vêm primeiro na ordenação).
+- **Modal de histórico**: clique no cartão reabre o detalhamento do board (endpoint
+  `GET /api/tasks/:id/detail`).
+- **Auto-refresh** a cada 3s, alimentado por `GET /api/canvas`
+  (`{ ok, generated_at, canvas[] }` já pré-computado para a UI).
+- Read-only (v1): nenhuma ação de kill/restart — a mudança de estado continua sendo
+  pelo pipeline (`harness start`/`finish`/`worktree finish`). O kanban **estático**
+  (`--out`) ainda não tem a vista.
+- Multi-projeto no workspace: a vista é por projeto (o kanban agregado do workspace é
+  outra superfície).
+
+## Rotinas e `harness serve`
+
+Trabalho repetitivo (retro semanal, triagem por webhook, task de revisão recorrente) dispara
+**sem sessão humana** — mas a rotina nunca executa código por conta própria: ela só cria
+tasks na queue; a execução é o pipeline de sempre, sob consentimento humano.
+
+`harness serve` sobe em um processo zero-deps: (1) o servidor do kanban (board + drag&drop +
+vista Execução), (2) o **agendador** das rotinas e (3) o **receiver de webhook**. Bind em
+`127.0.0.1` (default; `--host` fora do loopback imprime WARNING de exposição), porta padrão
+**4310** (a mesma do kanban — migrar de `kanban --serve` mantém a URL). Ctrl+C encerra com
+graça (timers limpados, servidor fechado, lock do pipeline solto).
+
+```bash
+node scripts/harness/bin/harness.js serve            # kanban + rotinas + webhook
+node scripts/harness/bin/harness.js serve --port 4444 --host 127.0.0.1
+```
+
+- Tick do agendador: **30s**. O `.harness/routines.json` é recarregado a cada tick — editar
+  no ar não pede restart. Rotina com erro de schema é ignorada com aviso (`⚠️ rotinas: …`)
+  e o `serve` continua de pé.
+- **Sem catch-up**: se o serve estava fora do ar no horário, o disparo daquela janela é
+  perdido (as próximas janelas seguem normais) — o webhook cobre execução sob demanda.
+- O painel "⏱ Rotinas" decide presença no boot: criou o routines.json com o processo já
+  no ar → reinicie o serve para o painel aparecer. Se routines.json existe mas o processo
+  é o `kanban --serve` puro, o painel abre em modo **inativo** ("rode harness serve").
+
+**`.harness/routines.json`** (gitignored, junto do banco; editado sempre à mão — nenhum
+endpoint de UI):
+
+```jsonc
+{
+  "routines": [
+    {
+      "id": "retro-semanal",                // a-z0-9 e "-"; é o id do webhook
+      "every": "weekly@seg@09:00",          // <n>m | <n>h | daily@HH:MM | weekly@<seg..dom>@HH:MM
+      "task": {
+        "title": "Retro da semana",         // obrigatório; título normalizado vira o arquivo da task
+        "module": "harness",                // opcional
+        "agent": "backend",                 // opcional (default: backend)
+        "priority": "P2",                   // opcional (P0–P3; default P2)
+        "type": "docs",                     // opcional, conventional (default feat)
+        "scope": ["context/project/retro/"] // opcional, paths repo-relative
+      },
+      "dedupe": true                        // não duplica task com o mesmo título em queue/active
+    }
+  ]
+}
+```
+
+O disparo (agenda ou webhook) cria a task com a mesma lógica do `harness task` e grava
+eventos no banco (`routine_fired` / `routine_skipped` / `routine_error` + interações
+`source: routines`) — visíveis em `harness history` e `harness recall`.
+
+**Disparo por webhook** (e o botão "▶ rodar agora" do painel usa o mesmo caminho, com o
+token confirmado no servidor):
+
+```bash
+TOKEN=$(cat .harness/webhook-token)        # gerado na 1ª execução do serve; nunca impresso em log
+curl -X POST "http://127.0.0.1:4310/webhook/routines/retro-semanal?token=$TOKEN"
+```
+
+| Resposta | Significado |
+|---|---|
+| `200 {"ok":true,"criada":"92-retro-da-semana.md","num":92}` | task criada na queue |
+| `200 {"ok":true,"skip":"dedupe","task":…}` | task com o mesmo título já em queue/active (não duplica) |
+| `401` | token ausente/errado (auditado como `webhook_rejected`) |
+| `404` | id não existe no routines.json |
+
+- O token mora em `.harness/webhook-token` (gitignored), é reusado entre execuções e
+  comparado em tempo constante — o banner do serve nunca o imprime.
+- `GET /api/routines` alimenta o painel: `{ok, routines: [{id, title, every, nextRun,
+  lastRun, fireCount}]}` — `fireCount` conta disparos válidos (criada ou dedupe) e a
+  contagem é reconstruída do banco ao reiniciar o serve.
+- `POST /api/routines/<id>/run` é a rota do painel (mesmo núcleo do webhook: dedupe,
+  auditoria e códigos HTTP idênticos).
 
 ## Perfis e `harness.json`
 
@@ -607,7 +805,9 @@ Carregue o arquivo relevante de `.agents/` antes de iniciar a tarefa:
 | Tarefa de API (use-case, controller, repository) | `.agents/backend.md` |
 | Tarefa de UI (componente, view, viewmodel) | `.agents/frontend.md` |
 | Tarefa mobile (screen, hook mobile, offline) | `.agents/mobile.md` |
+| Navegador em task (MCP Playwright por tool) | `.agents/browser.md` |
 | Permissões, roles, CASL, abilities | `.agents/authorization.md` |
+| Sandbox por tool (perfis minimal/strict) | `.agents/sandbox.md` |
 | Stripe, planos, assinaturas, webhook | `.agents/billing.md` |
 | Schema Prisma, queries, cache, analytics, ML | `.agents/data.md` |
 | Deploy, CI/CD, EasyPanel/Coolify, EAS | `.agents/infra.md` |

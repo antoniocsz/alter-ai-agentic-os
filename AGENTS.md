@@ -187,7 +187,9 @@ Carregue o arquivo relevante de `.agents/` antes de iniciar a tarefa:
 | Tarefa de UI (componente, view, viewmodel) | `.agents/frontend.md` |
 | Design, UI/UX, heurísticas de Nielsen, acessibilidade | `.agents/ui-ux.md` |
 | Tarefa mobile (screen, hook mobile, offline) | `.agents/mobile.md` |
+| Navegador em task (MCP Playwright por tool) | `.agents/browser.md` |
 | Permissões, roles, CASL, abilities | `.agents/authorization.md` |
+| Sandbox por tool (perfis minimal/strict) | `.agents/sandbox.md` |
 | Stripe, planos, assinaturas, webhook | `.agents/billing.md` |
 | Schema do banco, queries, cache, analytics, ML | `.agents/data.md` |
 | Deploy, CI/CD, EasyPanel/Coolify, EAS | `.agents/infra.md` |

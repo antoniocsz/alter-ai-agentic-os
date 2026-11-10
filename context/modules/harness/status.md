@@ -267,6 +267,12 @@
 - [x] `harness update`: pós-cópia da camada re-instala cada tool do marcador com `installAdapter` (kit da fonte + sandbox salvo)
 - [x] Sem marcador → comportamento anterior; fonte sem `adapters/` ou marcador ilegível → aviso claro e skip (não erro)
 
+## Fase 13 — Consolidação de docs do ciclo (task 89)
+- [x] README: 5 seções novas (Execução ao vivo /canvas · Rotinas e `harness serve` · Adaptador browser · Sandbox por tool · Update sincroniza adapters) + índice e matriz de capacidades por tool atualizados
+- [x] `.agents/browser.md` e `.agents/sandbox.md` no índice de referências modulares (AGENTS.md + README) — débito das tasks 83/87
+- [x] CHANGELOG regenerado via `harness changelog` (handoffs do ciclo, entradas 82–91 presentes)
+- [x] Release 0.4.0 (`harness version --bump minor`)
+
 ## Handoff (task 91 — `update` ressincroniza os adapters instalados)
 - Feito: (1) Marcador `.harness/adapters.json` (gitignored junto dos demais artefatos do
   `.harness/`) gravado pelo `adapter <tool>` pós-instalação (`recordAdapterInstall` em
@@ -397,3 +403,50 @@
   existente do board (sucesso verde) — feedback igual aos moves, com sinal positivo.
   (5) Sem framework: HTML server-side + JS inline (`var`/function, padrão do
   board/canvas).
+
+## Handoff (task 89 — docs de consolidação do ciclo)
+- Feito: README consolidou o ciclo nas 5 seções pedidas — "Execução ao vivo (canvas)"
+  (rota `/canvas` do `kanban --serve`: tabela de campos do cartão, staleness de 15min,
+  modal reusando `/api/tasks/:id/detail`, auto-refresh 3s via `/api/canvas` pré-computado,
+  read-only, sem a vista no kanban estático — pendência declarada); "Rotinas e
+  `harness serve`" (um processo: kanban + agendador + webhook; bind 127.0.0.1 com WARNING
+  fora do loopback; porta 4310 — migração de `kanban --serve` mantém a URL; tick 30s
+  recarregando routines.json; sem catch-up documentado; painel decide presença no boot;
+  schema de `.harness/routines.json` com `id/every/dedupe` e
+  `task{title,module,agent,priority,type,scope}`; tabela de respostas do webhook
+  200 criada|dedupe / 401 / 404; token em `.harness/webhook-token`, reusado e nunca
+  impresso em log; curl testável lendo o token do arquivo; `GET /api/routines` com
+  `fireCount` reconstruído do banco; `POST /api/routines/<id>/run` = mesmo núcleo do
+  webhook); "Adaptador browser" (uso de `harness adapter browser <tool>` +
+  `--browser-package`, matriz por tool espelhando `.agents/browser.md`, idempotência
+  no-op, fail-safe JSONC, zero-install via npx); "Sandbox por tool" (perfis minimal/strict,
+  allow do pipeline, matriz de garantias com limite honesto por tool espelhando
+  `.agents/sandbox.md`, ADR para mudança de deny); "Update sincroniza adapters"
+  (marcador `.harness/adapters.json` escrito por `adapter <tool>`, replay no update com
+  sandbox salvo e templates da fonte, sem marcador/sem fonte → aviso, `init --tools` não
+  grava o marcador). Índice do README, matriz de capacidades (linhas MCP e
+  Permissões/sandbox atualizadas), `harness serve` na tabela de comandos do CLI,
+  `adapters/` com browser na árvore e na lista de camadas do update, e linha duplicada
+  do fluxo de orquestração removida. AGENTS.md: `browser.md` e `sandbox.md` entraram na
+  tabela "Índice de referências modulares" (débito das tasks 83/87). CHANGELOG
+  regenerado via `harness changelog` — 71 handoffs, entradas 82–91 confirmadas.
+  `harness version --bump minor`: 0.3.4 → 0.4.0.
+- Pendências: (1) kanban estático (`--out`) sem vista Execução; (2) webhook sem
+  rate-limit (v1 token-only; `--host` fora do loopback imprime WARNING); (3) sem
+  catch-up de horário perdido (serve fora do ar no horário = disparo da janela perdido,
+  webhooks cobrem sob demanda); (4) `init --tools` não grava o marcador
+  `.harness/adapters.json` — projeto initado só entra no sync do update depois de rodar
+  `adapter <tool>` uma vez (decidir init-grava-marcador numa task futura); (5) painel
+  decide presença no boot (routines.json criado com o serve no ar exige restart). Nada
+  bloqueante.
+- Decisões: documentação HONESTA verificada bloco a bloco contra o código (serve.js,
+  routines.js, kanban.js, lib/adapters.js, adapter.js, update.js) e contra os handoffs
+  82–91 — nenhuma rota/comando/resposta citada sem existir; exemplos com o CLI real
+  (`node scripts/harness/bin/harness.js serve`, curl com token lido do arquivo); as
+  matrizes de browser/sandbox são espelhos de `.agents/browser.md` / `.agents/sandbox.md`
+  (fonte da verdade), não paraphrase; README passou a refletir `adapters` como camada
+  copiada pelo update (`HARNESS_LAYER` da 91) nas "Regras de ouro" e no parágrafo do
+  update; docs only — nenhuma mudança de código além do bump em
+  `scripts/harness/package.json`.
+- Revisado: suíte 236/236 verde; `harness check` ok; integridade UTF-8 do status.md
+  conferida pós-gravação (zero U+FFFD — lição do incidente da task 88).

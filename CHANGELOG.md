@@ -1,5 +1,61 @@
 # Changelog
 
+## 2026-11-10 — 88-backend-rotinas-ui.md
+
+- Painel Rotinas no board (AC-7): drawer com GET /api/routines + botao rodar agora via nova rota POST /api/routines/:id/run que reusa o nucleo do webhook (respondRoutineFire) com o token lido do arquivo local no servidor (sem segredo na pagina, sameOrigin como os moves); degradacao: sem routines.json o painel nao injeta, kanban puro mostra badge 'inativo - rode harness serve'; +8 testes (suíte 225/225), check ok, smoke E2E no browser (criada, dedupe, 0 erros de console).
+
+## 2026-11-10 — 91-backend-update-sincroniza-adapters.md
+
+- update sincroniza adapters: marcador .harness/adapters.json gravado pelo adapter <tool> (merge idempotente; sandbox salvo so com --sandbox explicita), HARNESS_LAYER += adapters e pos-copia re-instala cada tool do marcador com installAdapter (kit=fonte, sandbox do marcador); sem marcador e no-op; fonte sem adapters/ ou marcador ilegivel e aviso e skip (nao erro); suite 228/228 (+11 testes novos em tests/update-adapters.test.js), harness check ok
+
+## 2026-11-10 — 86-backend-serve-webhook.md
+
+- harness serve (AC-4/5/6): 1 processo com kanban+scheduler real das rotinas+webhook com token (.harness/webhook-token, tempo constante); rotas /api/routines (payload do painel 88) e POST /webhook/routines/:id (401/404/200 criada|skip); startScheduler real em routines.js; stop gracioso com releaseOwnLock; suíte 211/211 (198+13 novos em tests/serve.test.js), check ok
+
+## 2026-11-10 — 90-backend-correcoes-pipeline-validacao.md
+
+- fix: parser de escopo aceita anotacao apos o path (primeiro bloco entre crases, fallback legado); validacao de escopo resolve merges intercalados de worktrees (atribuicao por commit no finishTask + check pos-rebase no finishWorktree); Baseline continua valendo e bloqueio real coberto por teste negativo; suite 204/204 e check ok
+
+## 2026-11-10 — 87-backend-sandbox-por-tool.md
+
+- sandbox por tool: SANDBOX_PROFILES minimal/strict (deny por prefixo, allow explicito do pipeline), templates claude/opencode/codex consomem o perfil via --sandbox (default minimal), .agents/sandbox.md com matriz e politica ADR, adapter list mostra o perfil; suite 194/194, check ok
+
+## 2026-11-10 — 85-backend-canvas-ui.md
+
+- vista Execução /canvas: renderCanvasPage server-side (grid ao vivo, staleness amarelo, modal do board, auto-refresh 3s, read-only) + rota GET /canvas + link board-canvas vice-versa; 185/185 tests, check ok
+
+## 2026-11-10 — 84-backend-canvas-dados.md
+
+- canvas dados: lib/canvas.js (novo) com canvasState(ctx) - um cartao por task ativa com agente, worktree/branch (ou raiz; degrada p/ raiz se registrada e ausente no disco), started_at + running_ms pre-computados, contagem git status --porcelain com timeout 2s (n/d em nao-repo/timeout), ultimo task_event e ultima interacao note (redigida), last_activity_at e staleness booleana (STALE_MS 15min, calculada no servidor; sem atividade nenhuma = false). kanban.js recebeu APENAS a rota GET /api/canvas (bind 127.0.0.1 inalterado; vista/cartoes sao a task 85). Degradacao graciosa: db corrompida/indisponivel -> so markdown + git, historico null; worktree fantasma -> raiz. Testes: tests/canvas.test.js 7 novos (degradacoes, staleness, nota redigida, rota vazia/plena) - suite 181/181; check ok. Pendencia: task 85 consome GET /api/canvas (payload ja pre-computado, auto-refresh 3s da vista fica na 85). decisoes: token fake de teste concatenado no padrao do redact.test.js p/ nao acionar o gate secrets; baseline da task 84 anotado com os 9 arquivos intercalados das tasks 82/83 (ha tempo de finish: startHead anterior aos merges 1937ffd/47645cc). - DONE
+
+## 2026-11-10 — 83-backend-browser-adapter.md
+
+- camada browser: adapter browser injeta MCP Playwright (@playwright/mcp@latest via npx, zero deps) em opencode.json/.mcp.json, injecao idempotente com fail-safe de merge manual (upsertJsonSection); codex recebe .codex/prompts/browser.md; init --tools aceita browser; .agents/browser.md entregue por init/update; suite 174/174, check ok; baseline da task atualizado p/ cobrir arquivos mergeados da task 82 na janela (rotinas) - falso-positivo de escopo intercalado
+
+## 2026-11-10 — 82-backend-rotinas-core.md
+
+- Task 82 concluida: schema de routines.json validado com mensagem clara (AC-1); parser every e nextRun no fuso local (AC-2); fireRoutine com dedupe por titulo e eventos de disparo no banco (AC-3 e AC-6); criacao de task extraida para createTaskFile em task.js com CLI legado preservado; startScheduler como stub p/ task 86; suite 156/156 e harness check ok.
+
+## 2026-11-04 — 81-dor-multidep.md
+
+- DoR valida dependências separadas por vírgula individualmente; teste com 2 deps e dep ausente.
+
+## 2026-11-04 — 80-gitignore-next.md
+
+- Template ignora .next/ (build Next); descoberto no shell do meu-editor.
+
+## 2026-11-04 — 79-gitignore-tsbuildinfo.md
+
+- Template ignora *.tsbuildinfo; descoberto no install do meu-editor.
+
+## 2026-11-03 — 78-normalizar-tasks.md
+
+- Tasks compactas do Sprint 1/2 normalizadas com ## Modulo; harness check voltou a verde.
+
+## 2026-11-03 — 77-release-v034.md
+
+- Release v0.3.4: Sprint 2 (docs consistentes, agentes alinhados, status/changelog, qualidade interna).
+
 ## 2026-11-03 — 76-code-quality.md
 
 - Testes limpam %TEMP% no exit; parseTask ignora BOM; linha duplicada de version removida; 137 testes verdes.
