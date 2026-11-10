@@ -35,3 +35,7 @@ Anotações do escopo: `tasks.js` para o parser de escopo; `pipeline.js`/`worktr
 ## Ao terminar: atualizar `context/modules/harness/status.md`, rodar `node scripts/harness/bin/harness.js finish 90`
 ## Complexidade: média
 ## Baseline (git): main pós-lote 1 do ciclo Superfik (2026-11-09)
+
+## Baseline (git)
+- tasks/queue/86-backend-serve-webhook.md
+- tasks/active/86-backend-serve-webhook.md
