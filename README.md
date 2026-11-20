@@ -2,6 +2,8 @@
 
 Camada de operação que padroniza como agentes de IA trabalham em um projeto de software. O AlterAI - Agentic OS define o **protocolo obrigatório**, mantém o **contexto vivo** e gerencia o **pipeline de tarefas** — de forma reutilizável em qualquer projeto, independente do domínio ou da stack.
 
+> **Para onde o projeto está indo:** veja [ARCHITECTURE.md](ARCHITECTURE.md) (avaliação e arquitetura do núcleo headless) e [ROADMAP.md](ROADMAP.md) (fases rumo ao Agent Harness Canvas).
+
 ## Índice
 
 - [Começar agora (clonei este repo)](#começar-agora-clonei-este-repo)

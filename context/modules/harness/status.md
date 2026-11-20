@@ -42,6 +42,13 @@
 - [x] 3 testes ruidosos de `kanban.test.js` envolvidos (kanbanFor estático, prefixo ambíguo, WIP bloqueia)
 - [x] Testes 69/69 estáveis (3 execuções consecutivas)
 
+## Fase 7 — Núcleo headless (planejado — ADR-006, ROADMAP.md)
+- [ ] 20 — Barramento de eventos normalizado
+- [ ] 21 — Worktree por task (start --worktree, merge, worktree list/clean)
+- [ ] 22 — Contrato de runtime adapters + `harness runtimes`
+- [ ] 23 — Adaptador Claude Code + `harness run`
+- [ ] 24 — Pacote de contexto (`harness context`)
+
 ## Handoff (lote 3 — task 15: flake de IPC do kanban.test.js)
 - Feito: helper `withSilentStdout` em `tests/helpers.js` + 3 testes ruidosos de
   `kanban.test.js` envolvidos. Suíte 69/69 estável em 3 execuções consecutivas;
