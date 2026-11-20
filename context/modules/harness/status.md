@@ -95,6 +95,22 @@
   sobrescrito pelo perfil na instalação e o template estático permanece igual à
   saída minimal (init copia stash de `adapters/` sem render; install re-renderiza).
 
+## Handoff (task 92 — header compacto parseado: Tipo/Prioridade/Módulo)
+- Feito: `parseTask` (`lib/tasks.js`) entende o header compacto
+  `## Agente: \`backend\` | Módulo: \`harness\` | Prioridade: P3 | Tipo: docs` via
+  `splitCompactHeader` (export): o primeiro segmento continua como valor do heading
+  (`values['Agente']` = `` `backend` ``) e cada `Campo: valor` seguinte vira
+  `values[Campo]` sem crases envolventes. Heading dedicado (`## Tipo: fix`) tem
+  precedência em qualquer posição do arquivo; valor com ` | ` que não segue o formato
+  `Campo: valor` fica intacto. Não retroativo: tasks em done/ não foram reescritas.
+  Testes: +5 em `tests/pipeline-cross.test.js` (extração, sem Tipo, precedência
+  antes/depois, crases/valor intacto, e fim-a-fim `worktree finish` → squash
+  `docs(task-07)`).
+- Pendências: nenhuma.
+- Decisões: campos extras só entram em `values` depois do loop (precedência do
+  dedicado sem depender da ordem); split exige ` | ` com espaços e TODOS os segmentos
+  seguintes no formato `Campo: valor` (fail-safe contra falso positivo).
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do

@@ -35,6 +35,10 @@ export function parseTask(filePath) {
   const name = path.basename(filePath)
   const sections = {}
   const values = {}
+  // Campos extras do header compacto (`## Agente: x | Tipo: docs`). Só entram em
+  // `values` depois do loop, para que um heading dedicado (`## Tipo: docs`) em
+  // qualquer posição do arquivo tenha precedência.
+  const compact = {}
   const lines = content.split(/\r?\n/)
   let current = null
   for (const line of lines) {
@@ -44,7 +48,9 @@ export function parseTask(filePath) {
       const colon = heading.indexOf(':')
       if (colon !== -1) {
         const key = heading.slice(0, colon).trim()
-        values[key] = heading.slice(colon + 1).trim()
+        const { head, extra } = splitCompactHeader(heading.slice(colon + 1).trim())
+        values[key] = head
+        for (const [k, v] of Object.entries(extra)) if (!(k in compact)) compact[k] = v
         current = key
       } else {
         current = heading
@@ -54,6 +60,8 @@ export function parseTask(filePath) {
     }
     if (current) sections[current].push(line)
   }
+
+  for (const [k, v] of Object.entries(compact)) if (!(k in values)) values[k] = v
 
   const scope = []
   const scopeKey = Object.keys(sections).find((k) => k.toLowerCase().startsWith('escopo'))
@@ -73,6 +81,26 @@ export function parseTask(filePath) {
   }
 
   return { name, filePath, scope, sections, values, raw: content }
+}
+
+const COMPACT_FIELD = /^([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9 _-]{0,40}?)\s*:\s*(.*)$/
+
+/**
+ * Header compacto: `\`backend\` | Módulo: \`harness\` | Prioridade: P3 | Tipo: fix`.
+ * O primeiro segmento é o valor do heading; os seguintes (`Campo: valor`) viram
+ * campos extras, sem crases envolventes. Se algum segmento depois do primeiro não
+ * tiver o formato `Campo: valor`, o valor fica intacto (não é header compacto).
+ */
+export function splitCompactHeader(value) {
+  const parts = String(value).split(/\s+\|\s+/)
+  if (parts.length < 2) return { head: value, extra: {} }
+  const extra = {}
+  for (const part of parts.slice(1)) {
+    const m = part.trim().match(COMPACT_FIELD)
+    if (!m) return { head: value, extra: {} }
+    extra[m[1].trim()] = m[2].trim().replace(/^`([^`]*)`$/, '$1').trim()
+  }
+  return { head: parts[0].trim(), extra }
 }
 
 export function pathsOverlap(a, b) {

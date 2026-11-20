@@ -221,3 +221,63 @@ test('worktree: merge intercalado de outra task não reprova o escopo da atual',
   assert.match(fs.readFileSync(path.join(root, 'src', 'a.js'), 'utf8'), /\/\/ a\b/)
   assert.match(fs.readFileSync(path.join(root, 'src', 'b.js'), 'utf8'), /\/\/ b\b/)
 })
+
+// --- task 92: header compacto `## Agente: x | Módulo: y | Prioridade: P3 | Tipo: docs`
+
+const compactHeader = (tipo) =>
+  `## Agente: \`backend\` | Módulo: \`harness\` | Prioridade: P3${tipo ? ` | Tipo: ${tipo}` : ''}`
+
+test('parseTask: header compacto extrai Módulo/Prioridade/Tipo e limpa o valor do primeiro campo', () => {
+  const dir = tmpdir()
+  const file = write(dir, 'tasks/queue/01-compacto.md', `# Task: compacto\n${compactHeader('docs')}\n## Escopo:\n- \`a.js\`\n`)
+  const t = parseTask(file)
+  assert.equal(t.values['Agente'], '`backend`')
+  assert.equal(t.values['Módulo'], 'harness')
+  assert.equal(t.values['Prioridade'], 'P3')
+  assert.equal(t.values['Tipo'], 'docs')
+  assert.deepEqual(t.scope, ['a.js'])
+})
+
+test('parseTask: header compacto sem Tipo não inventa o campo', () => {
+  const dir = tmpdir()
+  const file = write(dir, 'tasks/queue/01-sem-tipo.md', `# Task: x\n${compactHeader(null)}\n`)
+  const t = parseTask(file)
+  assert.equal(t.values['Prioridade'], 'P3')
+  assert.equal('Tipo' in t.values, false)
+})
+
+test('parseTask: heading dedicado tem precedência sobre o header compacto (antes ou depois)', () => {
+  const dir = tmpdir()
+  const after = write(dir, 'tasks/queue/01-a.md', `# Task: x\n${compactHeader('docs')}\n## Módulo: \`outro\`\n## Tipo: fix\n`)
+  const before = write(dir, 'tasks/queue/02-b.md', `# Task: x\n## Tipo: fix\n${compactHeader('docs')}\n`)
+  for (const f of [after, before]) assert.equal(parseTask(f).values['Tipo'], 'fix')
+  assert.equal(parseTask(after).values['Módulo'], '`outro`')
+})
+
+test('parseTask: crases nos valores do header compacto são removidas; " | " sem formato Campo: valor fica intacto', () => {
+  const dir = tmpdir()
+  const ticks = write(dir, 'tasks/queue/01-t.md', '# Task: x\n## Agente: `backend` | Tipo: `docs`\n')
+  assert.equal(parseTask(ticks).values['Tipo'], 'docs')
+  const plain = write(dir, 'tasks/queue/02-p.md', '# Task: x\n## Contexto para ler: a.md | b.md\n')
+  assert.equal(parseTask(plain).values['Contexto para ler'], 'a.md | b.md')
+})
+
+test('worktree finish: task com header compacto `Tipo: docs` gera squash `docs(task-<n>)`', async () => {
+  const root = path.join(tmpdir(), 'wt-tipo-compacto')
+  await init([root, '--profile', 'script', '--git'])
+  const md = taskMd('doc-compacta', 'docs/x.md').replace(
+    '## Agente: `backend`\n## Módulo: —\n',
+    `${compactHeader('docs')}\n## Módulo: —\n`
+  )
+  assert.match(md, /Tipo: docs/)
+  fs.mkdirSync(path.join(root, 'tasks', 'queue'), { recursive: true })
+  fs.writeFileSync(path.join(root, 'tasks', 'queue', '07-doc-compacta.md'), md)
+  assert.equal(startTask(root, '07').ok, true)
+  const wt = startWorktree(root, '07')
+  fs.mkdirSync(path.join(wt.dir, 'docs'), { recursive: true })
+  fs.writeFileSync(path.join(wt.dir, 'docs', 'x.md'), '# x\n')
+  const r = finishWorktree(root, '07', { handoff: 'doc ok' })
+  assert.equal(r.finished.ok, true)
+  const subjects = execFileSync('git', ['log', '--format=%s', '-5'], { cwd: root, encoding: 'utf8' })
+  assert.match(subjects, /^docs\(task-07\): doc compacta$/m)
+})
