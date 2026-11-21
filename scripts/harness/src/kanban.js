@@ -806,6 +806,13 @@ export function renderCanvasPage(title = 'AlterAI - Agentic OS — Tasks') {
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
   }
   .card .foot { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; margin-top: 8px; }
+  /* run do agente (execucao-agentes, task 95) */
+  .card .run { margin-top: 8px; padding-top: 6px; border-top: 1px dashed var(--border); }
+  .card .run .row { margin-top: 4px; }
+  .run-status { font-weight: 600; }
+  .run-status.running { color: #60a5fa; }
+  .run-status.completed { color: #4ade80; }
+  .run-status.failed { color: #f87171; }
   .empty { color: var(--muted); font-size: 13px; text-align: center; padding: 48px 0; }
   #toast {
     position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
@@ -920,6 +927,28 @@ function worktreeTag(c) {
   return '<span class="tag" title="onde a task está executando">' + label + '</span>';
 }
 
+/* ---------- run do agente (task 95) ---------- */
+var RUN_STATUS = { running: '▶ rodando', completed: '✔ concluído', failed: '✖ falhou' };
+function fmtUsage(r) {
+  var n = function (v) { return v == null ? 'n/d' : String(v); };
+  var tokens = (r.tokens_in == null && r.tokens_out == null) ? 'n/d' : n(r.tokens_in) + ' / ' + n(r.tokens_out);
+  var cost = r.cost_usd == null ? 'n/d' : '$' + Number(r.cost_usd).toFixed(4);
+  return tokens + ' · ' + cost + (r.measured ? ' (medido)' : '');
+}
+function runHtml(r) {
+  if (!r) return '';
+  var status = RUN_STATUS[r.status] || r.status;
+  var head = '🤖 ' + esc(r.tool) + (r.model ? ' · ' + esc(r.model) : '') + (r.unsafe ? ' · ⚠️ unsafe' : '');
+  var last = r.last_agent_event
+    ? esc(r.last_agent_event.summary) + ' · ' + esc(relTime(r.last_agent_event.at))
+    : '—';
+  return '<div class="run" data-run="' + esc(r.id) + '">' +
+    '<div class="row"><span>' + head + '</span><span class="val run-status ' + esc(r.status) + '">' + esc(status) + '</span></div>' +
+    '<div class="row"><span>agente</span><span class="val" title="' + last + '">' + last + '</span></div>' +
+    '<div class="row"><span>tokens · custo</span><span class="val">' + esc(fmtUsage(r)) + '</span></div>' +
+  '</div>';
+}
+
 /* ---------- cartão ao vivo ---------- */
 function cardHtml(c) {
   var cls = 'card' + (c.stale ? ' stale' : '');
@@ -941,6 +970,7 @@ function cardHtml(c) {
     '<div class="row"><span>último evento</span><span class="val">' +
       (c.last_event ? esc(c.last_event.event) + ' · ' + esc(relTime(c.last_event.at)) : '—') +
     '</span></div>' +
+    runHtml(c.run) +
     note +
     '<div class="foot"><span>' + esc(c.id) + '</span><span>' +
       (c.started_at ? 'desde ' + esc(fmtDate(c.started_at)) : '') +

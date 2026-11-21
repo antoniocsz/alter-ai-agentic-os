@@ -170,6 +170,23 @@
 - Decisões: instalar pnpm no CI (o produto depende dele nos gates) em vez de pular os
   testes sem pnpm; pnpm 10 explícito porque o package.json não declara `packageManager`.
 
+## Handoff (task 95 — execução de agentes: run corrente no /canvas)
+- Feito: `lib/canvas.js` — `cardFor` ganha `run` (run mais recente da task via `latestRun`:
+  id, tool, model, status, started/finished, `last_agent_event` {type, summary, at} — último
+  `agent.*` exceto `agent.usage` —, tokens in/out, custo, `measured`, `unsafe`) e
+  `summarizeAgentEvent` (export; resumo curto por tipo, pré-computado no servidor).
+  `last_activity_at`/staleness passam a considerar o último `run_event`. Banco antigo sem
+  `runs` → `run: null` (try/catch); db indisponível → `run: null` (degradação existente).
+  `kanban.js` — só a vista `/canvas`: `runHtml` no cartão (🤖 tool · modelo · ⚠️ unsafe,
+  status colorido, último evento do agente, tokens/custo com "(medido)" ou "n/d") + CSS.
+  Board intacto. +7 testes em `tests/canvas-runs.test.js` (inclui renderização REAL do
+  `cardHtml` executando o script da página num `vm` com DOM falso, e escape de HTML);
+  suíte 265/265.
+- Pendências: tokens/custo só aparecem no fim do run (o Claude reporta uso no `result`);
+  acumular por mensagem fica para quando houver necessidade.
+- Decisões: canvas continua read-only — não roda `reapOrphans` (GET não muda estado);
+  run órfão aparece como `running` até o próximo `harness runs`.
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do
