@@ -25,6 +25,7 @@ import { retroCmd } from '../retro.js'
 import { statusCmd } from '../status.js'
 import { adapterCmd } from '../adapter.js'
 import { runsCmd, eventsCmd } from '../runs.js'
+import { runCmd } from '../run.js'
 
 export const usage = `harness <comando> [args]
 
@@ -51,6 +52,8 @@ Comandos:
   sync                Reindexa o banco SQLite (.harness/harness.db) a partir do markdown
   log "<texto>"       Registra uma interação no banco [--task] [--kind] [--source]
   history <task>      Mostra eventos e interações de uma task
+  run <task> --tool claude  Executa a task no agente, dentro da worktree [--model m]
+                      [--permission-mode default|acceptEdits|plan] [--unsafe] | --stop <run>
   runs [<task>]       Execuções de agentes registradas [--json] [--limit n]
   events <run>        Timeline normalizada de uma execução [--json] [--native]
   report              Métricas do banco [--format table|json|csv] [--module] [--days]
@@ -100,6 +103,7 @@ export const commands = {
   sync,
   log: logCmd,
   history: historyCmd,
+  run: runCmd,
   runs: runsCmd,
   events: eventsCmd,
   report,

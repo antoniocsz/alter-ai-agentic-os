@@ -1,0 +1,2 @@
+{"type":"system","subtype":"init","session_id":"sess-fake-2","model":"claude-opus-test"}
+{"type":"result","subtype":"error_max_turns","is_error":true,"num_turns":10,"session_id":"sess-fake-2","usage":{"input_tokens":50,"output_tokens":5}}

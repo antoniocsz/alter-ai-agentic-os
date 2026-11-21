@@ -130,6 +130,35 @@
   poderia quebrar o JSON); `run.unsafe` gravado no run para auditoria do `--unsafe`;
   `cost_usd` fica nulo quando o runtime reporta só tokens (sem estimar preço).
 
+## Handoff (task 94 — execução de agentes: runner + driver Claude Code)
+- Feito: `lib/runner.js` (NOVO) — `resolveExecutable` (PATH + PATHEXT no Windows; `.cmd/.bat`
+  → shell), `assertSafeArgs` (argv só com tokens simples; o prompt vai por **stdin**, nunca
+  interpolado), `toolVersion`, `killTree` (taskkill /T no Windows; grupo de processo no
+  POSIX via `detached`), `stopRun` (interrupção a partir de outro processo) e `runTool`
+  (spawn na worktree, `startRun` com pid logo após o spawn, leitura por linha com buffer
+  parcial, linha não-JSON → `agent.message` com native bruto, erro do driver não derruba
+  o run, stderr agregado no erro, status final por exit code + `final.ok` do driver; não
+  sobrescreve run já encerrado por `--stop`). `lib/runtimes/claude.js` (NOVO) —
+  `claude -p --output-format stream-json --verbose [--model] --permission-mode <modo>`
+  (doc conferida 2026-11-20); normaliza init/assistant(text, tool_use)/user(tool_result)/
+  result(usage+custo, `measured`), Edit/Write/MultiEdit/NotebookEdit também viram
+  `agent.file_changed`; tipo desconhecido preservado. `src/run.js` (NOVO) — `harness run
+  <task> --tool claude [--model] [--permission-mode default|acceptEdits|plan] [--unsafe]`
+  e `harness run --stop <run>`; recusa task não ativa ou sem worktree (mensagem com o
+  próximo comando), prompt = protocolo fixo + task, progresso resumido, Ctrl+C mata a
+  árvore, exit 1 em falha. Fixtures: `tests/fixtures/runtimes/fake-claude.js` +
+  transcrições JSONL **sintéticas no formato documentado** (sucesso, erro, sem usage).
+  +9 testes em `tests/run-claude.test.js`; suíte 258/258.
+- Pendências: **execução REAL** com o Claude Code instalado/autenticado ainda não feita (o
+  ambiente desta sessão não tem `claude` nem acesso ao provedor) — rodar numa task de
+  exemplo e anexar `harness events <run>`; se o formato real divergir, ajustar o driver e
+  trocar a transcrição sintética por uma gravada.
+- Decisões: permissão padrão **acceptEdits** (não `default` como a spec previa): em `-p`
+  o modo `default` nega as edições e o agente não consegue executar a task; o limite é a
+  worktree isolada + deny do perfil de sandbox (`.claude/settings.json`, task 87).
+  `bypassPermissions` só com `--unsafe` (gravado no run). Driver recebe opções já
+  validadas; `run` nunca abre registro se a tool não existe (sem simulação).
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do

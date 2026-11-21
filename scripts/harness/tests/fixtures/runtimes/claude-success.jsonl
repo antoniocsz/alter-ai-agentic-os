@@ -1,0 +1,9 @@
+{"type":"system","subtype":"init","session_id":"sess-fake-1","model":"claude-opus-test","cwd":"/wt","tools":["Read","Edit","Bash"]}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Vou ler a task e o escopo."}]},"session_id":"sess-fake-1"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"tu_1","name":"Edit","input":{"file_path":"src/a.js","old_string":"a","new_string":"b"}}]},"session_id":"sess-fake-1"}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tu_1","content":"ok","is_error":false}]},"session_id":"sess-fake-1"}
+linha de log que não é JSON
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"tu_2","name":"Bash","input":{"command":"node --test"}}]},"session_id":"sess-fake-1"}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tu_2","content":[{"type":"text","text":"1 falhou"}],"is_error":true}]},"session_id":"sess-fake-1"}
+{"type":"stream_desconhecido","foo":1}
+{"type":"result","subtype":"success","is_error":false,"duration_ms":1234,"num_turns":3,"result":"Feito: a.js alterado. Pendências: nenhuma.","session_id":"sess-fake-1","total_cost_usd":0.0421,"usage":{"input_tokens":1000,"cache_creation_input_tokens":200,"cache_read_input_tokens":300,"output_tokens":450}}
