@@ -1,0 +1,2 @@
+{"type":"step_start","timestamp":1767036059338,"sessionID":"ses_fake_2","part":{"id":"prt_1","type":"step-start"}}
+{"type":"error","timestamp":1767036059400,"sessionID":"ses_fake_2","error":{"name":"ProviderAuthError","data":{"message":"no api key"}}}

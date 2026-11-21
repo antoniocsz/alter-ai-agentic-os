@@ -7,9 +7,17 @@ import { readRegistry } from './lib/worktree.js'
 import { runTool, stopRun } from './lib/runner.js'
 import { reapOrphans } from './lib/runs.js'
 import * as claude from './lib/runtimes/claude.js'
+import * as codex from './lib/runtimes/codex.js'
+import * as opencode from './lib/runtimes/opencode.js'
 
-/** Drivers disponíveis para `--tool` (task 96 adiciona codex/opencode). */
-export const DRIVERS = { claude }
+/** Drivers disponíveis para `--tool`. Drivers com `create()` guardam estado por run. */
+export const DRIVERS = { claude, codex, opencode }
+
+export function driverFor(toolName) {
+  const mod = DRIVERS[toolName]
+  if (!mod) return null
+  return typeof mod.create === 'function' ? mod.create() : mod
+}
 
 const SAFE_VALUE = /^[A-Za-z0-9._:/@-]+$/
 
@@ -97,7 +105,7 @@ export async function runCmd(args) {
   const arg = positionals[0]
   const toolName = flagString(flags, 'tool')
   if (!arg || !toolName) throw new Error(USAGE)
-  const driver = DRIVERS[toolName]
+  const driver = driverFor(toolName)
   if (!driver) {
     throw new Error(`tool sem driver de execução: ${toolName} (disponíveis: ${Object.keys(DRIVERS).join(', ')})`)
   }
@@ -116,6 +124,12 @@ export async function runCmd(args) {
   const model = flagString(flags, 'model')
   const permissionMode = flagString(flags, 'permission-mode', 'acceptEdits')
   const unsafe = flagBool(flags, 'unsafe')
+  if (flags['permission-mode'] !== undefined && driver.id !== 'claude') {
+    throw new Error(`--permission-mode só vale para --tool claude (${driver.id} usa o sandbox próprio; liberar tudo exige --unsafe)`)
+  }
+  if (driver.requiresUnsafe && !unsafe) {
+    throw new Error(`--tool ${driver.id} exige --unsafe: ${driver.requiresUnsafe}`)
+  }
   for (const [name, value] of [['--model', model], ['--permission-mode', permissionMode]]) {
     if (value !== null && !SAFE_VALUE.test(value)) throw new Error(`${name} inválido: ${value}`)
   }

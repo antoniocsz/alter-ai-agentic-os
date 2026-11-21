@@ -187,6 +187,30 @@
 - Decisões: canvas continua read-only — não roda `reapOrphans` (GET não muda estado);
   run órfão aparece como `running` até o próximo `harness runs`.
 
+## Handoff (task 96 — execução de agentes: drivers Codex e OpenCode)
+- Feito: `lib/runtimes/codex.js` (NOVO) — `codex exec --json --sandbox workspace-write
+  [--model] -` (prompt por stdin; `danger-full-access` só com `--unsafe`); normaliza
+  thread.started → run.started, item.* (agent_message, reasoning, command_execution
+  started/completed → tool_call/tool_result, file_change → um `agent.file_changed` por
+  arquivo, mcp_tool_call, web_search, error), turn.completed → `agent.usage` (tokens
+  somados entre turnos; o Codex não reporta custo → `null`), turn.failed → falha; `error`
+  solto não decide o desfecho (pode ser reconexão). `lib/runtimes/opencode.js` (NOVO) —
+  `opencode run --format json [--model]` (prompt por stdin quando não há mensagem
+  posicional); step_start (só o 1º vira run.started), text, tool_use (edit/write/patch/
+  multiedit → file_changed), step_finish (tokens e custo somados por passo; `reason:
+  stop` = sucesso), error → falha; `requiresUnsafe`. Drivers com estado expõem `create()`
+  (instância por run). `src/run.js` — `DRIVERS = { claude, codex, opencode }` + `driverFor`;
+  opencode sem `--unsafe` recusa com motivo; `--permission-mode` só para claude. Fixtures
+  sintéticas no formato documentado em `tests/fixtures/runtimes/{codex,opencode}/`
+  (reuso do executável falso genérico da task 94). +6 testes; suíte 271/271.
+- Pendências: execução REAL com Codex e OpenCode instalados (este ambiente não tem as
+  tools); a ajuda geral (`commands/index.js`) ainda mostra só `--tool claude` (fora do
+  escopo da 96 — ajustar numa task de docs).
+- Decisões: eventos só de ciclo de vida sem conteúdo (`turn.started`, `step_start` após o
+  1º, `item.started` de agent_message/reasoning) não viram registro; tipos desconhecidos
+  continuam preservados em `native`. Tokens de entrada incluem cache (opencode:
+  input + cache.read + cache.write; codex: `input_tokens` já inclui o cache).
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do

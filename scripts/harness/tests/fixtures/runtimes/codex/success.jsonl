@@ -1,0 +1,12 @@
+{"type":"thread.started","thread_id":"th_fake_1"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"reasoning","text":"Planejando a mudança."}}
+{"type":"item.started","item":{"id":"item_1","type":"command_execution","command":"bash -lc ls","status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_1","type":"command_execution","command":"bash -lc ls","aggregated_output":"src\n","exit_code":0,"status":"completed"}}
+{"type":"item.completed","item":{"id":"item_2","type":"file_change","changes":[{"path":"src/a.js","kind":"update"},{"path":"src/b.js","kind":"add"}],"status":"completed"}}
+{"type":"item.started","item":{"id":"item_3","type":"mcp_tool_call","server":"browser","tool":"navigate","arguments":{"url":"http://localhost:3000"},"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_3","type":"mcp_tool_call","server":"browser","tool":"navigate","status":"failed","error":{"message":"timeout"}}}
+linha de log do codex que não é JSON
+{"type":"item.completed","item":{"id":"item_4","type":"agent_message","text":"Feito: a.js e b.js."}}
+{"type":"item.completed","item":{"id":"item_5","type":"todo_list","items":[{"text":"testar","completed":true}]}}
+{"type":"turn.completed","usage":{"input_tokens":2000,"cached_input_tokens":500,"output_tokens":300,"reasoning_output_tokens":100}}

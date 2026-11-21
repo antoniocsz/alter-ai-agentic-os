@@ -1,0 +1,8 @@
+{"type":"step_start","timestamp":1767036059338,"sessionID":"ses_fake_1","part":{"id":"prt_1","sessionID":"ses_fake_1","messageID":"msg_1","type":"step-start","snapshot":"abc"}}
+{"type":"text","timestamp":1767036060000,"sessionID":"ses_fake_1","part":{"id":"prt_2","type":"text","text":"Vou editar src/a.js."}}
+{"type":"tool_use","timestamp":1767036061199,"sessionID":"ses_fake_1","part":{"id":"prt_3","type":"tool","callID":"call_1","tool":"edit","state":{"status":"completed","input":{"filePath":"src/a.js","oldString":"a","newString":"b"},"output":"ok"}}}
+{"type":"step_finish","timestamp":1767036062000,"sessionID":"ses_fake_1","part":{"id":"prt_4","type":"step-finish","reason":"tool-calls","cost":0.01,"tokens":{"input":800,"output":100,"reasoning":20,"cache":{"read":200,"write":0}}}}
+{"type":"step_start","timestamp":1767036062100,"sessionID":"ses_fake_1","part":{"id":"prt_5","type":"step-start"}}
+{"type":"tool_use","timestamp":1767036063000,"sessionID":"ses_fake_1","part":{"id":"prt_6","type":"tool","callID":"call_2","tool":"bash","state":{"status":"error","input":{"command":"node --test"},"error":"1 falhou"}}}
+{"type":"text","timestamp":1767036064268,"sessionID":"ses_fake_1","part":{"id":"prt_7","type":"text","text":"Pronto."}}
+{"type":"step_finish","timestamp":1767036064273,"sessionID":"ses_fake_1","part":{"id":"prt_8","type":"step-finish","reason":"stop","cost":0.005,"tokens":{"input":400,"output":50,"reasoning":0,"cache":{"read":100,"write":10}}}}
