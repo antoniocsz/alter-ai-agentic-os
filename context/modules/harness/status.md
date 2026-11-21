@@ -159,6 +159,17 @@
   `bypassPermissions` só com `--unsafe` (gravado no run). Driver recebe opções já
   validadas; `run` nunca abre registro se a tool não existe (sem simulação).
 
+## Handoff (task 97 — CI instala pnpm para os gates)
+- Feito: `.github/workflows/ci.yml` — `pnpm/action-setup@v6` (pnpm 10) nos jobs `test` e
+  `smoke-init`; `actions/checkout@v5` e `actions/setup-node@v5` (as v4 rodavam em Node 20,
+  depreciado nos runners). Causa da falha do run 44952567913 (primeiro push dos commits
+  20–94): os gates `test`/`test:affected` chamam `pnpm run test` e o runner não tinha pnpm
+  → 4 testes falhavam (gates pnpm-lock, worktree finish, 2 em pipeline-cross). Reproduzido
+  localmente com e sem pnpm no PATH. Nenhum teste alterado ou pulado.
+- Pendências: confirmar o CI verde depois do push.
+- Decisões: instalar pnpm no CI (o produto depende dele nos gates) em vez de pular os
+  testes sem pnpm; pnpm 10 explícito porque o package.json não declara `packageManager`.
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do

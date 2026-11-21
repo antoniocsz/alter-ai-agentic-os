@@ -9,8 +9,13 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      # Os gates `test`/`test:affected` chamam `pnpm run test` — sem pnpm no runner
+      # eles reprovam e os testes de worktree/gates falham (task 97).
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
       - name: versão do harness
@@ -23,8 +28,13 @@ jobs:
   smoke-init:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      # Os gates `test`/`test:affected` chamam `pnpm run test` — sem pnpm no runner
+      # eles reprovam e os testes de worktree/gates falham (task 97).
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
       - name: init (padrão) + check
