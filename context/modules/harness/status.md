@@ -111,6 +111,25 @@
   dedicado sem depender da ordem); split exige ` | ` com espaços e TODOS os segmentos
   seguintes no formato `Campo: valor` (fail-safe contra falso positivo).
 
+## Handoff (task 93 — execução de agentes: registro de runs e eventos)
+- Feito: tabelas `runs` e `run_events` em `lib/db.js` (migração idempotente via
+  `CREATE ... IF NOT EXISTS`; banco antigo migra sem perder dados — teste com fixture
+  pré-93). `lib/runs.js` (NOVO): `startRun` (id `run-<nn>-<timestamp>`, sufixo `-2..` se
+  colidir), `updateRun` (pid/sessão/modelo/versão), `appendRunEvent` (seq monotônico por
+  run, tipos fechados `run.*`/`agent.*`, payload e native redigidos com `redactDeep`
+  preservando a estrutura), `finishRun` (usage só se reportado → `measured = 1`;
+  ausente → nulos e `measured = 0`), `listRuns`, `latestRun`, `runEvents`, `reapOrphans`
+  (running com pid morto ou sem pid → `failed`/`orphaned` + evento `run.failed`).
+  Comandos `harness runs [<task>] [--json] [--limit n]` (roda `reapOrphans` antes de
+  listar) e `harness events <run> [--json] [--native]` em `src/runs.js`, registrados em
+  `commands/index.js`. `sync` e `check --db` não tocam runs (teste). +8 testes em
+  `tests/runs.test.js`; suíte 249/249.
+- Pendências: o runner (task 94) deve gravar o pid no `startRun` logo após o spawn —
+  `reapOrphans` trata `running` sem pid como órfão.
+- Decisões: `redactDeep` em vez de `redact` no JSON serializado (regex de env com aspas
+  poderia quebrar o JSON); `run.unsafe` gravado no run para auditoria do `--unsafe`;
+  `cost_usd` fica nulo quando o runtime reporta só tokens (sem estimar preço).
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do

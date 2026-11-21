@@ -24,6 +24,7 @@ import { memoryCmd } from '../memory.js'
 import { retroCmd } from '../retro.js'
 import { statusCmd } from '../status.js'
 import { adapterCmd } from '../adapter.js'
+import { runsCmd, eventsCmd } from '../runs.js'
 
 export const usage = `harness <comando> [args]
 
@@ -50,6 +51,8 @@ Comandos:
   sync                Reindexa o banco SQLite (.harness/harness.db) a partir do markdown
   log "<texto>"       Registra uma interação no banco [--task] [--kind] [--source]
   history <task>      Mostra eventos e interações de uma task
+  runs [<task>]       Execuções de agentes registradas [--json] [--limit n]
+  events <run>        Timeline normalizada de uma execução [--json] [--native]
   report              Métricas do banco [--format table|json|csv] [--module] [--days]
   kanban [--serve [porta] [--host <h>]] | --out <arquivo>   Painel kanban (servidor ou HTML)
   serve [--port <n>] [--host <h>]    Kanban + agendador das rotinas + webhook num único processo
@@ -97,6 +100,8 @@ export const commands = {
   sync,
   log: logCmd,
   history: historyCmd,
+  runs: runsCmd,
+  events: eventsCmd,
   report,
   update,
   kanban,

@@ -94,6 +94,39 @@ function migrate(db) {
       at TEXT NOT NULL,
       meta_json TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS runs (
+      id TEXT PRIMARY KEY,
+      task_id TEXT NOT NULL,
+      tool TEXT NOT NULL,
+      tool_version TEXT,
+      model TEXT,
+      session_id TEXT,
+      status TEXT NOT NULL CHECK (status IN ('running','completed','failed')),
+      pid INTEGER,
+      cwd TEXT,
+      exit_code INTEGER,
+      started_at TEXT NOT NULL,
+      finished_at TEXT,
+      tokens_in INTEGER,
+      tokens_out INTEGER,
+      cost_usd REAL,
+      measured INTEGER NOT NULL DEFAULT 0,
+      unsafe INTEGER NOT NULL DEFAULT 0,
+      error TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_runs_task ON runs(task_id);
+
+    CREATE TABLE IF NOT EXISTS run_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      run_id TEXT NOT NULL,
+      seq INTEGER NOT NULL,
+      at TEXT NOT NULL,
+      type TEXT NOT NULL,
+      payload_json TEXT,
+      native_json TEXT
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_run_events_seq ON run_events(run_id, seq);
   `)
 
   const row = db.prepare(`SELECT value FROM meta WHERE key = 'schema_version'`).get()
