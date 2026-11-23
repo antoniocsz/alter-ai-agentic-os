@@ -26,6 +26,7 @@ import { statusCmd } from '../status.js'
 import { adapterCmd } from '../adapter.js'
 import { runsCmd, eventsCmd } from '../runs.js'
 import { runCmd } from '../run.js'
+import { contextCmd } from '../context.js'
 
 export const usage = `harness <comando> [args]
 
@@ -56,6 +57,8 @@ Comandos:
                       [--model m] [--unsafe] (claude: [--permission-mode default|acceptEdits|plan];
                       opencode exige --unsafe) | --stop <run>
                       --batch <t1,t2,...> [--max-parallel n]: lote paralelo, um agente por worktree
+  context <task>      Pacote de contexto da task (regras, feature, módulo, deps, skills, ADRs, escopo)
+                      [--budget <tokens>] [--json | --out <arquivo>]
   runs [<task>]       Execuções de agentes registradas [--batch <id>] [--json] [--limit n]
   events <run>        Timeline normalizada de uma execução [--json] [--native]
   report              Métricas do banco [--format table|json|csv] [--module] [--days]
@@ -106,6 +109,7 @@ export const commands = {
   log: logCmd,
   history: historyCmd,
   run: runCmd,
+  context: contextCmd,
   runs: runsCmd,
   events: eventsCmd,
   report,

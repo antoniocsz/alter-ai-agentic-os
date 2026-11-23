@@ -276,6 +276,22 @@
 - Pendências: lote com as tools reais (registrado na spec).
 - Decisões: —
 
+## Handoff (task 103 — pacote de contexto: `harness context`)
+- Feito: `lib/context.js` (NOVO) — `buildContextPackage(root, task, { budget, handoffs, exclude })`
+  monta seções determinísticas na ordem task → regras (blocos "Regras inegociáveis"/"Guard Rails"
+  do AGENTS.md) → feature (spec.md) → módulo (context.md + 3 handoffs mais recentes do status.md)
+  → dependências (último `handoff:` de cada uma no banco) → skills (`.agents/*.md` citados) →
+  ADRs citados (`ADR-00N`) → escopo (existe/tamanho/último commit) → histórico (últimos commits
+  no escopo); só entra o que existe; redaction em tudo; tokens estimados (caracteres/4) por seção;
+  com orçamento, a seção que não cabe sai inteira (a task nunca sai) e vai para `omitted`.
+  `recentHandoffs` ordena por número da task no heading (o status.md não é cronológico; sem
+  número = mais antigo). `renderContextMarkdown`, `locateTask` (queue/active/done). `src/context.js`
+  (NOVO) — `harness context <task> [--budget n] [--json | --out arquivo]`. Na task 103 real:
+  ~4,1k tokens estimados (vs. 50 KB do status.md). +5 testes em `tests/context.test.js`.
+- Pendências: anexar ao prompt do run (task 104); docs (task 105).
+- Decisões: git com timeout de 10s (3s estourava neste ambiente lento); com orçamento, seções
+  menores de prioridade mais baixa ainda entram se couberem.
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do
