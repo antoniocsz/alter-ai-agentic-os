@@ -66,7 +66,7 @@ export function newRunId(taskId, date = new Date()) {
 }
 
 /** Abre um run `running`. Retorna o id. */
-export function startRun(db, { taskId, tool, toolVersion = null, model = null, sessionId = null, pid = null, cwd = null, unsafe = false, id = null, batchId = null }) {
+export function startRun(db, { taskId, tool, toolVersion = null, model = null, sessionId = null, pid = null, cwd = null, unsafe = false, id = null, batchId = null, budgetOverride = false }) {
   if (!taskId) throw new Error('startRun: taskId obrigatório')
   if (!tool) throw new Error('startRun: tool obrigatória')
   let runId = id ?? newRunId(taskId)
@@ -75,9 +75,9 @@ export function startRun(db, { taskId, tool, toolVersion = null, model = null, s
     runId = `${id ?? newRunId(taskId)}-${n}`
   }
   db.prepare(
-    `INSERT INTO runs (id, task_id, tool, tool_version, model, session_id, status, pid, cwd, started_at, measured, unsafe, batch_id)
-     VALUES (?,?,?,?,?,?, 'running', ?,?,?, 0, ?, ?)`
-  ).run(runId, taskId, tool, toolVersion, model, sessionId, pid, cwd, now(), unsafe ? 1 : 0, batchId)
+    `INSERT INTO runs (id, task_id, tool, tool_version, model, session_id, status, pid, cwd, started_at, measured, unsafe, batch_id, budget_override)
+     VALUES (?,?,?,?,?,?, 'running', ?,?,?, 0, ?, ?, ?)`
+  ).run(runId, taskId, tool, toolVersion, model, sessionId, pid, cwd, now(), unsafe ? 1 : 0, batchId, budgetOverride ? 1 : 0)
   return runId
 }
 

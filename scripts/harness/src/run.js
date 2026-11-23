@@ -9,6 +9,7 @@ import { runTool, stopRun, resolveExecutable } from './lib/runner.js'
 import { reapOrphans, newBatchId } from './lib/runs.js'
 import { planBatch, prepareBatch, runBatch, formatPlanErrors } from './lib/batch.js'
 import { resolveConfig } from './lib/config.js'
+import { readBudget, checkBudget, effectiveRunLimit, formatViolation } from './lib/budget.js'
 import * as claude from './lib/runtimes/claude.js'
 import * as codex from './lib/runtimes/codex.js'
 import * as opencode from './lib/runtimes/opencode.js'
@@ -24,7 +25,7 @@ export function driverFor(toolName) {
 
 const SAFE_VALUE = /^[A-Za-z0-9._:/@-]+$/
 
-const USAGE = `uso: harness run <task> --tool <${Object.keys(DRIVERS).join('|')}> [--model <m>] [--permission-mode <modo>] [--unsafe] [--no-context | --context-budget <n>]
+const USAGE = `uso: harness run <task> --tool <${Object.keys(DRIVERS).join('|')}> [--model <m>] [--permission-mode <modo>] [--unsafe] [--no-context | --context-budget <n>] [--ignore-budget]
      harness run --batch <t1,t2,...> --tool <tool> [--max-parallel <n>] [--model <m>] [--unsafe]
      harness run --stop <run>`
 
@@ -59,6 +60,26 @@ export function buildPrompt(taskId, taskBody, wt, contextMd = null) {
  * `harness.json → context.budget` (padrão 8000); `--no-context` ou orçamento 0 desligam.
  * A seção `task` fica de fora (a task já vai inteira no prompt). Registra o tamanho no histórico.
  */
+/**
+ * Orçamento (task 107). Retorna `{ budget, ignore }`; `budget` null = sem limites configurados.
+ */
+export function budgetFor(root, flags) {
+  return { budget: readBudget(resolveConfig(root)), ignore: flagBool(flags, 'ignore-budget') }
+}
+
+const fmtLimit = (l) =>
+  [l?.tokens !== null && l?.tokens !== undefined && `${l.tokens} tokens`, l?.usd !== null && l?.usd !== undefined && `$${Number(l.usd).toFixed(2)}`]
+    .filter(Boolean)
+    .join(' · ')
+
+/** Checagem de UMA task: { skip } se estourou, senão { limit } efetivo do run (ou {}). */
+export function budgetGate(db, budget, ignore, taskId) {
+  if (!budget || ignore) return {}
+  const c = checkBudget(db, budget, { taskId })
+  if (!c.ok) return { skip: `budget: ${c.violations.map(formatViolation).join('; ')}`, violations: c.violations }
+  return { limit: effectiveRunLimit(budget, c.remaining) }
+}
+
 export function contextBudget(root, flags) {
   if (flagBool(flags, 'no-context')) return null
   if (flags['context-budget'] === true) throw new Error('--context-budget exige um número (ex.: --context-budget 6000; 0 desliga)')
@@ -196,12 +217,23 @@ export async function runCmd(args) {
   }
 
   const budget = contextBudget(root, flags)
+  const money = budgetFor(root, flags)
 
   const db = openDb(root)
   const { signal, dispose } = withSigint()
   let announced = false
   try {
     reapOrphans(db)
+    const gate = budgetGate(db, money.budget, money.ignore, taskId)
+    if (gate.skip) {
+      throw new Error(
+        `orçamento estourado para ${taskId}:\n` +
+          gate.violations.map((v) => `  - ${formatViolation(v)}`).join('\n') +
+          '\n  veja: harness budget · para rodar mesmo assim: --ignore-budget (fica registrado no run)'
+      )
+    }
+    if (money.ignore && money.budget) line('⚠️  --ignore-budget: limites do harness.json ignorados (registrado no run).')
+    if (gate.limit) line(`💰 limite deste run: ${fmtLimit(gate.limit)} (harness budget)`)
     const ctx = contextForRun(root, taskId, budget, db)
     if (ctx) line(`📦 contexto: ${ctx.summary} · ver: harness context ${arg}`)
     const prompt = buildPrompt(taskId, fs.readFileSync(path.join(activeDir(root), taskId), 'utf8'), wt, ctx?.md)
@@ -215,6 +247,8 @@ export async function runCmd(args) {
       opts,
       unsafe,
       signal,
+      limit: gate.limit ?? null,
+      budgetOverride: money.ignore,
       onEvent: (ev) => {
         if (!announced) {
           announced = true
@@ -250,6 +284,23 @@ function fmtDuration(ms) {
 async function runBatchCmd(root, flags, toolName, batchArg) {
   const { probe, opts, unsafe } = resolveRunOptions(flags, toolName)
   const budget = contextBudget(root, flags) // valida antes de preparar qualquer task
+  const money = budgetFor(root, flags)
+  if (money.budget && !money.ignore) {
+    // Dia/mês estourados valem para o lote inteiro: recusa antes de preparar qualquer task.
+    const pre = openDb(root)
+    try {
+      const c = checkBudget(pre, money.budget, {})
+      if (!c.ok) {
+        throw new Error(
+          'lote recusado por orçamento — nada foi preparado nem executado:\n' +
+            c.violations.map((v) => `  - ${formatViolation(v)}`).join('\n') +
+            '\n  veja: harness budget · para rodar mesmo assim: --ignore-budget'
+        )
+      }
+    } finally {
+      pre.close()
+    }
+  }
 
   const maxRaw = flagString(flags, 'max-parallel')
   const max = maxRaw === null ? Math.max(1, Number(resolveConfig(root).wip?.active) || 1) : Number(maxRaw)
@@ -286,18 +337,26 @@ async function runBatchCmd(root, flags, toolName, batchArg) {
         driver: driverFor(toolName), // instância por run (drivers com estado)
         prompt: buildPrompt(it.name, fs.readFileSync(path.join(activeDir(root), it.name), 'utf8'), wt, ctx?.md),
         opts,
-        unsafe
+        unsafe,
+        budgetOverride: money.ignore
       }
     })
     line(`🧩 ${batchId} · ${probe.id} · ${jobs.length} task(s) · até ${max} em paralelo`)
     if (unsafe) line(`⚠️  --unsafe: ${probe.id} roda sem pedir permissões (registrado em cada run).`)
     const announced = new Set()
+    if (money.ignore && money.budget) line('⚠️  --ignore-budget: limites do harness.json ignorados (registrado em cada run).')
     const results = await runBatch({
       db,
       jobs,
       max,
       batchId,
       signal,
+      beforeJob: (job) => {
+        const gate = budgetGate(db, money.budget, money.ignore, job.taskId)
+        if (gate.skip) line(`${taskTag(job.taskId)} ⏭️  pulada — ${gate.skip}`)
+        else if (gate.limit) line(`${taskTag(job.taskId)} 💰 limite: ${fmtLimit(gate.limit)}`)
+        return gate
+      },
       onEvent: (ev) => {
         const tag = taskTag(ev.taskId)
         if (!announced.has(ev.runId)) {

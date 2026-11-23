@@ -174,7 +174,7 @@ export function prepareBatch(root, items) {
  * jobs: [{ taskId, cwd, driver, prompt, opts, unsafe }]
  * Resolve com um resultado por job, na ordem: { taskId, runId, status, exitCode, error }.
  */
-export async function runBatch({ db, jobs, max = 1, batchId = null, env = process.env, signal = null, onEvent = () => {}, onStart = () => {} }) {
+export async function runBatch({ db, jobs, max = 1, batchId = null, env = process.env, signal = null, onEvent = () => {}, onStart = () => {}, beforeJob = null }) {
   const limit = Math.max(1, Math.floor(Number(max) || 1))
   const results = new Array(jobs.length).fill(null)
   let next = 0
@@ -185,6 +185,12 @@ export async function runBatch({ db, jobs, max = 1, batchId = null, env = proces
       const i = next++
       if (i >= jobs.length) return
       const job = jobs[i]
+      // Orçamento (task 107): checado na hora de começar, com o consumo medido até ali.
+      const gate = beforeJob ? beforeJob(job) ?? {} : {}
+      if (gate.skip) {
+        results[i] = { taskId: job.taskId, runId: null, status: 'skipped', exitCode: null, error: gate.skip }
+        continue
+      }
       const ac = new AbortController()
       const relay = () => ac.abort()
       signal?.addEventListener('abort', relay, { once: true })
@@ -201,6 +207,8 @@ export async function runBatch({ db, jobs, max = 1, batchId = null, env = proces
           env,
           signal: ac.signal,
           batchId,
+          limit: gate.limit ?? null,
+          budgetOverride: Boolean(job.budgetOverride),
           onEvent: (ev) => onEvent({ ...ev, taskId: job.taskId })
         })
         results[i] = { taskId: job.taskId, ...res }

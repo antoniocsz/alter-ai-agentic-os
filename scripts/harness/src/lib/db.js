@@ -133,6 +133,8 @@ function migrate(db) {
   // ALTER idempotente — bancos criados antes da coluna são migrados na abertura.
   const runCols = db.prepare('PRAGMA table_info(runs)').all().map((c) => c.name)
   if (!runCols.includes('batch_id')) db.exec('ALTER TABLE runs ADD COLUMN batch_id TEXT')
+  // Task 107 (orcamento-de-custos): run iniciado com --ignore-budget fica marcado.
+  if (!runCols.includes('budget_override')) db.exec('ALTER TABLE runs ADD COLUMN budget_override INTEGER NOT NULL DEFAULT 0')
   db.exec('CREATE INDEX IF NOT EXISTS idx_runs_batch ON runs(batch_id)')
 
   const row = db.prepare(`SELECT value FROM meta WHERE key = 'schema_version'`).get()

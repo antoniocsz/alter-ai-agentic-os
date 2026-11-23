@@ -109,7 +109,7 @@ const STDERR_TAIL = 4000
  * Executa `driver` com `prompt` (via stdin) em `cwd`, gravando o run em `db`.
  * Resolve com `{ runId, status, exitCode, error }`. `signal` (AbortSignal) interrompe.
  */
-export function runTool({ db, taskId, cwd, driver, prompt, opts = {}, env = process.env, signal = null, onEvent = () => {}, unsafe = false, batchId = null }) {
+export function runTool({ db, taskId, cwd, driver, prompt, opts = {}, env = process.env, signal = null, onEvent = () => {}, unsafe = false, batchId = null, limit = null, budgetOverride = false }) {
   const exe = resolveExecutable(driver.bin, { env })
   if (!exe) throw new Error(`${driver.bin} não encontrado no PATH.\n  ${driver.installHint}`)
   if (!fs.existsSync(cwd)) throw new Error(`diretório de execução não existe: ${cwd}`)
@@ -134,7 +134,8 @@ export function runTool({ db, taskId, cwd, driver, prompt, opts = {}, env = proc
     pid: child.pid ?? null,
     cwd,
     unsafe,
-    batchId
+    batchId,
+    budgetOverride
   })
 
   const record = (ev) => {
@@ -145,7 +146,27 @@ export function runTool({ db, taskId, cwd, driver, prompt, opts = {}, env = proc
   }
 
   let usage = null
+  let partial = null
+  let overBudget = null
   let final = null
+
+  // Orçamento (task 107): uso reportado até agora (total da tool, senão parcial) acima do limite
+  // efetivo → encerra a árvore e o run termina `failed` com motivo `budget`.
+  const checkLimit = () => {
+    if (!limit || overBudget) return
+    const current = usage ?? partial
+    if (!current) return
+    const tokens = (current.tokensIn ?? 0) + (current.tokensOut ?? 0)
+    let hit = null
+    if (limit.tokens !== null && limit.tokens !== undefined && tokens > limit.tokens) hit = { metric: 'tokens', used: tokens, limit: limit.tokens }
+    else if (limit.usd !== null && limit.usd !== undefined && current.costUsd !== null && current.costUsd !== undefined && current.costUsd > limit.usd) {
+      hit = { metric: 'usd', used: current.costUsd, limit: limit.usd }
+    }
+    if (!hit) return
+    overBudget = hit
+    record({ type: 'agent.error', payload: { reason: `orçamento excedido: ${hit.metric} ${hit.used} > ${hit.limit}`, budget: hit } })
+    killTree(child.pid)
+  }
   let interrupted = false
   let stderr = ''
   let buffer = ''
@@ -169,8 +190,10 @@ export function runTool({ db, taskId, cwd, driver, prompt, opts = {}, env = proc
     const meta = out.meta ?? {}
     if (meta.sessionId || meta.model) updateRun(db, runId, { sessionId: meta.sessionId, model: meta.model })
     if (meta.usage) usage = meta.usage
+    if (meta.partialUsage) partial = meta.partialUsage
     if (meta.final) final = meta.final
     for (const ev of out.events ?? []) record(ev)
+    checkLimit()
   }
 
   child.stdout.setEncoding('utf8')
@@ -217,7 +240,10 @@ export function runTool({ db, taskId, cwd, driver, prompt, opts = {}, env = proc
 
       let status = 'completed'
       let error = null
-      if (interrupted) {
+      if (overBudget) {
+        status = 'failed'
+        error = `budget: ${overBudget.metric} ${overBudget.used} > limite ${overBudget.limit}`
+      } else if (interrupted) {
         status = 'failed'
         error = 'interrupted'
       } else if (spawnError) {
@@ -231,11 +257,12 @@ export function runTool({ db, taskId, cwd, driver, prompt, opts = {}, env = proc
         error = final.reason ?? 'o runtime reportou erro'
       }
 
-      finishRun(db, runId, { status, exitCode, usage, error })
+      // Sem total final (run cortado antes do `result`), o parcial REPORTADO pela tool é o registro.
+      finishRun(db, runId, { status, exitCode, usage: usage ?? partial, error })
       record(
         status === 'completed'
           ? { type: 'run.completed', payload: { exit_code: exitCode } }
-          : { type: 'run.failed', payload: { reason: error, exit_code: exitCode } }
+          : { type: 'run.failed', payload: { reason: overBudget ? 'budget' : error, detail: overBudget ? error : undefined, exit_code: exitCode } }
       )
       resolve({ runId, status, exitCode, error })
     }

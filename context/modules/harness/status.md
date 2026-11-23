@@ -329,6 +329,25 @@
 - Pendências: enforcement no run/lote e uso parcial do Claude (task 107); docs (task 108).
 - Decisões: tokens de um run = entrada + saída reportadas; USD ausente (Codex) não vira custo.
 
+## Handoff (task 107 — orçamento: enforcement no run e no lote)
+- Feito: `run.js` — `budgetFor`/`budgetGate`: run único recusado antes de iniciar se task/dia/mês
+  estouraram (mensagem com as violações e `--ignore-budget`); limite efetivo do run
+  (`effectiveRunLimit`) informado (`💰`) e passado ao runner. Lote: dia/mês estourados recusam
+  ANTES de preparar; cada task é checada na hora de começar (`beforeJob` → `skipped` com motivo
+  `budget`, ou limite próprio). `--ignore-budget` grava `runs.budget_override` (migração).
+  `runner.js` — `limit { tokens, usd }`: compara o uso reportado (total da tool, senão parcial)
+  após cada linha; acima do limite → evento `agent.error` "orçamento excedido", `killTree`, run
+  `failed` com erro `budget: …` e `run.failed` motivo `budget`; sem total final, grava o parcial
+  reportado. `claude.js` — `create()` com uso parcial de `assistant.message.usage` por
+  `message.id` (o último visto vale; sem dupla contagem); `normalize` sem estado inalterado.
+  `batch.js` — `beforeJob`. +4 testes em `tests/run-budget.test.js` (dedup, corte real com runtime
+  falso, recusa/override/limite pelo CLI, lote com skip e recusa por dia); testes de execução,
+  runs, canvas, config, db e check verdes.
+- Pendências: docs (task 108). Runs simultâneos de um lote não enxergam o gasto uns dos outros até
+  terminarem (o saldo é calculado no início de cada job) — documentar.
+- Decisões: `--ignore-budget` desliga todos os limites (inclusive o do run) e fica registrado;
+  parcial do Claude só conta tokens (custo só no `result`).
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do

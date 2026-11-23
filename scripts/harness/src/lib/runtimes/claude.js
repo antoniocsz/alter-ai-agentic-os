@@ -126,3 +126,34 @@ export function normalize(obj) {
 
   return { events: [{ type: 'agent.message', payload: { text: null }, native: obj }], meta }
 }
+
+/**
+ * Instância com estado por run (task 107): além do `normalize` acima, reporta uso PARCIAL a
+ * partir de `assistant.message.usage` — cada mensagem da API aparece em várias linhas (uma por
+ * bloco de conteúdo) com o mesmo `message.id`, então o uso é guardado por id (o último visto
+ * vale) e somado entre ids. Serve para cortar o run por orçamento; o `result` final prevalece.
+ */
+export function create() {
+  const perMessage = new Map()
+  const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : 0)
+  function normalizeWithPartial(obj) {
+    const out = normalize(obj)
+    const msg = obj?.type === 'assistant' ? obj.message : null
+    if (msg?.usage && msg.id) {
+      const u = msg.usage
+      perMessage.set(msg.id, {
+        in: num(u.input_tokens) + num(u.cache_creation_input_tokens) + num(u.cache_read_input_tokens),
+        out: num(u.output_tokens)
+      })
+      let tin = 0
+      let tout = 0
+      for (const v of perMessage.values()) {
+        tin += v.in
+        tout += v.out
+      }
+      out.meta = { ...(out.meta ?? {}), partialUsage: { tokensIn: tin, tokensOut: tout, costUsd: null } }
+    }
+    return out
+  }
+  return { id, bin, installHint, command, normalize: normalizeWithPartial }
+}
