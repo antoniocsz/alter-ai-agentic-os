@@ -105,6 +105,24 @@ Regras:
 - `--keep` mantém a worktree após o merge; `--skip-gates` só para emergência explícita.
 - Ao final, a worktree e a branch são removidas — nada de lixo em disco.
 
+### Execução por agente (`harness run`)
+
+Com a task ativa e a worktree criada, o harness pode executar o agente de verdade, em modo
+não interativo, **dentro da worktree** — e registrar cada passo:
+
+```bash
+pnpm harness run <task> --tool claude|codex|opencode [--model m]   # prompt = task + regras do protocolo
+pnpm harness runs [<task>]          # execuções: status, duração, tokens, custo (medido ou n/d)
+pnpm harness events <run>           # timeline normalizada (mensagens, ferramentas, arquivos, uso)
+pnpm harness run --stop <run>       # interrompe (mata a árvore de processos)
+```
+
+- O agente executado **não** roda `finish`/`merge`: revise a worktree e integre com `worktree finish`.
+- Permissões: Claude usa `--permission-mode acceptEdits` (padrão) e o deny do perfil de sandbox;
+  Codex roda com `--sandbox workspace-write`; OpenCode exige `--unsafe` (pode aprovar sozinho).
+  Liberar tudo só com `--unsafe`, que fica gravado no run.
+- Tokens e custo só entram quando a tool reporta — nunca são estimados.
+
 ---
 
 ### Adaptadores de tool (multi-tool)

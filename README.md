@@ -14,6 +14,7 @@ Camada de operação que padroniza como agentes de IA trabalham em um projeto de
 - [Bootstrap de projeto novo](#bootstrap-de-projeto-novo)
 - [Pipeline de tarefas (queue → active → done)](#pipeline-de-tarefas-queue--active--done)
 - [Execução em paralelo (subagents)](#execução-em-paralelo-subagents)
+- [Execução de agentes (`harness run`)](#execução-de-agentes-harness-run)
 - [Adaptadores de tool](#adaptadores-de-tool)
 - [Adaptador browser](#adaptador-browser)
 - [Sandbox por tool](#sandbox-por-tool)
@@ -140,6 +141,9 @@ tasks/
 | `harness worktree start <task>` | Cria `.worktrees/task-<n>-<slug>` e branch `task/<n>-<slug>` a partir da base |
 | `harness worktree finish <task>` | Commita, rebase, roda gates.merge, squash merge, conclui a task e remove a worktree |
 | `harness worktree list` / `prune` | Lista worktrees registradas / limpa entradas órfãs |
+| `harness run <task> --tool <claude\|codex\|opencode>` | Executa a task no agente, de verdade, dentro da worktree da task. Flags: `--model`, `--unsafe`, `--permission-mode` (só claude); `--stop <run>` interrompe |
+| `harness runs [<task>]` | Lista execuções de agentes: status, duração, tokens e custo (medido ou n/d). Flags: `--json`, `--limit` |
+| `harness events <run>` | Timeline normalizada de uma execução. Flags: `--json`, `--native` (evento original da tool) |
 | `harness gates [--phase finish\|merge]` | Roda os gates declarados no `harness.json` |
 | `harness status` | Prime de sessão: WIP, ativas, worktrees, últimas sessões e handoff |
 | `harness session end "<resumo>"` / `list` | Memória local: grava/lista sessões (db + `context/sessions/`) |
@@ -560,6 +564,46 @@ as sessões e placeholders para lições/ações — a cadência leve de melhori
 - **Execução ao vivo:** no modo `--serve`, o header ganha o link "▶ vista Execução"
   (rota `/canvas`) — ver [Execução ao vivo (canvas)](#execução-ao-vivo-canvas).
 
+## Execução de agentes (`harness run`)
+
+Até aqui o harness **organiza** o trabalho; com `harness run` ele também **executa** o agente,
+em modo não interativo, dentro da worktree da task, e grava cada passo no banco
+(`runs` + `run_events` em `.harness/harness.db`).
+
+```bash
+pnpm harness start 12
+pnpm harness worktree start 12
+pnpm harness run 12 --tool claude            # ou --tool codex | --tool opencode --unsafe
+pnpm harness events <run>                     # o que o agente fez, passo a passo
+pnpm harness runs 12                          # status, duração, tokens e custo
+pnpm harness worktree finish 12 --handoff "…" # revisão + integração continuam com você
+```
+
+O prompt enviado é a task completa mais as regras fixas do protocolo (escopo estrito, não rodar
+`finish`/`merge`/`push`, terminar com resumo). Ele vai pelo **stdin** — nunca é interpolado num
+comando de shell.
+
+| Tool | Comando executado | Permissões | Uso reportado |
+|---|---|---|---|
+| `claude` | `claude -p --output-format stream-json --verbose` | `--permission-mode acceptEdits` (padrão; `default`/`plan` via flag) + deny do perfil de sandbox em `.claude/settings.json` | tokens + custo em USD |
+| `codex` | `codex exec --json --sandbox workspace-write -` | sandbox do Codex (`workspace-write`) | tokens (sem custo em USD) |
+| `opencode` | `opencode run --format json` | **exige `--unsafe`**: o `opencode run` pode aprovar edições e comandos sozinho | tokens + custo, somados por passo |
+
+- **Recusas claras**: task fora de `active/`, task sem worktree ou tool não instalada → erro com o
+  próximo comando a rodar. Nada é simulado: sem a tool no PATH, nenhum run é aberto.
+- **Eventos normalizados** (`run.started|completed|failed`, `agent.message|tool_call|tool_result|file_changed|usage|error`),
+  com o evento original da tool preservado em `native` (`harness events <run> --native`).
+  Linha que não é JSON também é guardada.
+- **Medido × n/d**: tokens e custo só entram quando a tool reporta; caso contrário ficam `n/d`.
+- **Segredos**: payloads passam por redaction antes de gravar.
+- **Interrupção**: Ctrl+C ou `harness run --stop <run>` encerram a árvore de processos
+  (`taskkill /T` no Windows) e marcam o run como `failed` (`interrupted`). Run cujo processo morreu
+  vira `failed` (`orphaned`) no próximo `harness runs`.
+- **`--unsafe`**: único caminho para liberar tudo (`bypassPermissions` no Claude,
+  `danger-full-access` no Codex); fica gravado no run e aparece no `/canvas`.
+- **Status**: implementado e testado com executáveis falsos que reproduzem o formato documentado de
+  cada tool. A validação com as tools reais instaladas ainda está pendente.
+
 ## Execução ao vivo (canvas)
 
 Quando o coordenador spawna N subagents em paralelo, o board mostra as tasks — mas não
@@ -574,8 +618,9 @@ servidor) mostra um cartão ao vivo por task da coluna `active`:
 | arquivos alterados | `git status --porcelain` na worktree (`n/d` fora de repo/timeout) |
 | último evento | último `task_event` no banco |
 | última nota | última interação `--kind note` ("o agente reporta: …") |
+| run do agente | run mais recente da task (`harness run`): tool · modelo, status, último evento do agente, tokens · custo (medido ou n/d) |
 
-- **Staleness**: task sem atividade nova (evento/interação) há mais de **15 min** ganha badge e fundo
+- **Staleness**: task sem atividade nova (evento, interação ou evento de run) há mais de **15 min** ganha badge e fundo
   amarelo (o cálculo é feito no servidor e os cartões stale vêm primeiro na ordenação).
 - **Modal de histórico**: clique no cartão reabre o detalhamento do board (endpoint
   `GET /api/tasks/:id/detail`).

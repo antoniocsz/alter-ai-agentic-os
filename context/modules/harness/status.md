@@ -225,6 +225,17 @@
   usar a identidade do usuário quando houver seria mudança de comportamento — fica como
   sugestão separada.
 
+## Handoff (task 99 — docs da execução de agentes)
+- Feito: ajuda do CLI (`commands/index.js`) lista `run --tool <claude|codex|opencode>` com
+  `--unsafe`/`--permission-mode`; README ganha as linhas `run`/`runs`/`events` na tabela do
+  CLI, a seção "Execução de agentes (`harness run`)" (fluxo, tabela por tool com comando/
+  permissões/uso, eventos, medido × n/d, redaction, interrupção, `--unsafe`, status da
+  validação) e a linha "run do agente" na tabela do canvas (+ índice; 35 links verificados);
+  AGENTS.md ganha "Execução por agente (`harness run`)"; spec da feature com AC-1..AC-8
+  marcados e seção "Estado" (o que foi validado com executáveis falsos e o que falta).
+- Pendências: execução real com as tools instaladas (registrada na spec).
+- Decisões: documentar a validação pendente no próprio README em vez de omitir.
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do
