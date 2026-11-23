@@ -292,6 +292,21 @@
 - Decisões: git com timeout de 10s (3s estourava neste ambiente lento); com orçamento, seções
   menores de prioridade mais baixa ainda entram se couberem.
 
+## Handoff (task 104 — `run` anexa o pacote de contexto)
+- Feito: `src/run.js` — `contextBudget(root, flags)` (`--no-context`; `--context-budget n`;
+  senão `harness.json → context.budget`; 0 desliga; inválido falha) e `contextForRun(root, task,
+  budget, db)` (pacote sem a seção `task`, que já vai no prompt; evento `context_built` com o
+  resumo no histórico da task). `buildPrompt` ganha o bloco "--- CONTEXTO DO PROJETO ---". Run único
+  e lote anexam o pacote (no lote, um por task, com `[nn] 📦 contexto:`); no lote o orçamento é
+  validado antes de preparar qualquer task. `lib/config.js` — `context.budget` (padrão 8000) em
+  `DEFAULT_CONFIG`/`resolveConfig` e validado em `validateConfig`. +3 testes em
+  `tests/run-context.test.js` (prompt real do runtime falso com/sem pacote, orçamento pequeno,
+  config 0/inválida, lote); run-claude, run-codex-opencode, batch, config, check, profile verdes.
+  `init.test.js` não coube no tempo deste ambiente (não usa o código alterado — fica para o CI).
+- Pendências: docs (task 105).
+- Decisões: pacote ligado por padrão (8000 tokens estimados) — o ganho de não redescobrir o
+  projeto supera o custo; quem não quiser usa `--no-context` ou `context.budget: 0`.
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do

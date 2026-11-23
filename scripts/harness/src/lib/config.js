@@ -18,6 +18,10 @@ export const DEFAULT_CONFIG = {
   wip: {
     active: 3,
     queue: 8
+  },
+  // Pacote de contexto anexado ao prompt do `harness run` (tokens estimados; 0 desliga).
+  context: {
+    budget: 8000
   }
 }
 
@@ -42,7 +46,8 @@ export function resolveConfig(root) {
     ...cfg,
     gates: { ...base.gates, ...(cfg.gates ?? {}) },
     git: { ...base.git, ...(cfg.git ?? {}) },
-    wip: { ...base.wip, ...(cfg.wip ?? {}) }
+    wip: { ...base.wip, ...(cfg.wip ?? {}) },
+    context: { ...base.context, ...(cfg.context ?? {}) }
   }
 }
 
@@ -77,6 +82,11 @@ export function validateConfig(cfg) {
     if (v !== undefined && (!Number.isInteger(v) || v < 0)) {
       errors.push(`wip.${key} deve ser inteiro >= 0`)
     }
+  }
+
+  const budget = cfg.context?.budget
+  if (budget !== undefined && (!Number.isInteger(budget) || budget < 0)) {
+    errors.push('context.budget deve ser inteiro >= 0 (0 desliga o pacote no harness run)')
   }
 
   return errors

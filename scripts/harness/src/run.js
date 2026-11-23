@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { openDb } from './lib/db.js'
+import { openDb, logEvent } from './lib/db.js'
+import { buildContextPackage, renderContextMarkdown } from './lib/context.js'
 import { parseArgs, flagBool, flagString } from './lib/flags.js'
 import { activeDir, resolveTaskName } from './lib/tasks.js'
 import { readRegistry } from './lib/worktree.js'
@@ -23,7 +24,7 @@ export function driverFor(toolName) {
 
 const SAFE_VALUE = /^[A-Za-z0-9._:/@-]+$/
 
-const USAGE = `uso: harness run <task> --tool <${Object.keys(DRIVERS).join('|')}> [--model <m>] [--permission-mode <modo>] [--unsafe]
+const USAGE = `uso: harness run <task> --tool <${Object.keys(DRIVERS).join('|')}> [--model <m>] [--permission-mode <modo>] [--unsafe] [--no-context | --context-budget <n>]
      harness run --batch <t1,t2,...> --tool <tool> [--max-parallel <n>] [--model <m>] [--unsafe]
      harness run --stop <run>`
 
@@ -35,8 +36,8 @@ export function taskWorktree(root, taskId) {
   return fs.existsSync(dir) ? { ...entry, dir } : null
 }
 
-export function buildPrompt(taskId, taskBody, wt) {
-  return [
+export function buildPrompt(taskId, taskBody, wt, contextMd = null) {
+  const parts = [
     `Você está executando a task ${taskId} do harness (AlterAI - Agentic OS)`,
     `na worktree ${wt.path} (branch ${wt.branch}). Regras desta execução:`,
     '- Leia AGENTS.md e siga o protocolo e os guard rails do projeto.',
@@ -46,7 +47,39 @@ export function buildPrompt(taskId, taskBody, wt) {
     '',
     '--- TASK ---',
     taskBody
-  ].join('\n')
+  ]
+  if (contextMd) {
+    parts.push('', '--- CONTEXTO DO PROJETO (gerado pelo harness para esta task; consulte antes de investigar) ---', contextMd)
+  }
+  return parts.join('\n')
+}
+
+/**
+ * Pacote de contexto para o prompt (task 104): orçamento de `--context-budget`, senão
+ * `harness.json → context.budget` (padrão 8000); `--no-context` ou orçamento 0 desligam.
+ * A seção `task` fica de fora (a task já vai inteira no prompt). Registra o tamanho no histórico.
+ */
+export function contextBudget(root, flags) {
+  if (flagBool(flags, 'no-context')) return null
+  if (flags['context-budget'] === true) throw new Error('--context-budget exige um número (ex.: --context-budget 6000; 0 desliga)')
+  const raw = flagString(flags, 'context-budget')
+  const budget = raw === null ? Number(resolveConfig(root).context?.budget ?? 8000) : Number(raw)
+  if (!Number.isInteger(budget) || budget < 0) throw new Error(`--context-budget inválido: ${raw} (use inteiro >= 0)`)
+  return budget === 0 ? null : budget
+}
+
+export function contextForRun(root, taskId, budget, db = null) {
+  if (budget === null) return null
+  const pkg = buildContextPackage(root, taskId, { budget, exclude: ['task'] })
+  if (!pkg.sections.length) return null
+  const summary = `${pkg.sections.length} seção(ões) · ~${pkg.total_tokens} tokens (estimado)` +
+    (pkg.omitted.length ? ` · omitidas: ${pkg.omitted.map((o) => o.id).join(', ')}` : '')
+  if (db) {
+    try {
+      logEvent(db, taskId, 'context_built', summary)
+    } catch {}
+  }
+  return { md: renderContextMarkdown(pkg), pkg, summary }
 }
 
 function line(text) {
@@ -162,13 +195,16 @@ export async function runCmd(args) {
     throw new Error(`task sem worktree: ${taskId}\n  o agente só roda isolado — rode antes: harness worktree start ${arg}`)
   }
 
-  const prompt = buildPrompt(taskId, fs.readFileSync(path.join(activeDir(root), taskId), 'utf8'), wt)
+  const budget = contextBudget(root, flags)
 
   const db = openDb(root)
   const { signal, dispose } = withSigint()
   let announced = false
   try {
     reapOrphans(db)
+    const ctx = contextForRun(root, taskId, budget, db)
+    if (ctx) line(`📦 contexto: ${ctx.summary} · ver: harness context ${arg}`)
+    const prompt = buildPrompt(taskId, fs.readFileSync(path.join(activeDir(root), taskId), 'utf8'), wt, ctx?.md)
     if (unsafe) line(`⚠️  --unsafe: ${driver.id} roda sem pedir permissões (registrado no run).`)
     const result = await runTool({
       db,
@@ -213,6 +249,7 @@ function fmtDuration(ms) {
 /** `harness run --batch 12,13,14 --tool <t> [--max-parallel n]` — lote paralelo (task 100). */
 async function runBatchCmd(root, flags, toolName, batchArg) {
   const { probe, opts, unsafe } = resolveRunOptions(flags, toolName)
+  const budget = contextBudget(root, flags) // valida antes de preparar qualquer task
 
   const maxRaw = flagString(flags, 'max-parallel')
   const max = maxRaw === null ? Math.max(1, Number(resolveConfig(root).wip?.active) || 1) : Number(maxRaw)
@@ -233,24 +270,25 @@ async function runBatchCmd(root, flags, toolName, batchArg) {
     line(`   ${taskTag(p.name)} ${p.name}${did ? ` — ${did}` : ' — já pronta'}`)
   }
 
-  const jobs = plan.items.map((it) => {
-    const wt = taskWorktree(root, it.name)
-    if (!wt) throw new Error(`worktree não encontrada para ${it.name} após a preparação`)
-    return {
-      taskId: it.name,
-      cwd: wt.dir,
-      driver: driverFor(toolName), // instância por run (drivers com estado)
-      prompt: buildPrompt(it.name, fs.readFileSync(path.join(activeDir(root), it.name), 'utf8'), wt),
-      opts,
-      unsafe
-    }
-  })
-
   const batchId = newBatchId()
   const db = openDb(root)
   const { signal, dispose } = withSigint()
   try {
     reapOrphans(db)
+    const jobs = plan.items.map((it) => {
+      const wt = taskWorktree(root, it.name)
+      if (!wt) throw new Error(`worktree não encontrada para ${it.name} após a preparação`)
+      const ctx = contextForRun(root, it.name, budget, db)
+      if (ctx) line(`   ${taskTag(it.name)} 📦 contexto: ${ctx.summary}`)
+      return {
+        taskId: it.name,
+        cwd: wt.dir,
+        driver: driverFor(toolName), // instância por run (drivers com estado)
+        prompt: buildPrompt(it.name, fs.readFileSync(path.join(activeDir(root), it.name), 'utf8'), wt, ctx?.md),
+        opts,
+        unsafe
+      }
+    })
     line(`🧩 ${batchId} · ${probe.id} · ${jobs.length} task(s) · até ${max} em paralelo`)
     if (unsafe) line(`⚠️  --unsafe: ${probe.id} roda sem pedir permissões (registrado em cada run).`)
     const announced = new Set()
