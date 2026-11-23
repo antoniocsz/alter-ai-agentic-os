@@ -59,6 +59,7 @@ Comandos:
                       opencode exige --unsafe) | --stop <run>
                       --batch <t1,t2,...> [--max-parallel n]: lote paralelo, um agente por worktree
                       pacote de contexto no prompt: [--no-context | --context-budget n]
+                      orçamento do harness.json: recusa/corta o run; [--ignore-budget] (registrado)
   context <task>      Pacote de contexto da task (regras, feature, módulo, deps, skills, ADRs, escopo)
                       [--budget <tokens>] [--json | --out <arquivo>]
   budget              Consumo medido (hoje, mês, tasks ativas) contra os limites do harness.json [--json]

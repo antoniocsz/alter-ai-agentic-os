@@ -34,15 +34,24 @@ limite por execução, por task, por dia ou por mês, nem uma visão do consumid
 
 ## Critérios de aceitação
 
-- [ ] AC-1 — `budget` validado no `harness.json` (escopos run/task/day/month; tokens/usd > 0) e pelo `harness check`.
-- [ ] AC-2 — `harness budget [--json]` agrega só uso medido por dia/mês/task, compara com os limites e informa runs sem uso reportado.
-- [ ] AC-3 — Run recusado antes de iniciar se task/dia/mês estouraram; `--ignore-budget` permite e grava no run.
-- [ ] AC-4 — Corte durante o run quando o uso parcial reportado ultrapassa o limite efetivo; run `failed` com motivo `budget` e evento registrado.
-- [ ] AC-5 — Lote: task sem orçamento na hora de começar fica `skipped` (`budget`).
-- [ ] AC-6 — Claude reporta uso parcial a partir de `message.usage` (sem contar duas vezes a mesma mensagem); o total final do `result` prevalece.
-- [ ] AC-7 — Zero dependências novas; testes com runtime falso.
+- [x] AC-1 — `budget` validado no `harness.json` (escopos run/task/day/month; tokens/usd > 0) e pelo `harness check`.
+- [x] AC-2 — `harness budget [--json]` agrega só uso medido por dia/mês/task, compara com os limites e informa runs sem uso reportado.
+- [x] AC-3 — Run recusado antes de iniciar se task/dia/mês estouraram; `--ignore-budget` permite e grava no run.
+- [x] AC-4 — Corte durante o run quando o uso parcial reportado ultrapassa o limite efetivo; run `failed` com motivo `budget` e evento registrado.
+- [x] AC-5 — Lote: task sem orçamento na hora de começar fica `skipped` (`budget`).
+- [x] AC-6 — Claude reporta uso parcial a partir de `message.usage` (sem contar duas vezes a mesma mensagem); o total final do `result` prevalece.
+- [x] AC-7 — Zero dependências novas; testes com runtime falso.
 
-## Fora de escopo
+## Estado (2026-11-23)
+
+- Entregue nas tasks 106 (`harness budget`, validação, agregação), 107 (recusa prévia, corte
+  durante o run, skip no lote, `--ignore-budget`, parcial do Claude) e 108 (docs).
+- Validado com runtime falso que reporta uso por mensagem (corte real do processo).
+- Limitação conhecida: runs simultâneos de um lote não enxergam o gasto uns dos outros até
+  terminarem. Pendente: validar o uso parcial com as tools reais.
+- Decisão: `--ignore-budget` desliga todos os limites, inclusive o do run.
+
+
 
 - Preço por modelo para estimar custo (só o que a tool reporta).
 - Rebaixar o modelo automaticamente ao chegar perto do limite.

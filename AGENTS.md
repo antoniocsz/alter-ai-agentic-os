@@ -118,6 +118,7 @@ pnpm harness run --stop <run>       # interrompe (mata a árvore de processos)
 pnpm harness run --batch 12,13 --tool claude [--max-parallel n]  # lote: um agente por worktree, em paralelo
 pnpm harness runs --batch <id>      # resultado do lote
 pnpm harness context <task>         # pacote de contexto que o run anexa ao prompt (--budget n)
+pnpm harness budget                 # consumo medido × limites (harness.json → budget)
 ```
 
 - O agente executado **não** roda `finish`/`merge`: revise a worktree e integre com `worktree finish`.
@@ -125,6 +126,8 @@ pnpm harness context <task>         # pacote de contexto que o run anexa ao prom
   Codex roda com `--sandbox workspace-write`; OpenCode exige `--unsafe` (pode aprovar sozinho).
   Liberar tudo só com `--unsafe`, que fica gravado no run.
 - Tokens e custo só entram quando a tool reporta — nunca são estimados.
+- Orçamento (`harness.json → budget`): run recusado se task/dia/mês estouraram e cortado se o uso
+  reportado passar do limite. `--ignore-budget` só com aprovação explícita — fica registrado.
 - O prompt inclui o pacote de contexto da task (regras, feature, módulo, handoffs das dependências,
   skills, ADRs, escopo): consulte-o antes de investigar o repositório. `--no-context` desliga.
 - No lote, tasks com dependência entre si ou escopos sobrepostos são recusadas antes de qualquer

@@ -16,6 +16,7 @@ Camada de operação que padroniza como agentes de IA trabalham em um projeto de
 - [Execução em paralelo (subagents)](#execução-em-paralelo-subagents)
 - [Execução de agentes (`harness run`)](#execução-de-agentes-harness-run)
 - [Pacote de contexto (`harness context`)](#pacote-de-contexto-harness-context)
+- [Orçamento (`harness budget`)](#orçamento-harness-budget)
 - [Adaptadores de tool](#adaptadores-de-tool)
 - [Adaptador browser](#adaptador-browser)
 - [Sandbox por tool](#sandbox-por-tool)
@@ -145,6 +146,7 @@ tasks/
 | `harness run <task> --tool <claude\|codex\|opencode>` | Executa a task no agente, de verdade, dentro da worktree da task. Flags: `--model`, `--unsafe`, `--permission-mode` (só claude); `--stop <run>` interrompe |
 | `harness run --batch <t1,t2,...> --tool <t>` | Lote paralelo: prepara as tasks (start + worktree) e roda um agente por worktree ao mesmo tempo. Flag: `--max-parallel` (padrão `wip.active`) |
 | `harness runs [<task>]` | Lista execuções de agentes: status, duração, tokens e custo (medido ou n/d). Flags: `--batch <id>`, `--json`, `--limit` |
+| `harness budget` | Consumo **medido** (hoje, mês, tasks ativas) contra os limites de `harness.json → budget`; avisa runs sem uso reportado. Flag: `--json` |
 | `harness context <task>` | Pacote de contexto da task (regras, feature, módulo, dependências, skills, ADRs, escopo, histórico) com tokens estimados. Flags: `--budget`, `--json`, `--out` |
 | `harness events <run>` | Timeline normalizada de uma execução. Flags: `--json`, `--native` (evento original da tool) |
 | `harness gates [--phase finish\|merge]` | Roda os gates declarados no `harness.json` |
@@ -603,6 +605,8 @@ interpolado num comando de shell.
 - **Interrupção**: Ctrl+C ou `harness run --stop <run>` encerram a árvore de processos
   (`taskkill /T` no Windows) e marcam o run como `failed` (`interrupted`). Run cujo processo morreu
   vira `failed` (`orphaned`) no próximo `harness runs`.
+- **Orçamento**: com `harness.json → budget`, o run é recusado se task/dia/mês já estouraram e é
+  cortado durante a execução se o uso reportado passar do limite (ver "Orçamento").
 - **`--unsafe`**: único caminho para liberar tudo (`bypassPermissions` no Claude,
   `danger-full-access` no Codex); fica gravado no run e aparece no `/canvas`.
 - **Status**: implementado e testado com executáveis falsos que reproduzem o formato documentado de
@@ -665,6 +669,37 @@ pnpm harness context 12 --json | --out ctx.md # para outras ferramentas
 - No `harness run`/`run --batch` o pacote vai anexado ao prompt (sem repetir a task), com orçamento
   de `harness.json → context.budget` (padrão **8000**; `0` desliga). O tamanho fica no histórico da
   task (`context_built`).
+
+## Orçamento (`harness budget`)
+
+Limites opcionais de tokens e/ou USD por escopo, no `harness.json`:
+
+```jsonc
+"budget": {
+  "run":   { "tokens": 300000, "usd": 5 },  // uma execução
+  "task":  { "usd": 20 },                   // soma de todos os runs da task
+  "day":   { "usd": 50 },                   // runs iniciados hoje (data local)
+  "month": { "usd": 500 }
+}
+```
+
+```bash
+pnpm harness budget            # consumo medido × limites: hoje, mês, tasks ativas (ok · perto · ESTOUROU)
+pnpm harness budget --json
+```
+
+- **Só conta uso medido** (reportado pela tool). Runs sem uso reportado aparecem num aviso e não
+  entram na soma — o consumido mostrado é um piso. Codex não reporta USD: limite em USD não se
+  aplica a esses runs; limite em tokens sim.
+- **Antes do run**: task, dia ou mês estourados → o `harness run` recusa com o motivo. No lote,
+  dia/mês estourados recusam antes de preparar qualquer task, e cada task é checada na hora de
+  começar (sem orçamento → `skipped`, motivo `budget`).
+- **Durante o run**: o limite efetivo é o menor entre `budget.run` e o saldo de task/dia/mês. Quando o
+  uso reportado passa dele — Claude por mensagem da API, Codex por turno, OpenCode por passo — o
+  processo é encerrado e o run fica `failed` com motivo `budget` (o uso parcial reportado é gravado).
+- **`--ignore-budget`**: roda mesmo assim e fica gravado no run (`budget_override`).
+- Limitação: runs simultâneos de um lote só enxergam o gasto uns dos outros quando terminam (o saldo
+  é calculado no início de cada task) — num lote grande, o total pode passar do limite do dia/mês.
 
 ## Execução ao vivo (canvas)
 
@@ -796,7 +831,8 @@ Cada projeto declara seu perfil em `harness.json` na raiz:
   },
   "git": { "model": "trunk", "featureBranch": false },
   "wip": { "active": 3, "queue": 8 },
-  "context": { "budget": 8000 }           // pacote de contexto no harness run (0 desliga)
+  "context": { "budget": 8000 },          // pacote de contexto no harness run (0 desliga)
+  "budget": { "day": { "usd": 50 } }       // opcional: limites de custo (ver "Orçamento")
 }
 ```
 

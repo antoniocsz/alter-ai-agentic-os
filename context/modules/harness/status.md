@@ -348,6 +348,15 @@
 - Decisões: `--ignore-budget` desliga todos os limites (inclusive o do run) e fica registrado;
   parcial do Claude só conta tokens (custo só no `result`).
 
+## Handoff (task 108 — docs do orçamento)
+- Feito: ajuda do CLI (`budget` e `--ignore-budget` no run); README com a linha na tabela do CLI, a
+  seção "Orçamento (`harness budget`)" (formato, medido × piso, antes/durante o run, lote,
+  `--ignore-budget`, limitação do lote) e `budget` no exemplo de `harness.json` (37 links
+  verificados); AGENTS.md com o comando e a regra (`--ignore-budget` só com aprovação explícita);
+  spec com AC-1..AC-7 marcados e "Estado".
+- Pendências: validar uso parcial com as tools reais.
+- Decisões: —
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do
