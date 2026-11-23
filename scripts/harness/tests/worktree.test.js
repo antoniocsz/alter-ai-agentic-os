@@ -96,3 +96,51 @@ test('worktree: arquivo fora do escopo bloqueia o merge', async () => {
   assert.ok(fs.existsSync(path.join(root, 'tasks/active/01-ajustar-main.md')), 'task deve seguir ativa')
   assert.ok(fs.existsSync(started.dir), 'worktree deve ser preservada')
 })
+
+// Task 98: máquina sem identidade git (runner do CI, instalação nova). Com
+// `user.useConfigOnly=true` o git não adivinha nome/e-mail — todo comando do
+// harness que cria commit (inclusive o rebase que reaplica commits) precisa
+// passar a própria identidade.
+function withoutGitIdentity(fn) {
+  const keys = [
+    'GIT_AUTHOR_NAME', 'GIT_AUTHOR_EMAIL', 'GIT_COMMITTER_NAME', 'GIT_COMMITTER_EMAIL',
+    'GIT_CONFIG_GLOBAL', 'GIT_CONFIG_NOSYSTEM', 'GIT_CONFIG_COUNT', 'GIT_CONFIG_KEY_0', 'GIT_CONFIG_VALUE_0', 'EMAIL'
+  ]
+  const saved = Object.fromEntries(keys.map((k) => [k, process.env[k]]))
+  const emptyGlobal = path.join(tmpdir(), 'gitconfig-vazio')
+  fs.writeFileSync(emptyGlobal, '')
+  for (const k of keys) delete process.env[k]
+  Object.assign(process.env, {
+    GIT_CONFIG_GLOBAL: emptyGlobal,
+    GIT_CONFIG_NOSYSTEM: '1',
+    GIT_CONFIG_COUNT: '1',
+    GIT_CONFIG_KEY_0: 'user.useConfigOnly',
+    GIT_CONFIG_VALUE_0: 'true'
+  })
+  const restore = () => {
+    for (const k of keys) {
+      if (saved[k] === undefined) delete process.env[k]
+      else process.env[k] = saved[k]
+    }
+  }
+  return Promise.resolve().then(fn).finally(restore)
+}
+
+test('worktree finish: rebase sobre base que avançou funciona sem identidade git configurada', async () => {
+  await withoutGitIdentity(async () => {
+    const root = await makeProject()
+    const started = startWorktree(root, '01')
+
+    // A base avança depois do start (squash de outra task, como num lote paralelo)
+    // → o rebase precisa reaplicar o commit desta task.
+    fs.writeFileSync(path.join(root, 'outro.txt'), 'mudança intercalada\n')
+    execFileSync('git', ['add', 'outro.txt'], { cwd: root, stdio: 'ignore' })
+    execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qm', 'feat(task-02): outra task'], { cwd: root, stdio: 'ignore' })
+
+    fs.appendFileSync(path.join(started.dir, 'src', 'main.js'), '\n// ajuste sem identidade\n')
+    const res = finishWorktree(root, '01', { handoff: 'ok' })
+    assert.equal(res.finished.ok, true)
+    assert.match(fs.readFileSync(path.join(root, 'src', 'main.js'), 'utf8'), /ajuste sem identidade/)
+    assert.ok(fs.existsSync(path.join(root, 'outro.txt')), 'o commit intercalado continua na base')
+  })
+})

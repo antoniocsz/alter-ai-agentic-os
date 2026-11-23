@@ -211,6 +211,20 @@
   continuam preservados em `native`. Tokens de entrada incluem cache (opencode:
   input + cache.read + cache.write; codex: `input_tokens` já inclui o cache).
 
+## Handoff (task 98 — worktree finish: rebase sem identidade git)
+- Feito: `lib/worktree.js` — `HARNESS_IDENTITY` (export) centraliza `-c user.name=harness
+  -c user.email=harness@local` e passa a valer também no `git rebase <base>` do
+  `worktree finish` (antes só no commit do trabalho sujo e no squash). Sem isso, rebase que
+  reaplica commits falhava em máquina sem identidade global (`empty ident name`) — causa da
+  única falha do run 44985807555 (270/271). +1 teste em `tests/worktree.test.js` que roda o
+  finish com a base avançada (squash de outra task) sob `user.useConfigOnly=true` e sem
+  GIT_AUTHOR/COMMITTER no ambiente: falha sem a correção (`rebase em master falhou`) e passa
+  com ela. Worktree, pipeline-cross, run-* e o lote rápido verdes sem identidade git.
+- Pendências: confirmar CI verde após o push.
+- Decisões: autoria inalterada (commits do harness seguem `harness <harness@local>`);
+  usar a identidade do usuário quando houver seria mudança de comportamento — fica como
+  sugestão separada.
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do

@@ -13,6 +13,11 @@ import { commitForTask, normalizeCommitType } from './commits.js'
 export const worktreesDir = (root) => path.join(root, '.worktrees')
 export const registryPath = (root) => path.join(root, '.harness', 'worktrees.json')
 
+// Identidade dos commits feitos pelo harness (trabalho sujo, rebase e squash). O
+// rebase também precisa dela: reaplicar commits exige committer, e máquinas sem
+// user.name/user.email globais (runner do CI, instalação nova) falhariam (task 98).
+export const HARNESS_IDENTITY = ['-c', 'user.name=harness', '-c', 'user.email=harness@local']
+
 export function git(root, args, opts = {}) {
   return execFileSync('git', args, {
     cwd: root,
@@ -161,21 +166,13 @@ function finishWorktreeUnlocked(root, arg, opts = {}) {
   const dirty = git(wt, ['status', '--porcelain'])
   if (dirty.trim()) {
     git(wt, ['add', '-A'])
-    git(wt, [
-      '-c',
-      'user.name=harness',
-      '-c',
-      'user.email=harness@local',
-      'commit',
-      '-m',
-      `chore(${entry.branch}): trabalho da task`
-    ])
+    git(wt, [...HARNESS_IDENTITY, 'commit', '-m', `chore(${entry.branch}): trabalho da task`])
   }
 
   const base = entry.base
 
   try {
-    git(wt, ['rebase', base])
+    git(wt, [...HARNESS_IDENTITY, 'rebase', base])
   } catch (err) {
     throw new Error(
       `rebase em ${base} falhou — resolva na worktree ${entry.path} e rode de novo.\n${String(err.stderr ?? '').trim()}`
@@ -241,15 +238,7 @@ function finishWorktreeUnlocked(root, arg, opts = {}) {
       const activeTask = parseTask(path.join(activeDir(root), entry.task))
       commitType = normalizeCommitType(activeTask.values?.['Tipo'] ?? 'feat')
     } catch {}
-    git(root, [
-      '-c',
-      'user.name=harness',
-      '-c',
-      'user.email=harness@local',
-      'commit',
-      '-m',
-      commitForTask(entry.task, commitType)
-    ])
+    git(root, [...HARNESS_IDENTITY, 'commit', '-m', commitForTask(entry.task, commitType)])
   }
 
   const res = finishTask(root, entry.task, { handoff: opts.handoff ?? null })
