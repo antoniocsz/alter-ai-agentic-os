@@ -33,15 +33,24 @@ entregue pronto (o "Context Intelligence Engine" da visão).
 
 ## Critérios de aceitação
 
-- [ ] AC-1 — `harness context <task>` monta as seções na ordem de prioridade, só com o que existe (seção ausente não aparece).
-- [ ] AC-2 — Estimativa de tokens por seção e total, rotulada como estimada.
-- [ ] AC-3 — `--budget` remove seções de menor prioridade inteiras, nunca a task, e lista as omitidas.
-- [ ] AC-4 — Do `status.md` entram só os 3 handoffs mais recentes; das dependências, o handoff registrado no banco.
-- [ ] AC-5 — `--json` e `--out` (markdown) para consumo por outras ferramentas.
-- [ ] AC-6 — `run`/`run --batch` anexam o pacote (padrão ligado, `--no-context`, `--context-budget`, `context.budget` no `harness.json` validado) e registram o tamanho no histórico da task.
-- [ ] AC-7 — Zero dependências novas; segredos passam por redaction; funciona sem banco e sem git (seções dependentes somem).
+- [x] AC-1 — `harness context <task>` monta as seções na ordem de prioridade, só com o que existe (seção ausente não aparece).
+- [x] AC-2 — Estimativa de tokens por seção e total, rotulada como estimada.
+- [x] AC-3 — `--budget` remove seções de menor prioridade inteiras, nunca a task, e lista as omitidas.
+- [x] AC-4 — Do `status.md` entram só os 3 handoffs mais recentes; das dependências, o handoff registrado no banco.
+- [x] AC-5 — `--json` e `--out` (markdown) para consumo por outras ferramentas.
+- [x] AC-6 — `run`/`run --batch` anexam o pacote (padrão ligado, `--no-context`, `--context-budget`, `context.budget` no `harness.json` validado) e registram o tamanho no histórico da task.
+- [x] AC-7 — Zero dependências novas; segredos passam por redaction; funciona sem banco e sem git (seções dependentes somem).
 
-## Fora de escopo
+## Estado (2026-11-23)
+
+- Entregue nas tasks 103 (`harness context`), 104 (pacote no `run`/`run --batch`,
+  `context.budget`) e 105 (docs).
+- Desvios: (1) "mais recentes" = maior número de task no heading do handoff, porque o `status.md`
+  não é cronológico; (2) com orçamento, seções menores de prioridade mais baixa ainda entram se
+  couberem; (3) seção `deps` aparece mesmo sem banco, dizendo "sem handoff registrado".
+- Pendente: medir o efeito real (tokens/tempo do agente com e sem pacote) com as tools instaladas.
+
+
 
 - Busca semântica/embeddings e resumo por LLM (só seleção determinística).
 - Tokenização exata por modelo.

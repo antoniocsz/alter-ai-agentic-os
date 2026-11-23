@@ -307,6 +307,15 @@
 - Decisões: pacote ligado por padrão (8000 tokens estimados) — o ganho de não redescobrir o
   projeto supera o custo; quem não quiser usa `--no-context` ou `context.budget: 0`.
 
+## Handoff (task 105 — docs do pacote de contexto)
+- Feito: ajuda do CLI (`context <task>` e `--no-context`/`--context-budget` no run); README com a
+  linha na tabela do CLI, a seção "Pacote de contexto (`harness context`)" (tabela das 9 seções,
+  estimativa, orçamento, uso no run), o pacote no texto do `harness run` e `context.budget` no
+  exemplo de `harness.json` (36 links do índice verificados); AGENTS.md com o comando e a
+  orientação de consultar o pacote; spec com AC-1..AC-7 marcados e "Estado" (desvios + pendência).
+- Pendências: medir o efeito real com as tools instaladas (registrado na spec).
+- Decisões: —
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do

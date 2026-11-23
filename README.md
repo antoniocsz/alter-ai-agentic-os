@@ -15,6 +15,7 @@ Camada de operação que padroniza como agentes de IA trabalham em um projeto de
 - [Pipeline de tarefas (queue → active → done)](#pipeline-de-tarefas-queue--active--done)
 - [Execução em paralelo (subagents)](#execução-em-paralelo-subagents)
 - [Execução de agentes (`harness run`)](#execução-de-agentes-harness-run)
+- [Pacote de contexto (`harness context`)](#pacote-de-contexto-harness-context)
 - [Adaptadores de tool](#adaptadores-de-tool)
 - [Adaptador browser](#adaptador-browser)
 - [Sandbox por tool](#sandbox-por-tool)
@@ -144,6 +145,7 @@ tasks/
 | `harness run <task> --tool <claude\|codex\|opencode>` | Executa a task no agente, de verdade, dentro da worktree da task. Flags: `--model`, `--unsafe`, `--permission-mode` (só claude); `--stop <run>` interrompe |
 | `harness run --batch <t1,t2,...> --tool <t>` | Lote paralelo: prepara as tasks (start + worktree) e roda um agente por worktree ao mesmo tempo. Flag: `--max-parallel` (padrão `wip.active`) |
 | `harness runs [<task>]` | Lista execuções de agentes: status, duração, tokens e custo (medido ou n/d). Flags: `--batch <id>`, `--json`, `--limit` |
+| `harness context <task>` | Pacote de contexto da task (regras, feature, módulo, dependências, skills, ADRs, escopo, histórico) com tokens estimados. Flags: `--budget`, `--json`, `--out` |
 | `harness events <run>` | Timeline normalizada de uma execução. Flags: `--json`, `--native` (evento original da tool) |
 | `harness gates [--phase finish\|merge]` | Roda os gates declarados no `harness.json` |
 | `harness status` | Prime de sessão: WIP, ativas, worktrees, últimas sessões e handoff |
@@ -580,9 +582,10 @@ pnpm harness runs 12                          # status, duração, tokens e cust
 pnpm harness worktree finish 12 --handoff "…" # revisão + integração continuam com você
 ```
 
-O prompt enviado é a task completa mais as regras fixas do protocolo (escopo estrito, não rodar
-`finish`/`merge`/`push`, terminar com resumo). Ele vai pelo **stdin** — nunca é interpolado num
-comando de shell.
+O prompt enviado é a task completa, as regras fixas do protocolo (escopo estrito, não rodar
+`finish`/`merge`/`push`, terminar com resumo) e o **pacote de contexto** da task (ver abaixo;
+`--no-context` desliga, `--context-budget n` ajusta). Ele vai pelo **stdin** — nunca é
+interpolado num comando de shell.
 
 | Tool | Comando executado | Permissões | Uso reportado |
 |---|---|---|---|
@@ -631,6 +634,37 @@ pnpm harness worktree finish 12 --handoff "…"       # integração continua ta
 
 Fora desta versão: ondas por dependência (B esperar A ser integrada), integração automática e
 tool/modelo diferentes por task no mesmo lote.
+
+## Pacote de contexto (`harness context`)
+
+Para o agente não redescobrir o projeto a cada task, o harness monta um **pacote compacto e
+determinístico** a partir do que a própria task declara — sem LLM, sem embeddings:
+
+```bash
+pnpm harness context 12                       # markdown no terminal
+pnpm harness context 12 --budget 4000         # corta por prioridade
+pnpm harness context 12 --json | --out ctx.md # para outras ferramentas
+```
+
+| # | Seção | De onde vem |
+|---|---|---|
+| 1 | task | o arquivo da task (nunca sai) |
+| 2 | regras | blocos "Regras inegociáveis" e "Guard Rails" do `AGENTS.md` |
+| 3 | feature | `context/features/<feature>/spec.md` (`## Feature`) |
+| 4 | módulo | `context.md` + os **3 handoffs mais recentes** do `status.md` (maior número de task) |
+| 5 | dependências | último handoff registrado no banco de cada task em `## Depende de` |
+| 6 | skills | `.agents/*.md` citados em `## Skills a carregar` |
+| 7 | ADRs | ADRs citados no texto da task (`ADR-00N`) |
+| 8 | escopo | por arquivo: existe?, tamanho, último commit (sem conteúdo) |
+| 9 | histórico | últimos commits que tocaram o escopo |
+
+- Só entra o que existe; tudo passa por redaction de segredos.
+- Tokens são **estimados** (caracteres/4) e rotulados assim, por seção e no total.
+- Com orçamento, a seção que não cabe sai inteira e é listada como omitida; seções menores de
+  prioridade mais baixa ainda entram se couberem. A task nunca sai.
+- No `harness run`/`run --batch` o pacote vai anexado ao prompt (sem repetir a task), com orçamento
+  de `harness.json → context.budget` (padrão **8000**; `0` desliga). O tamanho fica no histórico da
+  task (`context_built`).
 
 ## Execução ao vivo (canvas)
 
@@ -761,7 +795,8 @@ Cada projeto declara seu perfil em `harness.json` na raiz:
     "merge": ["test", "build"]
   },
   "git": { "model": "trunk", "featureBranch": false },
-  "wip": { "active": 3, "queue": 8 }
+  "wip": { "active": 3, "queue": 8 },
+  "context": { "budget": 8000 }           // pacote de contexto no harness run (0 desliga)
 }
 ```
 

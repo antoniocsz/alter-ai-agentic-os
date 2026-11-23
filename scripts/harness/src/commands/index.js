@@ -57,6 +57,7 @@ Comandos:
                       [--model m] [--unsafe] (claude: [--permission-mode default|acceptEdits|plan];
                       opencode exige --unsafe) | --stop <run>
                       --batch <t1,t2,...> [--max-parallel n]: lote paralelo, um agente por worktree
+                      pacote de contexto no prompt: [--no-context | --context-budget n]
   context <task>      Pacote de contexto da task (regras, feature, módulo, deps, skills, ADRs, escopo)
                       [--budget <tokens>] [--json | --out <arquivo>]
   runs [<task>]       Execuções de agentes registradas [--batch <id>] [--json] [--limit n]
