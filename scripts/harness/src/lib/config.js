@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { validateBudget } from './budget.js'
 
 export const PROFILES = ['web', 'api', 'cli', 'script', 'game', 'docs', 'design', 'bare']
 export const GIT_MODELS = ['trunk', 'gitflow']
@@ -83,6 +84,8 @@ export function validateConfig(cfg) {
       errors.push(`wip.${key} deve ser inteiro >= 0`)
     }
   }
+
+  errors.push(...validateBudget(cfg.budget))
 
   const budget = cfg.context?.budget
   if (budget !== undefined && (!Number.isInteger(budget) || budget < 0)) {

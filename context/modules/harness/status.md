@@ -316,6 +316,19 @@
 - Pendências: medir o efeito real com as tools instaladas (registrado na spec).
 - Decisões: —
 
+## Handoff (task 106 — orçamento: agregação e `harness budget`)
+- Feito: `lib/budget.js` (NOVO) — `validateBudget` (escopos run/task/day/month; métricas
+  tokens/usd; > 0; tokens inteiro), `readBudget` (normaliza; null sem limites), `usageSummary`
+  (só runs `measured` somam; hoje/mês pela data LOCAL do `started_at`; por task = histórico todo;
+  não medidos contados à parte), `checkBudget` (violação = consumo ≥ limite em task/dia/mês;
+  `remaining` = menor saldo por métrica), `effectiveRunLimit` (menor entre `budget.run` e o saldo),
+  `formatViolation`. `lib/config.js` valida `budget` (sem default: ausente = sem limite).
+  `src/budget.js` (NOVO) — `harness budget [--json]`: tabela hoje/mês/tasks ativas com usado/limite,
+  estado (ok · perto ≥80% · ESTOUROU), limite por execução e aviso de runs sem uso reportado.
+  +4 testes em `tests/budget.test.js`; lote rápido verde (139).
+- Pendências: enforcement no run/lote e uso parcial do Claude (task 107); docs (task 108).
+- Decisões: tokens de um run = entrada + saída reportadas; USD ausente (Codex) não vira custo.
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do

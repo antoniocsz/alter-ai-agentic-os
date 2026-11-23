@@ -27,6 +27,7 @@ import { adapterCmd } from '../adapter.js'
 import { runsCmd, eventsCmd } from '../runs.js'
 import { runCmd } from '../run.js'
 import { contextCmd } from '../context.js'
+import { budgetCmd } from '../budget.js'
 
 export const usage = `harness <comando> [args]
 
@@ -60,6 +61,7 @@ Comandos:
                       pacote de contexto no prompt: [--no-context | --context-budget n]
   context <task>      Pacote de contexto da task (regras, feature, módulo, deps, skills, ADRs, escopo)
                       [--budget <tokens>] [--json | --out <arquivo>]
+  budget              Consumo medido (hoje, mês, tasks ativas) contra os limites do harness.json [--json]
   runs [<task>]       Execuções de agentes registradas [--batch <id>] [--json] [--limit n]
   events <run>        Timeline normalizada de uma execução [--json] [--native]
   report              Métricas do banco [--format table|json|csv] [--module] [--days]
@@ -111,6 +113,7 @@ export const commands = {
   history: historyCmd,
   run: runCmd,
   context: contextCmd,
+  budget: budgetCmd,
   runs: runsCmd,
   events: eventsCmd,
   report,
