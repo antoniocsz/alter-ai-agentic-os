@@ -109,7 +109,7 @@ const STDERR_TAIL = 4000
  * Executa `driver` com `prompt` (via stdin) em `cwd`, gravando o run em `db`.
  * Resolve com `{ runId, status, exitCode, error }`. `signal` (AbortSignal) interrompe.
  */
-export function runTool({ db, taskId, cwd, driver, prompt, opts = {}, env = process.env, signal = null, onEvent = () => {}, unsafe = false }) {
+export function runTool({ db, taskId, cwd, driver, prompt, opts = {}, env = process.env, signal = null, onEvent = () => {}, unsafe = false, batchId = null }) {
   const exe = resolveExecutable(driver.bin, { env })
   if (!exe) throw new Error(`${driver.bin} não encontrado no PATH.\n  ${driver.installHint}`)
   if (!fs.existsSync(cwd)) throw new Error(`diretório de execução não existe: ${cwd}`)
@@ -133,7 +133,8 @@ export function runTool({ db, taskId, cwd, driver, prompt, opts = {}, env = proc
     model: opts.model ?? null,
     pid: child.pid ?? null,
     cwd,
-    unsafe
+    unsafe,
+    batchId
   })
 
   const record = (ev) => {

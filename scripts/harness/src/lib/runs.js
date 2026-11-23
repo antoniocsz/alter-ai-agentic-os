@@ -55,13 +55,18 @@ function stamp(date = new Date()) {
   return date.toISOString().replace(/[-:TZ.]/g, '').slice(0, 17)
 }
 
+/** Id de lote (`harness run --batch`): `batch-<timestamp>`. */
+export function newBatchId(date = new Date()) {
+  return `batch-${stamp(date)}`
+}
+
 export function newRunId(taskId, date = new Date()) {
   const num = String(taskId ?? '').match(/^(\d+)-/)?.[1] ?? 'x'
   return `run-${num}-${stamp(date)}`
 }
 
 /** Abre um run `running`. Retorna o id. */
-export function startRun(db, { taskId, tool, toolVersion = null, model = null, sessionId = null, pid = null, cwd = null, unsafe = false, id = null }) {
+export function startRun(db, { taskId, tool, toolVersion = null, model = null, sessionId = null, pid = null, cwd = null, unsafe = false, id = null, batchId = null }) {
   if (!taskId) throw new Error('startRun: taskId obrigatório')
   if (!tool) throw new Error('startRun: tool obrigatória')
   let runId = id ?? newRunId(taskId)
@@ -70,9 +75,9 @@ export function startRun(db, { taskId, tool, toolVersion = null, model = null, s
     runId = `${id ?? newRunId(taskId)}-${n}`
   }
   db.prepare(
-    `INSERT INTO runs (id, task_id, tool, tool_version, model, session_id, status, pid, cwd, started_at, measured, unsafe)
-     VALUES (?,?,?,?,?,?, 'running', ?,?,?, 0, ?)`
-  ).run(runId, taskId, tool, toolVersion, model, sessionId, pid, cwd, now(), unsafe ? 1 : 0)
+    `INSERT INTO runs (id, task_id, tool, tool_version, model, session_id, status, pid, cwd, started_at, measured, unsafe, batch_id)
+     VALUES (?,?,?,?,?,?, 'running', ?,?,?, 0, ?, ?)`
+  ).run(runId, taskId, tool, toolVersion, model, sessionId, pid, cwd, now(), unsafe ? 1 : 0, batchId)
   return runId
 }
 
@@ -129,7 +134,10 @@ export function getRun(db, runId) {
   return db.prepare('SELECT * FROM runs WHERE id = ?').get(runId) ?? null
 }
 
-export function listRuns(db, { taskId = null, limit = 50 } = {}) {
+export function listRuns(db, { taskId = null, batchId = null, limit = 50 } = {}) {
+  if (batchId) {
+    return db.prepare('SELECT * FROM runs WHERE batch_id = ? ORDER BY started_at, id LIMIT ?').all(batchId, limit)
+  }
   if (taskId) {
     return db.prepare('SELECT * FROM runs WHERE task_id = ? ORDER BY started_at DESC, id DESC LIMIT ?').all(taskId, limit)
   }

@@ -129,6 +129,12 @@ function migrate(db) {
     CREATE UNIQUE INDEX IF NOT EXISTS idx_run_events_seq ON run_events(run_id, seq);
   `)
 
+  // Task 100 (orquestracao-paralela): runs de um lote compartilham batch_id.
+  // ALTER idempotente — bancos criados antes da coluna são migrados na abertura.
+  const runCols = db.prepare('PRAGMA table_info(runs)').all().map((c) => c.name)
+  if (!runCols.includes('batch_id')) db.exec('ALTER TABLE runs ADD COLUMN batch_id TEXT')
+  db.exec('CREATE INDEX IF NOT EXISTS idx_runs_batch ON runs(batch_id)')
+
   const row = db.prepare(`SELECT value FROM meta WHERE key = 'schema_version'`).get()
   if (!row) {
     db.prepare(`INSERT INTO meta (key, value) VALUES ('schema_version', ?)`).run(SCHEMA_VERSION)

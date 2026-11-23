@@ -236,6 +236,27 @@
 - Pendências: execução real com as tools instaladas (registrada na spec).
 - Decisões: documentar a validação pendente no próprio README em vez de omitir.
 
+## Handoff (task 100 — orquestração paralela: `run --batch`)
+- Feito: `lib/batch.js` (NOVO) — `planBatch` valida o lote sem mover nada (id ausente/ambíguo,
+  task em done/, repetida, sem `## Escopo`, dependência dentro do próprio lote, conflito de
+  escopo entre tasks do lote e com ativas fora dele — só quando envolve task que vai iniciar);
+  `prepareBatch` faz `startTask` + `startWorktree` em sequência e, se parar no meio, informa o
+  que já ficou preparado (nada é revertido); `runBatch` é um pool sobre `runTool` com limite
+  `max`, um AbortController por run ligado ao sinal do lote (ativos → `interrupted`, pendentes →
+  `skipped`), falha de um não afeta os outros, resultado na ordem do lote. `runs.batch_id`
+  (migração idempotente via PRAGMA + ALTER, índice), `newBatchId`, `startRun({ batchId })`,
+  `listRuns({ batchId })`, `runTool({ batchId })`. `src/run.js` — `run --batch <ids> --tool
+  <t> [--max-parallel n]` (padrão `wip.active`), validação comum ao run único
+  (`resolveRunOptions`), tool ausente falha antes de preparar, saída `[nn]` por task e resumo
+  final (run, duração, uso, erro) com exit 1 se algo falhou. +6 testes em
+  `tests/batch.test.js` (concorrência medida por timeline de um runtime falso, falha isolada,
+  abort, migração, CLI ponta a ponta com reuso de tasks já prontas) — rodados sem identidade
+  git; suíte 278 (258 executados nesta mudança + workspace por fatias).
+- Pendências: `runs --batch` e lote no /canvas (task 101); docs (task 102).
+- Decisões: o DoR completo e as dependências externas continuam validados pelo `startTask`
+  (não duplicados no plano) — por isso a preparação pode parar no meio, com relatório. Integração
+  continua humana (o lote não roda `worktree finish`).
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do
