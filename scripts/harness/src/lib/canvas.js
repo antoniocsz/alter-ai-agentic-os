@@ -103,7 +103,8 @@ function runFor(db, taskId) {
       tokens_out: run.tokens_out,
       cost_usd: run.cost_usd,
       measured: Boolean(run.measured),
-      unsafe: Boolean(run.unsafe)
+      unsafe: Boolean(run.unsafe),
+      batch_id: run.batch_id ?? null
     },
     lastAt: last?.at ?? run.started_at
   }

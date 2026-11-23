@@ -939,6 +939,9 @@ function runHtml(r) {
   if (!r) return '';
   var status = RUN_STATUS[r.status] || r.status;
   var head = '🤖 ' + esc(r.tool) + (r.model ? ' · ' + esc(r.model) : '') + (r.unsafe ? ' · ⚠️ unsafe' : '');
+  var batch = r.batch_id
+    ? '<div class="row"><span>🧩 lote</span><span class="val" title="harness runs --batch ' + esc(r.batch_id) + '">' + esc(r.batch_id) + '</span></div>'
+    : '';
   var last = r.last_agent_event
     ? esc(r.last_agent_event.summary) + ' · ' + esc(relTime(r.last_agent_event.at))
     : '—';
@@ -946,6 +949,7 @@ function runHtml(r) {
     '<div class="row"><span>' + head + '</span><span class="val run-status ' + esc(r.status) + '">' + esc(status) + '</span></div>' +
     '<div class="row"><span>agente</span><span class="val" title="' + last + '">' + last + '</span></div>' +
     '<div class="row"><span>tokens · custo</span><span class="val">' + esc(fmtUsage(r)) + '</span></div>' +
+    batch +
   '</div>';
 }
 

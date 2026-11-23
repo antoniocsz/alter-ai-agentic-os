@@ -31,33 +31,40 @@ function toView(run) {
     usage: run.measured ? 'medido' : 'n/d',
     unsafe: Boolean(run.unsafe),
     session_id: run.session_id,
+    batch_id: run.batch_id ?? null,
     error: run.error
   }
 }
 
-/** `harness runs [<task>] [--json] [--limit n]` — execuções de agentes registradas. */
+/** `harness runs [<task>] [--batch <id>] [--json] [--limit n]` — execuções de agentes registradas. */
 export async function runsCmd(args) {
   const root = process.cwd()
   const { positionals, flags } = parseArgs(args)
   const taskId = positionals[0] ? resolveTaskId(root, positionals[0]) : null
+  const batchId = flagString(flags, 'batch')
+  if (flags.batch === true) throw new Error('--batch exige o id do lote (ex.: harness runs --batch batch-20261123031500000)')
   const limit = Number(flagString(flags, 'limit', '50'))
   if (!Number.isInteger(limit) || limit <= 0) throw new Error(`--limit inválido: ${flags.limit} (use inteiro > 0)`)
 
   const db = openDb(root)
   try {
     reapOrphans(db)
-    const rows = listRuns(db, { taskId, limit }).map(toView)
+    const rows = listRuns(db, { taskId: batchId ? null : taskId, batchId, limit })
+      .filter((r) => !batchId || !taskId || r.task_id === taskId)
+      .map(toView)
     if (flagBool(flags, 'json')) {
       process.stdout.write(JSON.stringify(rows, null, 2) + '\n')
       return
     }
     if (rows.length === 0) {
-      process.stdout.write(`nenhuma execução registrada${taskId ? ` para ${taskId}` : ''}.\n`)
+      process.stdout.write(`nenhuma execução registrada${batchId ? ` no lote ${batchId}` : ''}${taskId ? ` para ${taskId}` : ''}.\n`)
       return
     }
-    const header = ['run', 'task', 'tool', 'status', 'duração', 'tokens in/out', 'custo', 'uso']
+    const withBatch = rows.some((r) => r.batch_id)
+    const header = ['run', ...(withBatch ? ['lote'] : []), 'task', 'tool', 'status', 'duração', 'tokens in/out', 'custo', 'uso']
     const lines = rows.map((r) => [
       r.id,
+      ...(withBatch ? [r.batch_id ?? '—'] : []),
       r.task,
       r.tool + (r.unsafe ? ' (unsafe)' : ''),
       r.status,

@@ -257,6 +257,17 @@
   (não duplicados no plano) — por isso a preparação pode parar no meio, com relatório. Integração
   continua humana (o lote não roda `worktree finish`).
 
+## Handoff (task 101 — `runs --batch` e lote no /canvas)
+- Feito: `src/runs.js` — `harness runs --batch <id> [<task>] [--json]` (filtra pelo lote; com
+  task, interseção), coluna `lote` na tabela quando algum run tem lote, `batch_id` no JSON,
+  `--batch` sem valor falha com exemplo. `lib/canvas.js` — `run.batch_id` no cartão (null fora de
+  lote). `kanban.js` (vista /canvas) — linha "🧩 lote" no bloco do run quando há `batch_id`
+  (escapado; tooltip com o comando `runs --batch`). +3 testes em `tests/batch-views.test.js`;
+  runs, canvas, canvas-runs, batch, kanban e o lote rápido verdes (176).
+- Pendências: docs (task 102).
+- Decisões: o lote aparece no cartão como informação (sem agrupar cartões) — o canvas segue
+  read-only e ordenado por staleness/id.
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do
