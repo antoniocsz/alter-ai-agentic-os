@@ -30,15 +30,25 @@ resultado do conjunto.
 
 ## Critérios de aceitação
 
-- [ ] AC-1 — `run --batch` prepara (start + worktree start) e valida o lote inteiro antes de executar; qualquer recusa aborta sem iniciar agentes e lista o motivo por task.
-- [ ] AC-2 — Execução em paralelo limitada por `--max-parallel` (padrão `wip.active`); nunca mais que N processos de agente simultâneos.
-- [ ] AC-3 — Cada run do lote grava `batch_id`; `harness runs --batch <id> [--json]` lista o lote.
-- [ ] AC-4 — Resumo final por task e exit code ≠ 0 quando algum run falha; falha de um não interrompe os outros.
-- [ ] AC-5 — Ctrl+C (AbortSignal) interrompe todos os runs em andamento e cancela os pendentes; todos ficam `failed` (`interrupted`) ou não iniciados.
-- [ ] AC-6 — `/canvas` e `GET /api/canvas` expõem o `batch_id` do run do cartão.
-- [ ] AC-7 — Zero dependências novas; testes com executáveis falsos (sem tools reais).
+- [x] AC-1 — `run --batch` prepara (start + worktree start) e valida o lote inteiro antes de executar; qualquer recusa aborta sem iniciar agentes e lista o motivo por task.
+- [x] AC-2 — Execução em paralelo limitada por `--max-parallel` (padrão `wip.active`); nunca mais que N processos de agente simultâneos.
+- [x] AC-3 — Cada run do lote grava `batch_id`; `harness runs --batch <id> [--json]` lista o lote.
+- [x] AC-4 — Resumo final por task e exit code ≠ 0 quando algum run falha; falha de um não interrompe os outros.
+- [x] AC-5 — Ctrl+C (AbortSignal) interrompe todos os runs em andamento e cancela os pendentes; todos ficam `failed` (`interrupted`) ou não iniciados.
+- [x] AC-6 — `/canvas` e `GET /api/canvas` expõem o `batch_id` do run do cartão.
+- [x] AC-7 — Zero dependências novas; testes com executáveis falsos (sem tools reais).
 
-## Fora de escopo
+## Estado (2026-11-23)
+
+- Entregue nas tasks 100 (núcleo: `run --batch`, `batch_id`), 101 (`runs --batch`, lote no
+  /canvas) e 102 (docs).
+- Validado com um runtime falso que registra início/fim (concorrência medida), falha isolada,
+  interrupção e CLI ponta a ponta. **Pendente:** lote com as tools reais instaladas.
+- Desvio do plano: o DoR completo e dependências externas são checados pelo `start` (não
+  duplicados na validação do lote) — a preparação pode parar no meio, com relatório do que
+  ficou pronto.
+
+
 
 - Ondas por dependência (task B do lote esperar a integração de A) — exige integração automática.
 - Integração automática (`worktree finish` em sequência após sucesso).

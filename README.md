@@ -142,7 +142,8 @@ tasks/
 | `harness worktree finish <task>` | Commita, rebase, roda gates.merge, squash merge, conclui a task e remove a worktree |
 | `harness worktree list` / `prune` | Lista worktrees registradas / limpa entradas órfãs |
 | `harness run <task> --tool <claude\|codex\|opencode>` | Executa a task no agente, de verdade, dentro da worktree da task. Flags: `--model`, `--unsafe`, `--permission-mode` (só claude); `--stop <run>` interrompe |
-| `harness runs [<task>]` | Lista execuções de agentes: status, duração, tokens e custo (medido ou n/d). Flags: `--json`, `--limit` |
+| `harness run --batch <t1,t2,...> --tool <t>` | Lote paralelo: prepara as tasks (start + worktree) e roda um agente por worktree ao mesmo tempo. Flag: `--max-parallel` (padrão `wip.active`) |
+| `harness runs [<task>]` | Lista execuções de agentes: status, duração, tokens e custo (medido ou n/d). Flags: `--batch <id>`, `--json`, `--limit` |
 | `harness events <run>` | Timeline normalizada de uma execução. Flags: `--json`, `--native` (evento original da tool) |
 | `harness gates [--phase finish\|merge]` | Roda os gates declarados no `harness.json` |
 | `harness status` | Prime de sessão: WIP, ativas, worktrees, últimas sessões e handoff |
@@ -604,6 +605,33 @@ comando de shell.
 - **Status**: implementado e testado com executáveis falsos que reproduzem o formato documentado de
   cada tool. A validação com as tools reais instaladas ainda está pendente.
 
+### Lote paralelo (`run --batch`)
+
+Vários agentes ao mesmo tempo, cada um na própria worktree:
+
+```bash
+pnpm harness run --batch 12,13,14 --tool claude --max-parallel 2
+pnpm harness runs --batch <batch-id>                # o lote inteiro: status, tokens, custo
+pnpm harness worktree finish 12 --handoff "…"       # integração continua task a task
+```
+
+1. **Validação** (nada é movido): task inexistente/ambígua, já em `done/`, repetida, sem `## Escopo`,
+   dependência de outra task **do mesmo lote** ou conflito de escopo (dentro do lote ou com tasks
+   ativas fora dele) → o lote é recusado com o motivo por task. Tool ausente também recusa antes.
+2. **Preparação** (em sequência, com o lock do pipeline): `start` das tasks na queue (DoR como
+   sempre) e `worktree start` de quem não tem. Task já ativa com worktree é reaproveitada. Se algo
+   parar no meio, a saída lista o que já ficou preparado — nada é revertido sozinho.
+3. **Execução**: no máximo `--max-parallel` agentes simultâneos (padrão `wip.active` do
+   `harness.json`); a saída de cada um vem com o prefixo da task (`[12] 🔧 …`). A falha de uma
+   task não interrompe as outras; Ctrl+C interrompe todas e as que ainda não começaram ficam
+   `skipped`.
+4. **Resumo**: uma linha por task (run, duração, tokens/custo ou erro) e exit code 1 se alguma
+   falhou. Cada run guarda o `batch_id`, que aparece em `harness runs --batch` e no cartão do
+   `/canvas` (🧩 lote).
+
+Fora desta versão: ondas por dependência (B esperar A ser integrada), integração automática e
+tool/modelo diferentes por task no mesmo lote.
+
 ## Execução ao vivo (canvas)
 
 Quando o coordenador spawna N subagents em paralelo, o board mostra as tasks — mas não
@@ -618,7 +646,7 @@ servidor) mostra um cartão ao vivo por task da coluna `active`:
 | arquivos alterados | `git status --porcelain` na worktree (`n/d` fora de repo/timeout) |
 | último evento | último `task_event` no banco |
 | última nota | última interação `--kind note` ("o agente reporta: …") |
-| run do agente | run mais recente da task (`harness run`): tool · modelo, status, último evento do agente, tokens · custo (medido ou n/d) |
+| run do agente | run mais recente da task (`harness run`): tool · modelo, status, último evento do agente, tokens · custo (medido ou n/d) e lote (🧩, quando veio de `run --batch`) |
 
 - **Staleness**: task sem atividade nova (evento, interação ou evento de run) há mais de **15 min** ganha badge e fundo
   amarelo (o cálculo é feito no servidor e os cartões stale vêm primeiro na ordenação).

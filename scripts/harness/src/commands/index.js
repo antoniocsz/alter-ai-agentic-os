@@ -55,7 +55,8 @@ Comandos:
   run <task> --tool <claude|codex|opencode>   Executa a task no agente, dentro da worktree
                       [--model m] [--unsafe] (claude: [--permission-mode default|acceptEdits|plan];
                       opencode exige --unsafe) | --stop <run>
-  runs [<task>]       Execuções de agentes registradas [--json] [--limit n]
+                      --batch <t1,t2,...> [--max-parallel n]: lote paralelo, um agente por worktree
+  runs [<task>]       Execuções de agentes registradas [--batch <id>] [--json] [--limit n]
   events <run>        Timeline normalizada de uma execução [--json] [--native]
   report              Métricas do banco [--format table|json|csv] [--module] [--days]
   kanban [--serve [porta] [--host <h>]] | --out <arquivo>   Painel kanban (servidor ou HTML)

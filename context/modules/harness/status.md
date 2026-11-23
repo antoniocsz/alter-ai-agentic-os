@@ -268,6 +268,14 @@
 - Decisões: o lote aparece no cartão como informação (sem agrupar cartões) — o canvas segue
   read-only e ordenado por staleness/id.
 
+## Handoff (task 102 — docs da orquestração paralela)
+- Feito: ajuda do CLI com `--batch`/`--max-parallel` e `runs --batch`; README com as linhas na
+  tabela do CLI, a subseção "Lote paralelo (`run --batch`)" (validação, preparação, execução,
+  resumo, fora de escopo) e o lote na tabela do canvas (35 links do índice verificados);
+  AGENTS.md com o exemplo de lote e a regra de recusa; spec com AC-1..AC-7 marcados e "Estado".
+- Pendências: lote com as tools reais (registrado na spec).
+- Decisões: —
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do

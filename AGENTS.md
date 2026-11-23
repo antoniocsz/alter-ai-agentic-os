@@ -115,6 +115,8 @@ pnpm harness run <task> --tool claude|codex|opencode [--model m]   # prompt = ta
 pnpm harness runs [<task>]          # execuções: status, duração, tokens, custo (medido ou n/d)
 pnpm harness events <run>           # timeline normalizada (mensagens, ferramentas, arquivos, uso)
 pnpm harness run --stop <run>       # interrompe (mata a árvore de processos)
+pnpm harness run --batch 12,13 --tool claude [--max-parallel n]  # lote: um agente por worktree, em paralelo
+pnpm harness runs --batch <id>      # resultado do lote
 ```
 
 - O agente executado **não** roda `finish`/`merge`: revise a worktree e integre com `worktree finish`.
@@ -122,6 +124,8 @@ pnpm harness run --stop <run>       # interrompe (mata a árvore de processos)
   Codex roda com `--sandbox workspace-write`; OpenCode exige `--unsafe` (pode aprovar sozinho).
   Liberar tudo só com `--unsafe`, que fica gravado no run.
 - Tokens e custo só entram quando a tool reporta — nunca são estimados.
+- No lote, tasks com dependência entre si ou escopos sobrepostos são recusadas antes de qualquer
+  execução; a integração continua task a task (`worktree finish`).
 
 ---
 
