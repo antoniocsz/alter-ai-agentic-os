@@ -26,7 +26,7 @@ export function driverFor(toolName) {
 
 const SAFE_VALUE = /^[A-Za-z0-9._:/@-]+$/
 
-const USAGE = `uso: harness run <task> --tool <${Object.keys(DRIVERS).join('|')}> [--model <m>] [--permission-mode <modo>] [--unsafe] [--no-context | --context-budget <n>] [--ignore-budget]
+const USAGE = `uso: harness run <task> --tool <${Object.keys(DRIVERS).join('|')}> [--model <m>] [--permission-mode <modo>] [--unsafe] [--no-context | --context-budget <n>] [--ignore-budget] [--raw <arquivo>]
      harness run --batch <t1,t2,...> --tool <tool> [--max-parallel <n>] [--model <m>] [--unsafe]
      harness run --stop <run>`
 
@@ -198,6 +198,7 @@ export async function runCmd(args) {
   const batchArg = flagString(flags, 'batch')
   if (batchArg) {
     if (!toolName) throw new Error(USAGE)
+    if (flags.raw !== undefined) throw new Error('--raw vale só para o run único (não no lote)')
     return runBatchCmd(root, flags, toolName, batchArg)
   }
   if (flags.batch === true) throw new Error('--batch exige a lista de tasks (ex.: --batch 12,13,14)')
@@ -219,6 +220,8 @@ export async function runCmd(args) {
 
   const budget = contextBudget(root, flags)
   const money = budgetFor(root, flags)
+  if (flags.raw === true) throw new Error('--raw exige o caminho do arquivo (ex.: --raw .tmp/claude-raw.jsonl)')
+  const rawLog = flagString(flags, 'raw') ? path.resolve(root, flagString(flags, 'raw')) : null
 
   const db = openDb(root)
   const { signal, dispose } = withSigint()
@@ -235,6 +238,7 @@ export async function runCmd(args) {
     }
     if (money.ignore && money.budget) line('⚠️  --ignore-budget: limites do harness.json ignorados (registrado no run).')
     if (gate.limit) line(`💰 limite deste run: ${fmtLimit(gate.limit)} (harness budget)`)
+    if (rawLog) line(`🧾 saída bruta → ${path.relative(root, rawLog) || rawLog} (+ .stderr) — sem redaction: pode conter segredos`)
     const ctx = contextForRun(root, taskId, budget, db)
     if (ctx) line(`📦 contexto: ${ctx.summary} · ver: harness context ${arg}`)
     const prompt = buildPrompt(taskId, fs.readFileSync(path.join(activeDir(root), taskId), 'utf8'), wt, ctx?.md)
@@ -250,6 +254,7 @@ export async function runCmd(args) {
       signal,
       limit: gate.limit ?? null,
       budgetOverride: money.ignore,
+      rawLog,
       onEvent: (ev) => {
         if (!announced) {
           announced = true

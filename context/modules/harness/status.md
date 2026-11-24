@@ -379,6 +379,16 @@
 - Pendências: execução real com o Gemini CLI.
 - Decisões: —
 
+## Handoff (task 111 — runtimes: detecção e captura bruta)
+- Feito: `src/runtimes.js` (NOVO) — `harness runtimes [--json]`: por driver, instalado?, caminho,
+  versão (`--version`, sem gastar uso), comando que o run executa, permissões padrão e instrução de
+  instalação. `lib/runner.js` — `runTool({ rawLog })`: cada linha de stdout gravada exatamente como a
+  tool emitiu (inclusive não-JSON) e o stderr em `<arquivo>.stderr`, sem redaction (diagnóstico
+  local). `run.js` — `--raw <arquivo>` no run único (aviso de que pode conter segredos; recusado no
+  lote). +3 testes em `tests/runtimes.test.js`; run-claude, batch, run-budget e lote rápido verdes.
+- Pendências: rodar o script de validação real no Windows (`D:\projetos\.tmp\validar-runtimes.mjs`).
+- Decisões: captura bruta sem redaction de propósito — é o insumo para comparar o formato real.
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do

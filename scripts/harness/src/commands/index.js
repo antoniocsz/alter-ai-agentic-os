@@ -28,6 +28,7 @@ import { runsCmd, eventsCmd } from '../runs.js'
 import { runCmd } from '../run.js'
 import { contextCmd } from '../context.js'
 import { budgetCmd } from '../budget.js'
+import { runtimesCmd } from '../runtimes.js'
 
 export const usage = `harness <comando> [args]
 
@@ -60,6 +61,8 @@ Comandos:
                       --batch <t1,t2,...> [--max-parallel n]: lote paralelo, um agente por worktree
                       pacote de contexto no prompt: [--no-context | --context-budget n]
                       orçamento do harness.json: recusa/corta o run; [--ignore-budget] (registrado)
+                      [--raw <arquivo>]: grava a saída bruta da tool (diagnóstico; sem redaction)
+  runtimes            Tools de agente instaladas: caminho, versão e o comando que o run executa [--json]
   context <task>      Pacote de contexto da task (regras, feature, módulo, deps, skills, ADRs, escopo)
                       [--budget <tokens>] [--json | --out <arquivo>]
   budget              Consumo medido (hoje, mês, tasks ativas) contra os limites do harness.json [--json]
@@ -115,6 +118,7 @@ export const commands = {
   run: runCmd,
   context: contextCmd,
   budget: budgetCmd,
+  runtimes: runtimesCmd,
   runs: runsCmd,
   events: eventsCmd,
   report,

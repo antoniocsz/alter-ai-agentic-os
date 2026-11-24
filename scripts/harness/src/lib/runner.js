@@ -109,7 +109,7 @@ const STDERR_TAIL = 4000
  * Executa `driver` com `prompt` (via stdin) em `cwd`, gravando o run em `db`.
  * Resolve com `{ runId, status, exitCode, error }`. `signal` (AbortSignal) interrompe.
  */
-export function runTool({ db, taskId, cwd, driver, prompt, opts = {}, env = process.env, signal = null, onEvent = () => {}, unsafe = false, batchId = null, limit = null, budgetOverride = false }) {
+export function runTool({ db, taskId, cwd, driver, prompt, opts = {}, env = process.env, signal = null, onEvent = () => {}, unsafe = false, batchId = null, limit = null, budgetOverride = false, rawLog = null }) {
   const exe = resolveExecutable(driver.bin, { env })
   if (!exe) throw new Error(`${driver.bin} não encontrado no PATH.\n  ${driver.installHint}`)
   if (!fs.existsSync(cwd)) throw new Error(`diretório de execução não existe: ${cwd}`)
@@ -171,7 +171,21 @@ export function runTool({ db, taskId, cwd, driver, prompt, opts = {}, env = proc
   let stderr = ''
   let buffer = ''
 
+  // Captura bruta (task 111): cada linha exatamente como a tool emitiu, para diagnóstico de formato.
+  // Sem redaction — o arquivo é local e o usuário é avisado.
+  const raw = (prefix, text) => {
+    if (!rawLog) return
+    try {
+      fs.appendFileSync(rawLog, prefix ? `${prefix}${text}\n` : `${text}\n`)
+    } catch {}
+  }
+  if (rawLog) {
+    fs.mkdirSync(path.dirname(rawLog), { recursive: true })
+    fs.writeFileSync(rawLog, '')
+  }
+
   const handleLine = (line) => {
+    raw('', line.replace(/\r$/, ''))
     const text = line.replace(/\r$/, '')
     if (!text.trim()) return
     let obj
@@ -208,6 +222,11 @@ export function runTool({ db, taskId, cwd, driver, prompt, opts = {}, env = proc
   child.stderr.setEncoding('utf8')
   child.stderr.on('data', (chunk) => {
     stderr = (stderr + chunk).slice(-STDERR_TAIL)
+    if (rawLog) {
+      try {
+        fs.appendFileSync(rawLog + '.stderr', chunk)
+      } catch {}
+    }
   })
 
   const onAbort = () => {
