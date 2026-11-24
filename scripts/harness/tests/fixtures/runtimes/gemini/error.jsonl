@@ -1,0 +1,2 @@
+{"type":"init","session_id":"gem-sess-2","model":"gemini-test"}
+{"type":"result","status":"error","error":{"type":"MaxSessionTurns","message":"limite de turnos atingido"},"stats":{"total_tokens":60,"input_tokens":50,"output_tokens":10,"cached":0}}

@@ -357,6 +357,21 @@
 - Pendências: validar uso parcial com as tools reais.
 - Decisões: —
 
+## Handoff (task 109 — driver Gemini CLI)
+- Feito: `lib/runtimes/gemini.js` (NOVO) — `gemini --output-format stream-json --approval-mode
+  auto_edit|yolo [--model]` com o prompt pelo stdin (modo não-TTY); campos conferidos no código do
+  Gemini CLI (nonInteractiveCli.ts) e exit codes na doc headless. `create()` acumula os pedaços
+  `delta` do assistente e grava uma mensagem quando chega outro evento (native = `{ deltas: n }`);
+  `init` → run.started (+sessão/modelo); mensagem `user` = eco do prompt (sem texto); `tool_use` →
+  tool_call (+ file_changed para write_file/replace/edit); `tool_result` (status/erro); `error`
+  (severity); `result` → agent.usage medido (input/output/total/cached; custo null) e desfecho
+  (`status: error` → falha com a mensagem). `run.js` registra `gemini` em `DRIVERS` (ajuda e uso
+  já listam). Fixtures sintéticas em `tests/fixtures/runtimes/gemini/` (reuso do executável falso
+  genérico). +4 testes em `tests/run-gemini.test.js`; run-codex-opencode e lote rápido verdes.
+- Pendências: validar com o Gemini CLI real (prompt só por stdin sem `-p` e `--approval-mode`);
+  docs (task 110).
+- Decisões: `--permission-mode` continua exclusivo do Claude; Gemini usa `--approval-mode`.
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do

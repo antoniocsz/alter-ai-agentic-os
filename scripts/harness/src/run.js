@@ -13,9 +13,10 @@ import { readBudget, checkBudget, effectiveRunLimit, formatViolation } from './l
 import * as claude from './lib/runtimes/claude.js'
 import * as codex from './lib/runtimes/codex.js'
 import * as opencode from './lib/runtimes/opencode.js'
+import * as gemini from './lib/runtimes/gemini.js'
 
 /** Drivers disponíveis para `--tool`. Drivers com `create()` guardam estado por run. */
-export const DRIVERS = { claude, codex, opencode }
+export const DRIVERS = { claude, codex, opencode, gemini }
 
 export function driverFor(toolName) {
   const mod = DRIVERS[toolName]

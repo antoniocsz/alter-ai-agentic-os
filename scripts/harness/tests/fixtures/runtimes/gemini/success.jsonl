@@ -1,0 +1,13 @@
+{"type":"init","timestamp":"2026-11-24T10:00:00.000Z","session_id":"gem-sess-1","model":"gemini-test"}
+{"type":"message","timestamp":"2026-11-24T10:00:00.100Z","role":"user","content":"(eco do prompt)"}
+{"type":"message","timestamp":"2026-11-24T10:00:01.000Z","role":"assistant","content":"Vou ","delta":true}
+{"type":"message","timestamp":"2026-11-24T10:00:01.100Z","role":"assistant","content":"criar o arquivo.","delta":true}
+{"type":"tool_use","timestamp":"2026-11-24T10:00:02.000Z","tool_name":"write_file","tool_id":"call_1","parameters":{"file_path":"src/a.js","content":"export const a = 1\n"}}
+{"type":"tool_result","timestamp":"2026-11-24T10:00:02.500Z","tool_id":"call_1","status":"success","output":"arquivo escrito"}
+{"type":"tool_use","timestamp":"2026-11-24T10:00:03.000Z","tool_name":"run_shell_command","tool_id":"call_2","parameters":{"command":"node --test"}}
+{"type":"tool_result","timestamp":"2026-11-24T10:00:04.000Z","tool_id":"call_2","status":"error","error":{"type":"exit","message":"1 teste falhou"}}
+{"type":"error","timestamp":"2026-11-24T10:00:04.100Z","severity":"warning","message":"loop detectado, seguindo"}
+linha de log do gemini que não é JSON
+{"type":"message","timestamp":"2026-11-24T10:00:05.000Z","role":"assistant","content":"Pronto: ","delta":true}
+{"type":"message","timestamp":"2026-11-24T10:00:05.100Z","role":"assistant","content":"src/a.js criado.","delta":true}
+{"type":"result","timestamp":"2026-11-24T10:00:06.000Z","status":"success","stats":{"total_tokens":1700,"input_tokens":1500,"output_tokens":200,"cached":300,"input":1200,"duration_ms":6000,"tool_calls":2}}
