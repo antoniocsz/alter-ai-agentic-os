@@ -8,7 +8,9 @@ import http from 'node:http'
 import path from 'node:path'
 import { once } from 'node:events'
 import { fileURLToPath } from 'node:url'
+import vm from 'node:vm'
 import { buildServe, serveFile } from '../src/serve.js'
+import { serveBoard, ctxFromRoot } from '../src/kanban.js'
 import { init } from '../src/init.js'
 import { startTask } from '../src/lib/pipeline.js'
 import { startWorktree } from '../src/lib/worktree.js'
@@ -224,4 +226,42 @@ test('api-local: stop interrompe o run em andamento; segundo dispatch na mesma t
     await h.stop() // encerra o opencode pendurado (FAKE_HANG) antes de fechar
   }
   assert.equal(fs.existsSync(serveFile(root)), false)
+})
+
+const CONTROL_RE = /var CONTROL = (\{.*?\});/
+
+test('canvas interativo (task 116): serve injeta token e controles; kanban --serve segue só leitura; token da página dispara o run', async () => {
+  const root = await project()
+  const h = await live(root, { env: fakeEnv() })
+  try {
+    const page = await call(h, 'GET', '/canvas')
+    assert.equal(page.status, 200)
+    const control = JSON.parse(page.raw.match(CONTROL_RE)[1])
+    assert.deepEqual(control, { enabled: true, token: h.sessionToken, allowUnsafe: false })
+    assert.match(page.raw, /▶ Rodar agente/)
+    assert.match(page.raw, /controle de agentes ativo/)
+    const script = page.raw.match(/<script>([\s\S]*)<\/script>/)[1]
+    assert.doesNotThrow(() => new vm.Script(script), 'script do canvas compila')
+
+    // o cliente do canvas usa o token da página: mesmo caminho de ponta a ponta
+    const started = await call(h, 'POST', '/api/runs', { headers: { 'x-harness-token': control.token }, body: { task: '07', tool: 'claude', contextBudget: 0 } })
+    assert.equal(started.status, 202, started.raw)
+    await h.runs.settled(started.json.run.id)
+    const state = await call(h, 'GET', '/api/canvas')
+    const card = state.json.canvas.find((c) => c.id === '07-exemplo.md')
+    assert.equal(card.run.status, 'completed', 'cartão mostra o run disparado pelo painel')
+  } finally {
+    await h.stop()
+  }
+
+  const board = await withSilentStdout(() => serveBoard(ctxFromRoot(root), 0, '127.0.0.1'))
+  await once(board, 'listening')
+  try {
+    const page = await call({ server: board }, 'GET', '/canvas')
+    assert.deepEqual(JSON.parse(page.raw.match(CONTROL_RE)[1]), { enabled: false, token: '', allowUnsafe: false })
+    assert.match(page.raw, /v1 leitura/)
+    assert.equal((await call({ server: board }, 'GET', '/api/runs')).status, 404, 'kanban --serve não expõe a API de execuções')
+  } finally {
+    await new Promise((r) => board.close(r))
+  }
 })

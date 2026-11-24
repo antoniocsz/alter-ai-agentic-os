@@ -435,6 +435,18 @@
 - Decisões: polling incremental por `after` (sem SSE na v1); run disparado pelo serve morre com ele
   (o `reapOrphans` marca como órfão).
 
+## Handoff (task 116 — api-local: canvas interativo)
+- Feito: `kanban.js` — `renderCanvasPage(title, { control, token, allowUnsafe })`: no `harness serve`
+  o canvas recebe o token da sessão (JSON com `<` escapado) e ganha, por cartão, "▶ Rodar agente"
+  (form: tool instalada via /api/runtimes, modelo, permissões do claude, orçamento de contexto,
+  ignorar orçamento, unsafe só com `--allow-unsafe`), "■ Parar" quando o run está rodando e
+  "📜 timeline" (modal ao vivo: polling por `after` a cada 1,5 s, para ao fechar). Task sem worktree
+  mostra `harness worktree start N`. O modal de detalhe lista as execuções da task. `kanban --serve`
+  segue só leitura (sem token, sem /api/runs). +1 teste de ponta a ponta (token da página → run
+  concluído aparece no cartão; script do canvas compila). kanban, canvas e canvas-runs verdes.
+- Pendências: docs (task 117).
+- Decisões: controles só na vista de um projeto (cartões de workspace multi-projeto ficam só leitura).
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do

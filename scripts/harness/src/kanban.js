@@ -191,7 +191,11 @@ export function serveBoard(ctx, port, host = '127.0.0.1', extras = {}) {
     panel: routinesJsonAvailable(ctx),
     api: extras.routines != null
   })
-  const canvasPage = renderCanvasPage(ctx.title)
+  // Canvas interativo (api-local, task 116): controles + token da sessão só no `harness serve`.
+  const canvasPage = renderCanvasPage(
+    ctx.title,
+    extras.runs ? { control: true, token: extras.runs.token, allowUnsafe: extras.runs.allowUnsafe } : {}
+  )
   const server = http.createServer((req, res) => {
     try {
       route(req, res, ctx, page, canvasPage, extras)
@@ -725,8 +729,15 @@ function renderRoutinesPanel(apiEnabled) {
  * Estética = mesmo tema do board (tokens/estilos de templates/kanban/board.html,
  * copiado aqui porque o template não está no escopo desta task).
  */
-export function renderCanvasPage(title = 'AlterAI - Agentic OS — Tasks') {
+export function renderCanvasPage(title = 'AlterAI - Agentic OS — Tasks', opts = {}) {
   const tt = String(title).replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  // JSON dentro de <script>: escapar `<` evita fechar a tag com dados.
+  const control = JSON.stringify({
+    enabled: Boolean(opts.control),
+    token: opts.control ? String(opts.token ?? '') : '',
+    allowUnsafe: Boolean(opts.control && opts.allowUnsafe)
+  }).replace(/</g, '\\u003c')
+  const modeLabel = opts.control ? 'controle de agentes ativo' : 'v1 leitura'
   return `<!doctype html>
 <html lang="pt-BR">
 <head>
@@ -858,12 +869,33 @@ export function renderCanvasPage(title = 'AlterAI - Agentic OS — Tasks') {
   .inter li { padding: 6px 0; border-bottom: 1px dashed var(--border); }
   .inter .who { color: var(--muted); font-size: 11px; }
   .inter pre { margin: 4px 0 0; white-space: pre-wrap; word-break: break-word; font-family: inherit; }
+  /* controle de agentes (api-local, task 116) */
+  .card .actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .card .actions button { padding: 4px 10px; }
+  button.go { border-color: var(--active); color: #93c5fd; }
+  button.stop { border-color: var(--danger); color: var(--danger); }
+  .hint { color: var(--muted); font-size: 11px; font-family: ui-monospace, Consolas, monospace; }
+  form.run-form { display: grid; grid-template-columns: 160px 1fr; gap: 10px 12px; align-items: center; font-size: 13px; }
+  form.run-form label { color: var(--muted); }
+  form.run-form input[type=text], form.run-form input[type=number], form.run-form select {
+    background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; font-size: 13px;
+  }
+  form.run-form .full { grid-column: 1 / -1; }
+  form.run-form .warn { color: var(--queue); font-size: 12px; }
+  .live { list-style: none; margin: 0; padding: 0; font-size: 12px; max-height: 52vh; overflow-y: auto; }
+  .live li { display: flex; gap: 10px; padding: 4px 0; border-bottom: 1px dashed var(--border); }
+  .live .ic { width: 18px; text-align: center; }
+  .live .tx { flex: 1; word-break: break-word; white-space: pre-wrap; }
+  .live li.err .tx { color: var(--danger); }
+  .runs-list { list-style: none; margin: 0; padding: 0; font-size: 12px; }
+  .runs-list li { display: flex; justify-content: space-between; gap: 8px; padding: 5px 0; border-bottom: 1px dashed var(--border); cursor: pointer; }
+  .runs-list li:hover { color: var(--accent); }
 </style>
 </head>
 <body>
 <header>
   <h1>${tt}</h1>
-  <span class="mode">vista Execução · ao vivo (auto-refresh 3s) · v1 leitura</span>
+  <span class="mode">vista Execução · ao vivo (auto-refresh 3s) · ${modeLabel}</span>
   <a href="/">← Board (kanban)</a>
   <span class="spacer"></span>
   <span class="mode" id="stamp"></span>
@@ -882,6 +914,7 @@ export function renderCanvasPage(title = 'AlterAI - Agentic OS — Tasks') {
 </div>
 
 <script>
+var CONTROL = ${control};
 var state = { generatedAt: null, canvas: [] };
 var toast = document.getElementById('toast');
 var modal = document.getElementById('modal');
@@ -978,6 +1011,7 @@ function cardHtml(c) {
       (c.last_event ? esc(c.last_event.event) + ' · ' + esc(relTime(c.last_event.at)) : '—') +
     '</span></div>' +
     runHtml(c.run) +
+    actionsHtml(c) +
     note +
     '<div class="foot"><span>' + esc(c.id) + '</span><span>' +
       (c.started_at ? 'desde ' + esc(fmtDate(c.started_at)) : '') +
@@ -1008,16 +1042,224 @@ function render() {
   attachCardClicks();
 }
 
+/* ---------- controle de agentes (api-local, task 116) ---------- */
+var runtimes = null;
+var view = null; // { runId, seq, timer } da timeline aberta
+
+function taskNum(id) { var m = String(id).match(/^(\d+)-/); return m ? m[1] : id; }
+
+function actionsHtml(c) {
+  if (!CONTROL.enabled || c.project) return '';
+  var b = '';
+  if (c.run && c.run.status === 'running') {
+    b += '<button class="stop" data-act="stop" data-run="' + esc(c.run.id) + '">■ Parar</button>';
+  } else if (c.worktree && c.worktree !== 'raiz') {
+    b += '<button class="go" data-act="run" data-task="' + esc(c.id) + '">▶ Rodar agente</button>';
+  } else {
+    b += '<span class="hint" title="o agente só roda isolado numa worktree">harness worktree start ' + esc(taskNum(c.id)) + '</span>';
+  }
+  if (c.run) b += '<button data-act="timeline" data-run="' + esc(c.run.id) + '">📜 timeline</button>';
+  return '<div class="actions">' + b + '</div>';
+}
+
+async function api(method, url, body) {
+  var opts = { method: method, headers: {} };
+  if (method !== 'GET') opts.headers['x-harness-token'] = CONTROL.token;
+  if (body !== undefined) {
+    opts.headers['content-type'] = 'application/json';
+    opts.body = JSON.stringify(body);
+  }
+  var res = await fetch(url, opts);
+  var data = await res.json().catch(function () { return { ok: false, error: 'resposta inválida (' + res.status + ')' }; });
+  if (!res.ok || data.ok === false) throw new Error(data.error || ('erro ' + res.status));
+  return data;
+}
+
+async function loadRuntimes() {
+  if (runtimes) return runtimes;
+  var data = await api('GET', '/api/runtimes');
+  runtimes = data.runtimes || [];
+  return runtimes;
+}
+
+async function openRunForm(taskId) {
+  stopView();
+  modalBox.innerHTML = '<p style="color:var(--muted)">verificando tools instaladas…</p>';
+  modal.classList.add('open');
+  var list;
+  try { list = await loadRuntimes(); } catch (err) { modalBox.innerHTML = ''; closeModal(); return showToast(err.message); }
+  var installed = list.filter(function (r) { return r.installed; });
+  if (!installed.length) {
+    modalBox.innerHTML = '<button class="close" onclick="closeModal()">✕</button><h2>Nenhuma tool de agente instalada</h2>' +
+      '<p class="sub">Veja <code>harness runtimes</code> para instalar Claude Code, Codex, OpenCode ou Gemini CLI.</p>';
+    return;
+  }
+  var opts = installed.map(function (r) {
+    return '<option value="' + esc(r.tool) + '" data-unsafe="' + (r.requires_unsafe ? '1' : '') + '">' +
+      esc(r.tool) + (r.version ? ' — ' + esc(r.version) : '') + (r.requires_unsafe ? ' (exige unsafe)' : '') + '</option>';
+  }).join('');
+  modalBox.innerHTML =
+    '<button class="close" onclick="closeModal()">✕</button>' +
+    '<h2>▶ Rodar agente</h2><div class="sub">' + esc(taskId) + ' · executa na worktree da task, com as regras do <code>harness run</code></div>' +
+    '<form class="run-form" id="runForm">' +
+      '<label for="f-tool">tool</label><select id="f-tool" name="tool">' + opts + '</select>' +
+      '<label for="f-model">modelo (opcional)</label><input type="text" id="f-model" name="model" placeholder="padrão da tool" />' +
+      '<label for="f-mode">permissões (claude)</label><select id="f-mode" name="permissionMode">' +
+        '<option value="">acceptEdits (padrão)</option><option value="default">default</option><option value="plan">plan</option></select>' +
+      '<label for="f-ctx">contexto (tokens)</label><input type="number" id="f-ctx" name="contextBudget" min="0" placeholder="padrão do harness.json (0 desliga)" />' +
+      '<label>opções</label><div>' +
+        '<label><input type="checkbox" id="f-budget" /> ignorar orçamento</label><br/>' +
+        '<label><input type="checkbox" id="f-unsafe"' + (CONTROL.allowUnsafe ? '' : ' disabled') + ' /> unsafe (sem pedir permissões)</label>' +
+      '</div>' +
+      '<div class="full warn" id="f-warn">' + (CONTROL.allowUnsafe ? '' : 'unsafe desativado — suba com <code>harness serve --allow-unsafe</code> para liberar') + '</div>' +
+      '<div class="full"><button class="go" type="submit">▶ Rodar</button></div>' +
+    '</form>';
+  var form = document.getElementById('runForm');
+  var tool = document.getElementById('f-tool');
+  var sync = function () {
+    var needs = tool.selectedOptions[0] && tool.selectedOptions[0].dataset.unsafe === '1';
+    document.getElementById('f-mode').disabled = tool.value !== 'claude';
+    if (needs && CONTROL.allowUnsafe) document.getElementById('f-unsafe').checked = true;
+    if (needs && !CONTROL.allowUnsafe) document.getElementById('f-warn').innerHTML = esc(tool.value) + ' exige unsafe — suba com <code>harness serve --allow-unsafe</code>';
+  };
+  tool.addEventListener('change', sync);
+  sync();
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    var body = { task: taskId, tool: tool.value };
+    var model = document.getElementById('f-model').value.trim();
+    if (model) body.model = model;
+    var mode = document.getElementById('f-mode').value;
+    if (mode && tool.value === 'claude') body.permissionMode = mode;
+    var ctxv = document.getElementById('f-ctx').value;
+    if (ctxv !== '') body.contextBudget = Number(ctxv);
+    if (document.getElementById('f-budget').checked) body.ignoreBudget = true;
+    if (document.getElementById('f-unsafe').checked) body.unsafe = true;
+    form.querySelector('button[type=submit]').disabled = true;
+    try {
+      var data = await api('POST', '/api/runs', body);
+      openTimeline(data.run.id);
+      loadCanvas();
+    } catch (err) {
+      form.querySelector('button[type=submit]').disabled = false;
+      showToast(err.message);
+    }
+  });
+}
+
+async function stopRun(runId) {
+  if (!confirm('Parar ' + runId + '? O processo do agente é encerrado.')) return;
+  try {
+    await api('POST', '/api/runs/' + encodeURIComponent(runId) + '/stop');
+    loadCanvas();
+  } catch (err) { showToast(err.message); }
+}
+
+var EV_ICON = {
+  'run.started': '▶', 'run.completed': '✔', 'run.failed': '✖', 'agent.message': '💬', 'agent.tool_call': '🔧',
+  'agent.tool_result': '↳', 'agent.file_changed': '📝', 'agent.usage': '📊', 'agent.error': '⚠'
+};
+function evText(e) {
+  var p = e.payload || {};
+  switch (e.type) {
+    case 'run.started': return 'sessão ' + (p.session_id || 'n/d') + (p.model ? ' · ' + p.model : '');
+    case 'run.completed': return 'concluído';
+    case 'run.failed': return 'falhou: ' + (p.reason || '') + (p.detail ? ' — ' + p.detail : '');
+    case 'agent.message': return p.text || '';
+    case 'agent.tool_call':
+      var i = p.input || {};
+      return (p.name || 'tool') + ' ' + (i.command || i.file_path || i.filePath || i.path || i.pattern || '');
+    case 'agent.tool_result': return (p.is_error ? 'erro: ' : '') + String(p.text || '').slice(0, 300);
+    case 'agent.file_changed': return p.path || '';
+    case 'agent.usage':
+      var tin = p.input_tokens != null ? p.input_tokens : p.tokens_in;
+      var tout = p.output_tokens != null ? p.output_tokens : p.tokens_out;
+      return 'uso: ' + (tin != null ? tin : 'n/d') + ' / ' + (tout != null ? tout : 'n/d') + (p.cost_usd != null ? ' · $' + Number(p.cost_usd).toFixed(4) : '');
+    case 'agent.error': return p.reason || '';
+    default: return e.type;
+  }
+}
+function evHtml(e) {
+  var err = e.type === 'agent.error' || e.type === 'run.failed' || (e.type === 'agent.tool_result' && e.payload && e.payload.is_error);
+  return '<li class="' + (err ? 'err' : '') + '"><span class="at">' + esc(new Date(e.at).toLocaleTimeString('pt-BR')) + '</span>' +
+    '<span class="ic">' + (EV_ICON[e.type] || '·') + '</span><span class="tx">' + esc(evText(e)) + '</span></li>';
+}
+
+function stopView() {
+  if (view && view.timer) clearTimeout(view.timer);
+  view = null;
+}
+
+function timelineHead(r) {
+  var status = RUN_STATUS[r.status] || r.status;
+  var stop = r.status === 'running'
+    ? ' <button class="stop" data-stop-run="' + esc(r.id) + '">■ Parar</button>' : '';
+  return '<h2>📜 ' + esc(r.id) + '</h2>' +
+    '<div class="sub">' + esc(r.task_id) + ' · 🤖 ' + esc(r.tool) + (r.model ? ' · ' + esc(r.model) : '') +
+    (r.unsafe ? ' · ⚠️ unsafe' : '') + '<br/><span class="run-status ' + esc(r.status) + '">' + esc(status) + '</span>' +
+    ' · ' + esc(fmtUsage(r)) + ' · ' + esc(fmtDur(r.duration_ms)) + (r.error ? ' · ' + esc(r.error) : '') + stop + '</div>';
+}
+
+async function openTimeline(runId) {
+  stopView();
+  var mine = { runId: runId, seq: 0, timer: null };
+  view = mine;
+  modalBox.innerHTML = '<button class="close" onclick="closeModal()">✕</button><div id="tl-head"><p style="color:var(--muted)">carregando…</p></div><ul class="live" id="tl-list"></ul>';
+  modal.classList.add('open');
+  var tick = async function () {
+    if (view !== mine) return;
+    try {
+      var data = await api('GET', '/api/runs/' + encodeURIComponent(runId) + '?after=' + mine.seq);
+      if (view !== mine) return;
+      var head = document.getElementById('tl-head');
+      head.innerHTML = timelineHead(data.run);
+      var sb = head.querySelector('[data-stop-run]');
+      if (sb) sb.addEventListener('click', function () { stopRun(sb.dataset.stopRun); });
+      var list = document.getElementById('tl-list');
+      var stick = list.scrollTop + list.clientHeight >= list.scrollHeight - 20;
+      list.insertAdjacentHTML('beforeend', data.events.map(evHtml).join(''));
+      if (stick) list.scrollTop = list.scrollHeight;
+      mine.seq = data.last_seq;
+      if (data.run.status === 'running') mine.timer = setTimeout(tick, 1500);
+      else loadCanvas();
+    } catch (err) {
+      if (view === mine) document.getElementById('tl-head').innerHTML = '<p style="color:var(--danger)">' + esc(err.message) + '</p>';
+    }
+  };
+  tick();
+}
+
+async function runsSection(taskId) {
+  if (!CONTROL.enabled) return '';
+  try {
+    var data = await api('GET', '/api/runs?task=' + encodeURIComponent(taskId) + '&limit=10');
+    if (!data.runs.length) return '<h3>Execuções</h3><p class="empty">nenhum run de agente</p>';
+    return '<h3>Execuções (' + data.runs.length + ')</h3><ul class="runs-list">' + data.runs.map(function (r) {
+      return '<li data-run="' + esc(r.id) + '"><span>' + esc(r.id) + ' · ' + esc(r.tool) + '</span><span class="run-status ' + esc(r.status) + '">' +
+        esc(RUN_STATUS[r.status] || r.status) + ' · ' + esc(fmtUsage(r)) + '</span></li>';
+    }).join('') + '</ul>';
+  } catch (err) { return '<h3>Execuções</h3><p class="empty">' + esc(err.message) + '</p>'; }
+}
+
 /* ---------- detalhes (modal do board, mesmos endpoints) ---------- */
 function attachCardClicks() {
   document.querySelectorAll('#canvas-grid .card').forEach(function (card) {
-    card.addEventListener('click', function () {
+    card.addEventListener('click', function (e) {
+      var btn = e.target.closest('button[data-act]');
+      if (btn) {
+        e.stopPropagation();
+        if (btn.dataset.act === 'run') return openRunForm(btn.dataset.task);
+        if (btn.dataset.act === 'stop') return stopRun(btn.dataset.run);
+        if (btn.dataset.act === 'timeline') return openTimeline(btn.dataset.run);
+        return;
+      }
       openDetail(card.dataset.id, card.dataset.project);
     });
   });
 }
 
 async function openDetail(id, project) {
+  stopView();
   modalBox.innerHTML = '<p style="color:var(--muted)">carregando detalhes...</p>';
   modal.classList.add('open');
   try {
@@ -1025,6 +1267,14 @@ async function openDetail(id, project) {
     var data = await res.json();
     if (!data.ok) throw new Error(data.error || 'erro ao carregar');
     renderDetail(data);
+    if (CONTROL.enabled && !project) {
+      var extra = await runsSection(id);
+      if (!modal.classList.contains('open') || view) return;
+      modalBox.insertAdjacentHTML('beforeend', extra);
+      modalBox.querySelectorAll('.runs-list li').forEach(function (li) {
+        li.addEventListener('click', function () { openTimeline(li.dataset.run); });
+      });
+    }
   } catch (err) {
     renderDetail({ task: { id: id, title: id }, file: '', events: [], interactions: [], error: err.message });
   }
@@ -1066,6 +1316,7 @@ function renderDetail(d) {
 }
 
 function closeModal() {
+  stopView();
   modal.classList.remove('open');
   modalBox.innerHTML = '';
 }
