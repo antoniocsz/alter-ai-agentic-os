@@ -14,21 +14,26 @@ const DEFAULTS = {
  * `harness runtimes [--json]` — quais tools de agente estão instaladas, onde, em que versão e o
  * comando que o `harness run` executa com cada uma (task 111). Só lê `--version`; não gasta uso.
  */
-export async function runtimesCmd(args) {
-  const { flags } = parseArgs(args)
-  const rows = Object.keys(DRIVERS).map((name) => {
+export function detectRuntimes(env = process.env) {
+  return Object.keys(DRIVERS).map((name) => {
     const driver = driverFor(name)
-    const exe = resolveExecutable(driver.bin)
+    const exe = resolveExecutable(driver.bin, { env })
     return {
       tool: name,
       installed: Boolean(exe),
       path: exe?.file ?? null,
-      version: exe ? toolVersion(exe) : null,
+      version: exe ? toolVersion(exe, { env }) : null,
       command: [driver.bin, ...driver.command({})].join(' '),
       defaults: DEFAULTS[name] ?? null,
-      install: exe ? null : driver.installHint
+      install: exe ? null : driver.installHint,
+      requires_unsafe: Boolean(driver.requiresUnsafe)
     }
   })
+}
+
+export async function runtimesCmd(args) {
+  const { flags } = parseArgs(args)
+  const rows = detectRuntimes()
 
   if (flagBool(flags, 'json')) {
     process.stdout.write(JSON.stringify(rows, null, 2) + '\n')

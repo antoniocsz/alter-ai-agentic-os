@@ -419,6 +419,22 @@
 - Pendências: validar codex/gemini quando instalados.
 - Decisões: custo 0 do opencode é o valor que a tool reportou (modelo/provedor sem preço), gravado como medido.
 
+## Handoff (task 115 — api-local: API local de execuções)
+- Feito: `lib/runs-api.js` (NOVO) — `createRunsApi(root, { env, token, allowUnsafe, host })`:
+  `GET /api/runtimes`, `GET /api/runs?task=&batch=&limit=`, `GET /api/runs/:id?after=<seq>[&native=1]`,
+  `POST /api/runs` (202, run em segundo plano no processo do serve) e `POST /api/runs/:id/stop`.
+  Guards: `X-Harness-Token` (token novo por start do serve), origem = host, `Host` em loopback/host
+  do bind (anti DNS-rebinding, também nas leituras), JSON ≤ 16 KB, `unsafe` só com
+  `harness serve --allow-unsafe`, um run por task (409). `run.js` — `prepareRun` extraído do
+  `runCmd` (CLI e API pelo mesmo caminho; orçamento estourado = erro `BUDGET` → 409).
+  `runner.js` — `onStart(runId)`. `runtimes.js` — `detectRuntimes(env)` (+ `requires_unsafe`).
+  `serve.js` — token de sessão, `.harness/serve.json` (url, pid, token; removido no stop se for do
+  próprio pid), `--allow-unsafe`, stop aborta os runs em andamento. +3 testes (`runs-api.test.js`);
+  run-claude, runtimes, serve, kanban, canvas, run-budget, run-context, routines, batch, codex e gemini verdes.
+- Pendências: canvas interativo (task 116); help do `serve` e docs (task 117).
+- Decisões: polling incremental por `after` (sem SSE na v1); run disparado pelo serve morre com ele
+  (o `reapOrphans` marca como órfão).
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do

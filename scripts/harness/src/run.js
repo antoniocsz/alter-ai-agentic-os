@@ -145,7 +145,7 @@ function fmtUsage(run) {
 }
 
 /** Valida tool e opções (comum ao run único e ao lote). Lança erro acionável. */
-function resolveRunOptions(flags, toolName) {
+export function resolveRunOptions(flags, toolName) {
   const probe = driverFor(toolName)
   if (!probe) {
     throw new Error(`tool sem driver de execução: ${toolName} (disponíveis: ${Object.keys(DRIVERS).join(', ')})`)
@@ -165,6 +165,47 @@ function resolveRunOptions(flags, toolName) {
   const opts = { model, permissionMode, unsafe }
   probe.command(opts) // valida as opções antes de abrir run
   return { probe, opts, unsafe }
+}
+
+/**
+ * Tudo que um run único precisa antes de executar (api-local, task 115): o `harness run` e a API
+ * local (`POST /api/runs`) passam por aqui — mesmas regras: tool/opções válidas, task ativa com
+ * worktree, orçamento (recusa com motivo) e pacote de contexto. `flags` no formato do parseArgs
+ * (`tool`, `model`, `permission-mode`, `unsafe`, `no-context`, `context-budget`, `ignore-budget`).
+ * Lança Error com a mensagem acionável; não imprime nada.
+ */
+export function prepareRun(root, flags, arg, db) {
+  const toolName = flagString(flags, 'tool')
+  if (!toolName) throw new Error(USAGE)
+  const { probe: driver, opts, unsafe } = resolveRunOptions(flags, toolName)
+
+  let taskId
+  try {
+    taskId = resolveTaskName(activeDir(root), String(arg))
+  } catch {
+    throw new Error(`task não está ativa: ${arg}\n  rode antes: harness start ${arg} && harness worktree start ${arg}`)
+  }
+  const wt = taskWorktree(root, taskId)
+  if (!wt) {
+    throw new Error(`task sem worktree: ${taskId}\n  o agente só roda isolado — rode antes: harness worktree start ${arg}`)
+  }
+
+  const budget = contextBudget(root, flags)
+  const money = budgetFor(root, flags)
+  reapOrphans(db)
+  const gate = budgetGate(db, money.budget, money.ignore, taskId)
+  if (gate.skip) {
+    const err = new Error(
+      `orçamento estourado para ${taskId}:\n` +
+        gate.violations.map((v) => `  - ${formatViolation(v)}`).join('\n') +
+        '\n  veja: harness budget · para rodar mesmo assim: --ignore-budget (fica registrado no run)'
+    )
+    err.code = 'BUDGET'
+    throw err
+  }
+  const ctx = contextForRun(root, taskId, budget, db)
+  const prompt = buildPrompt(taskId, fs.readFileSync(path.join(activeDir(root), taskId), 'utf8'), wt, ctx?.md)
+  return { taskId, wt, driver, opts, unsafe, gate, money, ctx, prompt }
 }
 
 function withSigint(onAbort) {
@@ -206,21 +247,6 @@ export async function runCmd(args) {
 
   const arg = positionals[0]
   if (!arg || !toolName) throw new Error(USAGE)
-  const { probe: driver, opts, unsafe } = resolveRunOptions(flags, toolName)
-
-  let taskId
-  try {
-    taskId = resolveTaskName(activeDir(root), arg)
-  } catch {
-    throw new Error(`task não está ativa: ${arg}\n  rode antes: harness start ${arg} && harness worktree start ${arg}`)
-  }
-  const wt = taskWorktree(root, taskId)
-  if (!wt) {
-    throw new Error(`task sem worktree: ${taskId}\n  o agente só roda isolado — rode antes: harness worktree start ${arg}`)
-  }
-
-  const budget = contextBudget(root, flags)
-  const money = budgetFor(root, flags)
   if (flags.raw === true) throw new Error('--raw exige o caminho do arquivo (ex.: --raw .tmp/claude-raw.jsonl)')
   const rawLog = flagString(flags, 'raw') ? path.resolve(root, flagString(flags, 'raw')) : null
 
@@ -228,21 +254,12 @@ export async function runCmd(args) {
   const { signal, dispose } = withSigint()
   let announced = false
   try {
-    reapOrphans(db)
-    const gate = budgetGate(db, money.budget, money.ignore, taskId)
-    if (gate.skip) {
-      throw new Error(
-        `orçamento estourado para ${taskId}:\n` +
-          gate.violations.map((v) => `  - ${formatViolation(v)}`).join('\n') +
-          '\n  veja: harness budget · para rodar mesmo assim: --ignore-budget (fica registrado no run)'
-      )
-    }
+    const prep = prepareRun(root, flags, arg, db)
+    const { taskId, wt, driver, opts, unsafe, gate, money, ctx, prompt } = prep
     if (money.ignore && money.budget) line('⚠️  --ignore-budget: limites do harness.json ignorados (registrado no run).')
     if (gate.limit) line(`💰 limite deste run: ${fmtLimit(gate.limit)} (harness budget)`)
     if (rawLog) line(`🧾 saída bruta → ${path.relative(root, rawLog) || rawLog} (+ .stderr) — sem redaction: pode conter segredos`)
-    const ctx = contextForRun(root, taskId, budget, db)
     if (ctx) line(`📦 contexto: ${ctx.summary} · ver: harness context ${arg}`)
-    const prompt = buildPrompt(taskId, fs.readFileSync(path.join(activeDir(root), taskId), 'utf8'), wt, ctx?.md)
     if (unsafe) line(`⚠️  --unsafe: ${driver.id} roda sem pedir permissões (registrado no run).`)
     const result = await runTool({
       db,

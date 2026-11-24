@@ -10,7 +10,8 @@ import path from 'node:path'
 import { createHash, randomUUID, timingSafeEqual } from 'node:crypto'
 import { DB_DIR, tryOpenDb } from './lib/db.js'
 import { lockStatus } from './lib/lock.js'
-import { parseArgs, flagString } from './lib/flags.js'
+import { parseArgs, flagString, flagBool } from './lib/flags.js'
+import { createRunsApi } from './lib/runs-api.js'
 import { ctxFromRoot, serveBoard } from './kanban.js'
 import {
   DEFAULT_TICK_MS,
@@ -22,6 +23,26 @@ import {
 } from './routines.js'
 
 export const WEBHOOK_TOKEN_FILE = 'webhook-token'
+export const SERVE_FILE = 'serve.json'
+
+/** `.harness/serve.json` — descoberta da API local (api-local, AC-5): url, pid, token da sessão. */
+export function serveFile(root) {
+  return path.join(root, DB_DIR, SERVE_FILE)
+}
+
+function writeServeFile(root, info) {
+  const file = serveFile(root)
+  fs.mkdirSync(path.dirname(file), { recursive: true })
+  fs.writeFileSync(file, JSON.stringify(info, null, 2) + '\n', { encoding: 'utf8', mode: 0o600 })
+}
+
+/** Remove o serve.json só se for DESTE processo (outro serve pode ter assumido o arquivo). */
+function removeServeFile(root, pid = process.pid) {
+  const file = serveFile(root)
+  try {
+    if (JSON.parse(fs.readFileSync(file, 'utf8')).pid === pid) fs.rmSync(file)
+  } catch {}
+}
 
 /** Digest de 32B: timingSafeEqual ignora diferenças de tamanho entre os buffers. */
 const digest = (value) => createHash('sha256').update(String(value ?? '')).digest()
@@ -167,11 +188,27 @@ export function buildServe(opts = {}) {
   })
   scheduler = startScheduler(root, { tickMs, clock, onDue: (routine) => api.fire(routine.id) })
 
-  const server = serveBoard(ctxFromRoot(root), port, host, { routines: api })
+  // API local de execuções (api-local, task 115): token novo a cada start da sessão.
+  const sessionToken = randomUUID()
+  const runs = createRunsApi(root, { env: opts.env, token: sessionToken, allowUnsafe: opts.allowUnsafe, host })
+
+  const server = serveBoard(ctxFromRoot(root), port, host, { routines: api, runs })
   scheduler.tick() // aquece o plano: payload do painel já mostra a 1ª execução real
+  server.once('listening', () => {
+    const actual = server.address()?.port ?? port
+    const shown = host.includes(':') && !host.startsWith('[') ? `[${host}]` : host
+    writeServeFile(root, {
+      url: `http://${shown}:${actual}`,
+      pid: process.pid,
+      token: sessionToken,
+      allow_unsafe: Boolean(opts.allowUnsafe),
+      started_at: new Date().toISOString()
+    })
+  })
 
   async function stop() {
     scheduler.stop()
+    await runs.stopAll()
     await new Promise((resolve) => {
       server.closeIdleConnections?.()
       const force = setTimeout(() => server.closeAllConnections?.(), 3_000)
@@ -182,9 +219,10 @@ export function buildServe(opts = {}) {
       })
     })
     releaseOwnLock(root)
+    removeServeFile(root)
   }
 
-  return { server, api, scheduler, stop, root, tokenFile, tokenCreated }
+  return { server, api, runs, scheduler, stop, root, tokenFile, tokenCreated, sessionToken }
 }
 
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '[::1]'])
@@ -210,6 +248,7 @@ export function serve(args = [], opts = {}) {
   const root = opts.cwd ?? process.cwd()
   const port = normalizePort(flagString(flags, 'port'))
   const host = flagString(flags, 'host', '') || '127.0.0.1'
+  const allowUnsafe = flagBool(flags, 'allow-unsafe')
 
   if (!LOOPBACK_HOSTS.has(host.toLowerCase())) {
     process.stdout.write(
@@ -218,7 +257,7 @@ export function serve(args = [], opts = {}) {
     )
   }
 
-  const handles = buildServe({ root, port, host, tickMs: opts.tickMs, clock: opts.clock })
+  const handles = buildServe({ root, port, host, tickMs: opts.tickMs, clock: opts.clock, allowUnsafe })
 
   const { routines, errors } = loadRoutines(root)
   const token = handles.tokenCreated ? 'gerado e salvo' : 'reusado'
@@ -227,6 +266,8 @@ export function serve(args = [], opts = {}) {
       `   webhook:  POST /webhook/routines/<id>?token=<t> — token ${token} em ${handles.tokenFile}\n` +
       `   rotinas:  ${routines.length} agendada(s), tick a cada ${Math.round(handles.scheduler.tickMs / 1000)}s` +
       `${errors.length ? ` (${errors.length} ignorada(s) por schema)` : ''}\n` +
+      `   API:      /api/runs (disparar/parar agentes) — token da sessão em ${path.relative(root, serveFile(root))}` +
+      `${allowUnsafe ? ' · ⚠️ --allow-unsafe: o painel pode rodar agentes sem pedir permissões' : ''}\n` +
       `   Ctrl+C encerra com graça (limpa timers e fecha o servidor)\n`
   )
 

@@ -278,6 +278,9 @@ function route(req, res, ctx, page, canvasPage, extras = {}) {
     }
   }
 
+  // API local de execuções (api-local, task 115): só no `harness serve`.
+  if (extras.runs && extras.runs.handle(req, res, url)) return
+
   // Modo `harness serve` (task 86): payload do painel de rotinas e o webhook.
   const routines = extras.routines ?? null
   if (routines && req.method === 'GET' && pathname === '/api/routines') {
