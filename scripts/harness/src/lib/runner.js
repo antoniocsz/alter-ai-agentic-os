@@ -54,9 +54,21 @@ export function resolveExecutable(bin, { env = process.env, platform = process.p
 }
 
 function spawnArgs(exe, args) {
-  // shell:true concatena com espaço; caminho com espaço (Program Files) precisa de aspas.
-  const file = exe.shell && /\s/.test(exe.file) ? `"${exe.file}"` : exe.file
-  return [file, assertSafeArgs(args)]
+  const safe = assertSafeArgs(args)
+  if (!exe.shell) return [exe.file, safe]
+  // shell:true (.cmd no Windows): a linha de comando é montada aqui — os args já passaram por
+  // assertSafeArgs — em vez de passar array + shell (Node 22 avisa DEP0190). Caminho com espaço
+  // (Program Files) vai entre aspas.
+  const file = /\s/.test(exe.file) ? `"${exe.file}"` : exe.file
+  return [[file, ...safe].join(' '), []]
+}
+
+/**
+ * Ambiente do filho: `PWD` = cwd do run. Validação real (task 113): chamado do Git Bash, o
+ * filho herdava `PWD=/d/projetos` e o opencode tentava entrar nesse diretório em vez da worktree.
+ */
+export function childEnv(env, cwd) {
+  return { ...env, PWD: cwd }
 }
 
 /** Versão da tool (`<bin> --version`), ou null — nunca bloqueia o run. */
@@ -119,7 +131,7 @@ export function runTool({ db, taskId, cwd, driver, prompt, opts = {}, env = proc
 
   const child = spawn(file, args, {
     cwd,
-    env,
+    env: childEnv(env, cwd),
     shell: exe.shell,
     detached: process.platform !== 'win32', // grupo próprio → killTree derruba os filhos
     stdio: ['pipe', 'pipe', 'pipe'],
@@ -138,7 +150,9 @@ export function runTool({ db, taskId, cwd, driver, prompt, opts = {}, env = proc
     budgetOverride
   })
 
+  let lastAgentError = null
   const record = (ev) => {
+    if (ev.type === 'agent.error' && ev.payload?.reason) lastAgentError = String(ev.payload.reason)
     appendRunEvent(db, runId, ev)
     try {
       onEvent({ ...ev, runId })
@@ -270,7 +284,7 @@ export function runTool({ db, taskId, cwd, driver, prompt, opts = {}, env = proc
         error = spawnError.message
       } else if (exitCode !== 0) {
         status = 'failed'
-        error = stderr.trim() || `${driver.bin} saiu com código ${exitCode}`
+        error = stderr.trim() || (lastAgentError && `${driver.bin}: ${lastAgentError}`) || `${driver.bin} saiu com código ${exitCode}`
       } else if (final && final.ok === false) {
         status = 'failed'
         error = final.reason ?? 'o runtime reportou erro'

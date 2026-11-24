@@ -400,6 +400,17 @@
 - Pendências: login headless do Claude Code na máquina e nova rodada de validação; validar opencode.
 - Decisões: nenhum segredo na fixture (só ids de sessão e a mensagem de login).
 
+## Handoff (task 113 — runner: validação real no Windows)
+- Feito: 2ª rodada real (Git Bash, Windows): claude completou de ponta a ponta (src/hello.js criado
+  na worktree, 224861/1945 tokens, $0.19 medido). opencode 2.2.5 falhou com `Failed to change
+  directory to /d/projetos`: o filho herdava `PWD` do Git Bash. `lib/runner.js` — `childEnv` fixa
+  `PWD` = cwd; exit ≠ 0 sem stderr usa o último agent.error como motivo; com shell:true a linha de
+  comando é montada pelo harness (args já validados) → sem aviso DEP0190. `run.js` — prompt proíbe
+  mover arquivos de tasks/ e o status.md (o claude tentou mover a task para done/). Fixture
+  `opencode/real-pwd-error.jsonl` = saída real. +1 teste; suítes de run verdes.
+- Pendências: rodar de novo `node .tmp/validar-runtimes.mjs opencode` no Windows.
+- Decisões: —
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do

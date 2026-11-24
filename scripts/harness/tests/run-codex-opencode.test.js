@@ -6,10 +6,10 @@ import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { openDb } from '../src/lib/db.js'
 import { getRun, runEvents } from '../src/lib/runs.js'
-import { runTool } from '../src/lib/runner.js'
+import { runTool, childEnv } from '../src/lib/runner.js'
 import * as codex from '../src/lib/runtimes/codex.js'
 import * as opencode from '../src/lib/runtimes/opencode.js'
-import { driverFor } from '../src/run.js'
+import { driverFor, buildPrompt } from '../src/run.js'
 import { init } from '../src/init.js'
 import { startTask } from '../src/lib/pipeline.js'
 import { startWorktree } from '../src/lib/worktree.js'
@@ -152,6 +152,23 @@ test('runTool + opencode falso: completed com custo somado; evento de erro → f
   assert.equal(bad.status, 'failed')
   assert.match(getRun(db, bad.runId).error, /no api key/)
   db.close()
+})
+
+test('validação real Windows (task 113): PWD do filho = cwd; erro do opencode vira motivo; prompt protege tasks/', async () => {
+  const root = tmpdir()
+  const db = openDb(root)
+  assert.equal(childEnv({ PWD: '/d/projetos', X: '1' }, 'C:\\wt').PWD, 'C:\\wt')
+  const log = path.join(tmpdir(), 'log.json')
+  const r = await runTool({
+    db, taskId: TASK, cwd: root, driver: driverFor('opencode'), prompt: 'x', unsafe: true,
+    env: envWith({ PWD: '/d/projetos', FAKE_EXIT: '1', FAKE_LOG: log, FAKE_TRANSCRIPT: fixture('opencode', 'real-pwd-error.jsonl') })
+  })
+  assert.equal(r.status, 'failed')
+  assert.equal(getRun(db, r.runId).error, 'opencode: Failed to change directory to /d/projetos')
+  const seen = JSON.parse(fs.readFileSync(log, 'utf8'))
+  assert.equal(fs.realpathSync(seen.pwd), fs.realpathSync(root), 'filho recebe PWD da worktree, não do chamador')
+  db.close()
+  assert.match(buildPrompt('07-x.md', 'corpo', { path: '/wt', branch: 'b' }), /NÃO mova nem edite arquivos de tasks\//)
 })
 
 test('harness run (CLI): opencode exige --unsafe; --permission-mode só para claude; codex roda na worktree', async () => {

@@ -45,6 +45,7 @@ export function buildPrompt(taskId, taskBody, wt, contextMd = null) {
     '- Leia AGENTS.md e siga o protocolo e os guard rails do projeto.',
     '- Toque SOMENTE os arquivos listados em "## Escopo" da task.',
     '- NÃO rode `harness finish`, `harness worktree finish`, merge, push nem comandos git que reescrevem histórico ou descartam mudanças — a integração é feita fora desta execução.',
+    '- NÃO mova nem edite arquivos de tasks/ (queue/active/done) nem o status.md — o harness gerencia o pipeline.',
     '- Ao terminar, responda com um resumo curto: o que foi feito, pendências e decisões.',
     '',
     '--- TASK ---',

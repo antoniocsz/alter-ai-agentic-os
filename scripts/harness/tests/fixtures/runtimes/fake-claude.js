@@ -16,7 +16,7 @@ process.stdin.setEncoding('utf8')
 process.stdin.on('data', (c) => (stdin += c))
 process.stdin.on('end', () => {
   if (process.env.FAKE_LOG) {
-    fs.writeFileSync(process.env.FAKE_LOG, JSON.stringify({ argv: process.argv.slice(2), stdin, cwd: process.cwd(), pid: process.pid }))
+    fs.writeFileSync(process.env.FAKE_LOG, JSON.stringify({ argv: process.argv.slice(2), stdin, cwd: process.cwd(), pid: process.pid, pwd: process.env.PWD ?? null }))
   }
   const lines = fs.readFileSync(transcript, 'utf8').split(/\r?\n/).filter(Boolean)
   if (process.env.FAKE_HANG) {
