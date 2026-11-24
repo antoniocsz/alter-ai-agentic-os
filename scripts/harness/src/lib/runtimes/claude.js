@@ -79,6 +79,10 @@ export function normalize(obj) {
   }
 
   if (obj?.type === 'assistant' && Array.isArray(obj.message?.content)) {
+    // Claude Code ≥2.1 marca falhas de sessão (ex.: `authentication_failed`) no próprio assistant.
+    if (typeof obj.error === 'string' && obj.error) {
+      events.push({ type: 'agent.error', payload: { reason: obj.error }, native: null })
+    }
     for (const part of obj.message.content) {
       if (part?.type === 'text' && part.text) {
         events.push({ type: 'agent.message', payload: { text: clip(part.text) }, native: part })
@@ -113,18 +117,31 @@ export function normalize(obj) {
     meta.sessionId = obj.session_id ?? null
     meta.usage = { tokensIn: usage.tokensIn, tokensOut: usage.tokensOut, costUsd: usage.costUsd }
     const ok = !obj.is_error && (obj.subtype ?? 'success') === 'success'
-    meta.final = { ok, reason: ok ? null : `claude: ${obj.subtype ?? 'erro'}` }
+    const reason = ok ? null : failureReason(obj)
+    meta.final = { ok, reason: ok ? null : `claude: ${reason}` }
     events.push({
       type: 'agent.usage',
       payload: { ...usage.breakdown, cost_usd: usage.costUsd, num_turns: obj.num_turns ?? null, duration_ms: obj.duration_ms ?? null, measured: true },
       native: obj
     })
     if (obj.result) events.push({ type: 'agent.message', payload: { text: clip(obj.result), final: true }, native: null })
-    if (!ok) events.push({ type: 'agent.error', payload: { reason: obj.subtype ?? 'erro' }, native: null })
+    if (!ok) events.push({ type: 'agent.error', payload: { reason }, native: null })
     return { events, meta }
   }
 
   return { events: [{ type: 'agent.message', payload: { text: null }, native: obj }], meta }
+}
+
+/**
+ * Motivo legível de um `result` com erro. Validação real (Claude Code 2.1.101, task 112): sem login o
+ * Claude devolve `subtype: "success"` + `is_error: true` e a mensagem em `result` — o subtype sozinho
+ * ("success") não explica nada. Subtype ≠ success (ex.: `error_max_turns`) continua sendo o motivo.
+ */
+function failureReason(obj) {
+  const text = typeof obj.result === 'string' ? clip(obj.result.trim()) : ''
+  const subtype = obj.subtype && obj.subtype !== 'success' ? obj.subtype : ''
+  if (subtype && text) return `${subtype} — ${text}`
+  return subtype || text || 'erro'
 }
 
 /**

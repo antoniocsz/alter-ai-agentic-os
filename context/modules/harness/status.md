@@ -389,6 +389,17 @@
 - Pendências: rodar o script de validação real no Windows (`D:\projetos\.tmp\validar-runtimes.mjs`).
 - Decisões: captura bruta sem redaction de propósito — é o insumo para comparar o formato real.
 
+## Handoff (task 112 — claude: motivo real do erro)
+- Feito: validação real no Windows (Claude Code 2.1.101, opencode 2.2.5; codex e gemini não
+  instalados). O formato stream-json do Claude bate com o driver (init, assistant com message.id e
+  usage, result). Sem login, o Claude devolve `result` com `subtype: "success"` + `is_error: true` e
+  a mensagem em `result`, e o assistant traz `error: "authentication_failed"`. `lib/runtimes/claude.js`
+  — motivo = subtype ≠ success e/ou texto de `result` (`claude: Not logged in · Please run /login`);
+  `assistant.error` vira `agent.error`. Fixture `claude-real-auth-error.jsonl` = transcrição real
+  (cwd anonimizado). +1 teste; run-claude, canvas-runs, run-budget, runs, batch e run-context verdes.
+- Pendências: login headless do Claude Code na máquina e nova rodada de validação; validar opencode.
+- Decisões: nenhum segredo na fixture (só ids de sessão e a mensagem de login).
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do

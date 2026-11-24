@@ -168,6 +168,20 @@ test('runTool: exit ≠ 0 e resultado is_error viram run failed com motivo; sem 
   db.close()
 })
 
+test('runTool: transcrição REAL sem login (Claude Code 2.1.101) → failed com a mensagem, não "success"', async () => {
+  const root = tmpdir()
+  const db = openDb(root)
+  const r = await runTool({ db, taskId: TASK, cwd: root, driver: claude, prompt: 'x', env: envWith({ FAKE_TRANSCRIPT: fixture('claude-real-auth-error.jsonl') }) })
+  assert.equal(r.status, 'failed')
+  const run = getRun(db, r.runId)
+  assert.match(run.error, /^claude: Not logged in · Please run \/login/)
+  assert.doesNotMatch(run.error, /success/)
+  const reasons = runEvents(db, r.runId).filter((e) => e.type === 'agent.error').map((e) => e.payload.reason)
+  assert.ok(reasons.includes('authentication_failed'), 'erro do assistant vira agent.error')
+  assert.ok(reasons.some((x) => /Not logged in/.test(x)), 'erro do result vira agent.error com a mensagem')
+  db.close()
+})
+
 test('runTool: AbortSignal mata o processo e registra run.failed (interrupted)', async () => {
   const root = tmpdir()
   const db = openDb(root)
