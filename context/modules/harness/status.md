@@ -372,6 +372,13 @@
   docs (task 110).
 - Decisões: `--permission-mode` continua exclusivo do Claude; Gemini usa `--approval-mode`.
 
+## Handoff (task 110 — docs do runtime Gemini)
+- Feito: ajuda do CLI e README (tabela do CLI e tabela de tools do `harness run` com a linha do
+  gemini: comando, `--approval-mode`, uso sem USD); AGENTS.md com gemini no comando e nas
+  permissões; spec com AC-1..AC-5 marcados e "Estado" (validação real pendente).
+- Pendências: execução real com o Gemini CLI.
+- Decisões: —
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do

@@ -25,13 +25,19 @@ visão — não tem driver: não dá para usá-lo em `run`, `run --batch`, no or
 
 ## Critérios de aceitação
 
-- [ ] AC-1 — `--tool gemini` disponível em `run`, `run --batch` e na ajuda; tool ausente → erro com instrução de instalação.
-- [ ] AC-2 — Normalização dos 6 tipos de evento com `native` preservado; deltas do assistente acumulados.
-- [ ] AC-3 — Uso medido de tokens a partir de `result.stats`; custo nulo; `result.status: error` → run `failed`.
-- [ ] AC-4 — `auto_edit` por padrão e `yolo` só com `--unsafe`; `--permission-mode` continua exclusivo do Claude.
-- [ ] AC-5 — Testes com runtime falso; zero dependências novas.
+- [x] AC-1 — `--tool gemini` disponível em `run`, `run --batch` e na ajuda; tool ausente → erro com instrução de instalação.
+- [x] AC-2 — Normalização dos 6 tipos de evento com `native` preservado; deltas do assistente acumulados.
+- [x] AC-3 — Uso medido de tokens a partir de `result.stats`; custo nulo; `result.status: error` → run `failed`.
+- [x] AC-4 — `auto_edit` por padrão e `yolo` só com `--unsafe`; `--permission-mode` continua exclusivo do Claude.
+- [x] AC-5 — Testes com runtime falso; zero dependências novas.
 
-## Fora de escopo
+## Estado (2026-11-24)
+
+- Entregue nas tasks 109 (driver + testes) e 110 (docs).
+- Validado com transcrições sintéticas no formato do código-fonte do Gemini CLI. **Pendente:**
+  execução real (prompt só por stdin sem `-p` e `--approval-mode` na versão instalada).
+
+
 
 - Retomada de sessão (`--resume`).
 - Uso parcial durante o run (Gemini só reporta no `result`).

@@ -54,7 +54,7 @@ Comandos:
   sync                Reindexa o banco SQLite (.harness/harness.db) a partir do markdown
   log "<texto>"       Registra uma interação no banco [--task] [--kind] [--source]
   history <task>      Mostra eventos e interações de uma task
-  run <task> --tool <claude|codex|opencode>   Executa a task no agente, dentro da worktree
+  run <task> --tool <claude|codex|opencode|gemini>   Executa a task no agente, dentro da worktree
                       [--model m] [--unsafe] (claude: [--permission-mode default|acceptEdits|plan];
                       opencode exige --unsafe) | --stop <run>
                       --batch <t1,t2,...> [--max-parallel n]: lote paralelo, um agente por worktree

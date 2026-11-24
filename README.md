@@ -143,7 +143,7 @@ tasks/
 | `harness worktree start <task>` | Cria `.worktrees/task-<n>-<slug>` e branch `task/<n>-<slug>` a partir da base |
 | `harness worktree finish <task>` | Commita, rebase, roda gates.merge, squash merge, conclui a task e remove a worktree |
 | `harness worktree list` / `prune` | Lista worktrees registradas / limpa entradas órfãs |
-| `harness run <task> --tool <claude\|codex\|opencode>` | Executa a task no agente, de verdade, dentro da worktree da task. Flags: `--model`, `--unsafe`, `--permission-mode` (só claude); `--stop <run>` interrompe |
+| `harness run <task> --tool <claude\|codex\|opencode\|gemini>` | Executa a task no agente, de verdade, dentro da worktree da task. Flags: `--model`, `--unsafe`, `--permission-mode` (só claude); `--stop <run>` interrompe |
 | `harness run --batch <t1,t2,...> --tool <t>` | Lote paralelo: prepara as tasks (start + worktree) e roda um agente por worktree ao mesmo tempo. Flag: `--max-parallel` (padrão `wip.active`) |
 | `harness runs [<task>]` | Lista execuções de agentes: status, duração, tokens e custo (medido ou n/d). Flags: `--batch <id>`, `--json`, `--limit` |
 | `harness budget` | Consumo **medido** (hoje, mês, tasks ativas) contra os limites de `harness.json → budget`; avisa runs sem uso reportado. Flag: `--json` |
@@ -594,6 +594,7 @@ interpolado num comando de shell.
 | `claude` | `claude -p --output-format stream-json --verbose` | `--permission-mode acceptEdits` (padrão; `default`/`plan` via flag) + deny do perfil de sandbox em `.claude/settings.json` | tokens + custo em USD |
 | `codex` | `codex exec --json --sandbox workspace-write -` | sandbox do Codex (`workspace-write`) | tokens (sem custo em USD) |
 | `opencode` | `opencode run --format json` | **exige `--unsafe`**: o `opencode run` pode aprovar edições e comandos sozinho | tokens + custo, somados por passo |
+| `gemini` | `gemini --output-format stream-json` (stdin não-TTY) | `--approval-mode auto_edit` (padrão); `yolo` só com `--unsafe` | tokens no fim (sem custo em USD) |
 
 - **Recusas claras**: task fora de `active/`, task sem worktree ou tool não instalada → erro com o
   próximo comando a rodar. Nada é simulado: sem a tool no PATH, nenhum run é aberto.
