@@ -67,7 +67,8 @@ export function create() {
           native: null
         })
       }
-      const file = input?.filePath ?? input?.file_path ?? null
+      // opencode 2.2.5 real (task 114): o `write` manda `path`; versões anteriores, `filePath`.
+      const file = input?.filePath ?? input?.file_path ?? input?.path ?? null
       if (FILE_TOOLS.has(part.tool) && file && st.status !== 'error') {
         events.push({ type: 'agent.file_changed', payload: { path: file, tool: part.tool }, native: null })
       }

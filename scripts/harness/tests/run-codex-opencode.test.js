@@ -110,6 +110,10 @@ test('opencode.normalize: run.started só no 1º passo; edit vira file_changed; 
   assert.deepEqual(meta.final, { ok: true, reason: null })
   assert.deepEqual(opencode.command({ model: 'anthropic/claude-sonnet' }), ['run', '--format', 'json', '--model', 'anthropic/claude-sonnet'])
 
+  const real = fs.readFileSync(fixture('opencode', 'real-write.jsonl'), 'utf8').trim()
+  const fc = opencode.create().normalize(JSON.parse(real)).events.find((e) => e.type === 'agent.file_changed')
+  assert.deepEqual(fc?.payload, { path: 'src/hello.js', tool: 'write' }, 'write real (opencode 2.2.5) usa input.path')
+
   const err = opencode.create().normalize({ type: 'error', error: { name: 'X', data: { message: 'no api key' } } })
   assert.deepEqual(err.meta.final, { ok: false, reason: 'opencode: no api key' })
 })

@@ -411,6 +411,14 @@
 - Pendências: rodar de novo `node .tmp/validar-runtimes.mjs opencode` no Windows.
 - Decisões: —
 
+## Handoff (task 114 — opencode: file_changed com o formato real)
+- Feito: 3ª rodada real: opencode 2.2.5 completou (src/hello.js criado na worktree, 114237/1213
+  tokens, custo 0 reportado pela própria tool). Validação real encerrada: claude e opencode ok no
+  Windows; codex e gemini não instalados. O `write` real manda `state.input.path` → o driver não
+  emitia agent.file_changed. `lib/runtimes/opencode.js` aceita `path`. Fixture `opencode/real-write.jsonl`.
+- Pendências: validar codex/gemini quando instalados.
+- Decisões: custo 0 do opencode é o valor que a tool reportou (modelo/provedor sem preço), gravado como medido.
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do
