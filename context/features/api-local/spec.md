@@ -33,13 +33,23 @@ desktop previsto) controlarem as execuções.
 
 ## Critérios de aceitação
 
-- [ ] AC-1 — `GET /api/runtimes`, `GET /api/runs`, `GET /api/runs/:id?after=` respondem JSON com os dados do banco.
-- [ ] AC-2 — `POST /api/runs` dispara o agente com as mesmas validações do `harness run` (erros viram 4xx com a mensagem); 202 com o id do run.
-- [ ] AC-3 — `POST /api/runs/:id/stop` interrompe um run em andamento (status `failed`, motivo `interrupted`).
-- [ ] AC-4 — POSTs sem token válido → 401; origem cruzada → 403; Host fora da lista → 403; `unsafe` sem `--allow-unsafe` → 403; run já ativo na task → 409.
-- [ ] AC-5 — `.harness/serve.json` gravado no start e removido no stop.
-- [ ] AC-6 — Canvas do `harness serve` tem Rodar/Parar por cartão e timeline ao vivo; `kanban --serve` continua só leitura.
-- [ ] AC-7 — Zero dependências novas; testes com runtime falso.
+- [x] AC-1 — `GET /api/runtimes`, `GET /api/runs`, `GET /api/runs/:id?after=` respondem JSON com os dados do banco.
+- [x] AC-2 — `POST /api/runs` dispara o agente com as mesmas validações do `harness run` (erros viram 4xx com a mensagem); 202 com o id do run.
+- [x] AC-3 — `POST /api/runs/:id/stop` interrompe um run em andamento (status `failed`, motivo `interrupted`).
+- [x] AC-4 — POSTs sem token válido → 401; origem cruzada → 403; Host fora da lista → 403; `unsafe` sem `--allow-unsafe` → 403; run já ativo na task → 409.
+- [x] AC-5 — `.harness/serve.json` gravado no start e removido no stop.
+- [x] AC-6 — Canvas do `harness serve` tem Rodar/Parar por cartão e timeline ao vivo; `kanban --serve` continua só leitura.
+- [x] AC-7 — Zero dependências novas; testes com runtime falso.
+
+## Estado (2026-11-24)
+
+- Entregue nas tasks 115 (API, guards, `.harness/serve.json`, `prepareRun` compartilhado com o
+  `harness run`), 116 (canvas interativo) e 117 (docs).
+- Validado com runtime falso: dispatch → run concluído, stop de run pendurado, 401/403/409/415/422,
+  token da página do canvas disparando o run.
+- Pendente: validar o painel no Windows com Claude/opencode reais.
+- Decisões: polling incremental (`after`) em vez de SSE; controles só na vista de um projeto;
+  runs disparados pelo serve são interrompidos quando ele encerra.
 
 ## Fora de escopo
 

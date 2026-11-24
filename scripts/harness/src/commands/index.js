@@ -70,7 +70,7 @@ Comandos:
   events <run>        Timeline normalizada de uma execução [--json] [--native]
   report              Métricas do banco [--format table|json|csv] [--module] [--days]
   kanban [--serve [porta] [--host <h>]] | --out <arquivo>   Painel kanban (servidor ou HTML)
-  serve [--port <n>] [--host <h>]    Kanban + agendador das rotinas + webhook num único processo
+  serve [--port <n>] [--host <h>] [--allow-unsafe]   Kanban + rotinas + webhook + API local de execuções (canvas com Rodar/Parar)
   update [--source <cam>] [--dry-run] Re-sincroniza a camada harness a partir da fonte (ou HARNESS_SOURCE)
   workspace ...       Opera sobre múltiplos projetos (ver "harness workspace help")
   check [--json]      Valida o protocolo (pipeline, escopos, seções, módulos)

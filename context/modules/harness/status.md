@@ -447,6 +447,14 @@
 - Pendências: docs (task 117).
 - Decisões: controles só na vista de um projeto (cartões de workspace multi-projeto ficam só leitura).
 
+## Handoff (task 117 — api-local: docs)
+- Feito: README — seção "API local e canvas interativo" (controles do canvas, rotas, códigos de
+  erro, segurança: Host, token de sessão, `.harness/serve.json`, `--allow-unsafe`; exemplo com
+  curl), canvas descrito como interativo no `harness serve`, linha do `serve` na tabela da CLI.
+  AGENTS.md — disparo pelo painel. Help do `serve` com `--allow-unsafe`. Spec com ACs marcados e Estado.
+- Pendências: validar o painel no Windows com as tools reais; depois, memória em níveis.
+- Decisões: —
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do

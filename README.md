@@ -24,6 +24,7 @@ Camada de operação que padroniza como agentes de IA trabalham em um projeto de
 - [Memória local (sessões, recall, status)](#memória-local-sessões-recall-status)
 - [Painel kanban](#painel-kanban)
 - [Execução ao vivo (canvas)](#execução-ao-vivo-canvas)
+- [API local e canvas interativo](#api-local-e-canvas-interativo)
 - [Rotinas e `harness serve`](#rotinas-e-harness-serve)
 - [Worktree por task](#worktree-por-task)
 - [Perfis e `harness.json`](#perfis-e-harnessjson)
@@ -167,7 +168,7 @@ tasks/
 | `harness history <task>` | Mostra eventos + interações de uma task (memorização) |
 | `harness report` | Métricas do banco (WIP, cycle time, aging, throughput). Flags: `--format`, `--module`, `--days` |
 | `harness kanban` | Painel kanban: `--serve [porta]` (drag&drop) ou `--out <arquivo>` (estático) |
-| `harness serve [--port n] [--host h]` | Kanban + agendador de rotinas + webhook num único processo (ver "Rotinas e `harness serve`") |
+| `harness serve [--port n] [--host h] [--allow-unsafe]` | Kanban + agendador de rotinas + webhook + API local de execuções num único processo (ver "Rotinas e `harness serve`" e "API local e canvas interativo") |
 | `harness check [flags]` | Valida o protocolo (pipeline, escopos, seções, módulos). Flags: `--json`, `--barrel`, `--lint`, `--typecheck`, `--db` |
 | `harness version [--bump patch\|minor\|major]` | Mostra ou incrementa a versão do harness (registra a mudança no banco) |
 | `harness changelog [--out <arquivo>]` | Gera `CHANGELOG.md` a partir dos handoffs (`harness finish --handoff`) |
@@ -724,11 +725,63 @@ servidor) mostra um cartão ao vivo por task da coluna `active`:
   `GET /api/tasks/:id/detail`).
 - **Auto-refresh** a cada 3s, alimentado por `GET /api/canvas`
   (`{ ok, generated_at, canvas[] }` já pré-computado para a UI).
-- Read-only (v1): nenhuma ação de kill/restart — a mudança de estado continua sendo
-  pelo pipeline (`harness start`/`finish`/`worktree finish`). O kanban **estático**
-  (`--out`) ainda não tem a vista.
+- No `kanban --serve` a vista é só leitura. No **`harness serve`** ela ganha os controles dos
+  agentes (Rodar, Parar, timeline ao vivo) — ver "API local e canvas interativo". A mudança de
+  estado das tasks continua sendo pelo pipeline (`harness start`/`finish`/`worktree finish`). O
+  kanban **estático** (`--out`) ainda não tem a vista.
 - Multi-projeto no workspace: a vista é por projeto (o kanban agregado do workspace é
   outra superfície).
+
+## API local e canvas interativo
+
+O `harness serve` expõe uma **API local de execuções** e liga os controles da vista Execução
+(`/canvas`): disparar o agente de uma task, parar e acompanhar a timeline ao vivo — sem terminal.
+O disparo passa pelo **mesmo caminho do `harness run`**: task ativa, com worktree, orçamento
+(`harness.json → budget`), pacote de contexto e as mesmas permissões por tool.
+
+**No canvas** (cartão de uma task ativa):
+
+- **▶ Rodar agente** — escolhe a tool instalada (lista de `harness runtimes`), modelo opcional,
+  modo de permissões (Claude), orçamento de contexto, "ignorar orçamento" e "unsafe".
+- **■ Parar** — aparece enquanto o run está rodando (mata a árvore de processos).
+- **📜 timeline** — eventos do run ao vivo (mensagens, ferramentas, arquivos, uso), atualizados a
+  cada 1,5 s; o detalhe da task lista as execuções anteriores.
+- Task sem worktree mostra o comando para criá-la (`harness worktree start N`).
+
+**Rotas** (JSON):
+
+| Método e rota | O que faz |
+|---|---|
+| `GET /api/runtimes` | tools de agente instaladas (caminho, versão, se exige unsafe) |
+| `GET /api/runs?task=&batch=&limit=` | runs recentes |
+| `GET /api/runs/:id?after=<seq>` | run + eventos depois de `seq` (polling incremental; `&native=1` inclui o evento bruto) |
+| `POST /api/runs` | `{ task, tool, model?, permissionMode?, unsafe?, ignoreBudget?, contextBudget? }` → **202** com o run (segue em segundo plano) |
+| `POST /api/runs/:id/stop` | interrompe o run |
+
+Erros vêm como `{ ok: false, error }`: 422 para validação do `harness run` (task fora de
+`active/`, sem worktree, tool ausente, opencode sem unsafe), 409 para orçamento estourado ou run
+já em andamento na task, 400 para body inválido.
+
+**Segurança** (a API dispara processos na sua máquina):
+
+- Bind em `127.0.0.1` por padrão. Toda leitura e escrita exige `Host` de loopback (ou o `--host`
+  do bind) — protege contra DNS rebinding.
+- Disparar e parar exigem o header **`X-Harness-Token`** com o token da sessão, gerado a cada
+  start do serve, além de origem igual ao host. O canvas recebe o token embutido na página;
+  outros clientes leem de **`.harness/serve.json`** (`url`, `pid`, `token`, `started_at`;
+  gitignored, removido ao encerrar).
+- `unsafe` só é aceito se o serve subiu com **`--allow-unsafe`** (aviso no banner).
+- Um run por task por vez. Ao encerrar o serve, os runs disparados por ele são interrompidos.
+
+```bash
+node scripts/harness/bin/harness.js serve                 # canvas com controles em http://127.0.0.1:4310/canvas
+node scripts/harness/bin/harness.js serve --allow-unsafe  # libera "unsafe" (necessário para o opencode)
+
+# cliente da API (ex.: script ou app desktop)
+TOKEN=$(node -e "console.log(require('./.harness/serve.json').token)")
+curl -s -X POST http://127.0.0.1:4310/api/runs -H "x-harness-token: $TOKEN" \
+  -H 'content-type: application/json' -d '{"task":"12","tool":"claude"}'
+```
 
 ## Rotinas e `harness serve`
 
