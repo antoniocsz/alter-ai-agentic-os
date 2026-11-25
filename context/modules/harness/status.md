@@ -484,6 +484,13 @@
 - Decisões: proposta do agente nunca entra no contexto sem aprovação; texto do agente é cortado em
   4000 caracteres pelos drivers — bloco muito no fim de um resumo longo pode se perder.
 
+## Handoff (task 120 — memoria-em-niveis: docs)
+- Feito: README — seção "Memória em níveis (`harness memory`)" (níveis, tipos, estados, comandos,
+  contexto do run, bloco `MEMÓRIA:`, `harness.json → memory`, limitações) e linha na tabela da CLI;
+  nota de que as memórias vivem só no banco. AGENTS.md — uso pelo agente. Spec com ACs e Estado.
+- Pendências: validar o bloco `MEMÓRIA:` com as tools reais.
+- Decisões: —
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do

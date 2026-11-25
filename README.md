@@ -22,6 +22,7 @@ Camada de operação que padroniza como agentes de IA trabalham em um projeto de
 - [Sandbox por tool](#sandbox-por-tool)
 - [Agentes (subagents opencode)](#agentes-subagents-opencode)
 - [Memória local (sessões, recall, status)](#memória-local-sessões-recall-status)
+- [Memória em níveis (`harness memory`)](#memória-em-níveis-harness-memory)
 - [Painel kanban](#painel-kanban)
 - [Execução ao vivo (canvas)](#execução-ao-vivo-canvas)
 - [API local e canvas interativo](#api-local-e-canvas-interativo)
@@ -153,6 +154,7 @@ tasks/
 | `harness gates [--phase finish\|merge]` | Roda os gates declarados no `harness.json` |
 | `harness status` | Prime de sessão: WIP, ativas, worktrees, últimas sessões e handoff |
 | `harness session end "<resumo>"` / `list` | Memória local: grava/lista sessões (db + `context/sessions/`) |
+| `harness memory add\|list\|search\|show\|approve\|reject\|update\|outdate` | Memória em níveis (ver "Memória em níveis") |
 | `harness recall "<termo>"` | Busca em sessões, tasks, notas e docs (agrega no workspace) |
 | `harness adapter <tool>` | Instala (ou lista com `list`) o adaptador de tool no projeto |
 | `harness retro [--days n]` | Gera retrospectiva markdown com métricas + sessões do período |
@@ -529,6 +531,61 @@ pnpm harness memory prune --days 90 --apply # arquiva em context/sessions/archiv
 - Sessões, notas e handoffs passam por **redaction** (`sk-*`, JWT, `password=...`) antes de persistir.
 - O gate `secrets` varre o repositório no `finish` e bloqueia se encontrar padrão de segredo.
 - O banco é regenerável (`harness sync`) e gitignored; as sessões em markdown são versionadas.
+  Exceção: as memórias em níveis (abaixo) vivem só no banco.
+
+## Memória em níveis (`harness memory`)
+
+Memória estruturada que os agentes reaproveitam entre execuções — sem injetar o banco inteiro no
+prompt. Cada memória tem **nível**, **tipo**, **estado**, tags, origem (humano ou agente, task,
+run), confiança, versão, último acesso e expiração.
+
+| Nível | De quem | Entra no contexto da task quando |
+|---|---|---|
+| `task` | uma task (`--scope 07-x.md`) | é a própria task |
+| `agent` | um agente (`--scope backend`) | é o agente da task (`## Agente`) |
+| `project` | todos os agentes do projeto | casa com a task |
+| `knowledge` | decisões técnicas e de arquitetura | casa com a task |
+| `global` | entre projetos (`~/.alter-harness/memory.db` ou `HARNESS_HOME`) | `harness.json → memory.global: true` e casa com a task |
+| `session` | uma execução (`--scope <run>`) | não entra (expira em 14 dias) |
+
+Tipos: `fact` (verificado), `decision`, `discovery`, `assumption`, `observation` (temporária,
+expira em 30 dias). Estados: `proposed` → `active` ou `rejected`; `outdated` quando substituída.
+
+```bash
+pnpm harness memory add "Deploy só via pipeline de CI" --level knowledge --kind decision --tags deploy,ci
+pnpm harness memory add "Testes do runner usam tool falsa no PATH" --level agent --scope backend
+pnpm harness memory add "Janela de deploy aberta" --level project --kind observation --ttl 12h
+pnpm harness memory list [--level knowledge] [--status proposed] [--all] [--json]
+pnpm harness memory search "deploy"                    # FTS5, ranking por relevância
+pnpm harness memory show 12                            # metadados + cadeia de versões
+pnpm harness memory approve 12 | reject 12             # revisão do que o agente propôs
+pnpm harness memory update 12 "Deploy via CI com aprovação manual em produção"   # nova versão
+pnpm harness memory outdate 12                         # tira do contexto sem apagar
+pnpm harness memory add "Prefiro respostas em português" --level global          # global
+pnpm harness memory list --global
+```
+
+- **Do humano** a memória entra `active`; texto igual (normalizado) no mesmo nível/escopo não
+  duplica. Ao gravar, o harness aponta memórias ativas parecidas para você checar conflito.
+- **No `harness run`** (CLI, lote e painel), o pacote de contexto ganha a seção `memory`: só
+  memórias `active` e não expiradas, ranqueadas por relevância textual à task × peso do nível ×
+  tipo × confiança × recência, dentro de `harness.json → memory.budget` (padrão **1500** tokens
+  estimados; `0` desliga). As usadas ganham último acesso e contador.
+- **O agente propõe**: o prompt pede, no fim do resumo, um bloco `MEMÓRIA:` com linhas
+  `- <fato|decisão|descoberta|suposição|observação> [task|projeto|conhecimento|agente]: <texto> #tag`.
+  Ao fim de um run concluído, cada linha vira memória **`proposed`** com origem no run — e só
+  chega ao contexto depois de `harness memory approve`. Agente nunca escreve no nível global.
+- Conteúdo passa por **redaction** antes de gravar. Busca sem acento (`autenticacao` acha
+  "autenticação").
+
+```jsonc
+// harness.json
+"memory": { "global": true, "budget": 1500 }
+```
+
+Limitações: as memórias vivem só no `.harness/harness.db` (gitignored; backup com
+`harness memory list --all --json`); busca textual (FTS5), sem embeddings; conflitos são
+apontados por semelhança, não detectados por modelo.
 
 ### Banco de dados (índice e histórico)
 

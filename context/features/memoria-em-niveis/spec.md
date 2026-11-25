@@ -41,14 +41,23 @@ por relevância dentro de um orçamento de tokens e aprovação humana do que é
 
 ## Critérios de aceitação
 
-- [ ] AC-1 — Esquema `memories` (+ índice FTS5) no banco do projeto e no global; níveis, tipos e estados validados.
-- [ ] AC-2 — `memory add` com dedupe, TTL, confiança, tags e aviso de memórias parecidas; humano → `active`.
-- [ ] AC-3 — `memory list/search/show` com ranking textual, filtros e `--json`; expiradas fora por padrão.
-- [ ] AC-4 — `approve/reject/update/outdate`; `update` versiona (nova linha, anterior `outdated`, `show` mostra a cadeia).
-- [ ] AC-5 — Global separado, lido só com `memory.global: true`; agente nunca escreve no global.
-- [ ] AC-6 — Pacote de contexto com seção `memory` por relevância e orçamento; registra último acesso.
-- [ ] AC-7 — Bloco `MEMÓRIA:` do agente vira memórias `proposed` com origem no run (CLI, lote e API).
-- [ ] AC-8 — Zero dependências novas; testes.
+- [x] AC-1 — Esquema `memories` (+ índice FTS5) no banco do projeto e no global; níveis, tipos e estados validados.
+- [x] AC-2 — `memory add` com dedupe, TTL, confiança, tags e aviso de memórias parecidas; humano → `active`.
+- [x] AC-3 — `memory list/search/show` com ranking textual, filtros e `--json`; expiradas fora por padrão.
+- [x] AC-4 — `approve/reject/update/outdate`; `update` versiona (nova linha, anterior `outdated`, `show` mostra a cadeia).
+- [x] AC-5 — Global separado, lido só com `memory.global: true`; agente nunca escreve no global.
+- [x] AC-6 — Pacote de contexto com seção `memory` por relevância e orçamento; registra último acesso.
+- [x] AC-7 — Bloco `MEMÓRIA:` do agente vira memórias `proposed` com origem no run (CLI, lote e API).
+- [x] AC-8 — Zero dependências novas; testes.
+
+## Estado (2026-11-25)
+
+- Entregue nas tasks 118 (núcleo, CLI, global, versões), 119 (seção `memory` no contexto e
+  colheita do bloco `MEMÓRIA:`) e 120 (docs).
+- Validado com testes (runtime falso para a colheita); suíte completa verde.
+- Pendente: ver com Claude/opencode reais se o bloco `MEMÓRIA:` sai no formato pedido.
+- Limitações: memórias só no banco (gitignored); texto do agente cortado em 4000 caracteres pelos
+  drivers; ranking textual, sem embeddings.
 
 ## Fora de escopo
 

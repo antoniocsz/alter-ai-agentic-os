@@ -164,6 +164,20 @@ pnpm harness memory prune --days 90 --apply # arquiva sessões antigas (não apa
 - `recall` busca em sessões, tasks, notas, eventos e markdown do projeto (e de todos os
   projetos quando rodado na raiz do workspace).
 
+### Memória em níveis
+
+```bash
+pnpm harness memory add "<texto>" --level project|knowledge|agent|task|global [--scope s] [--kind decision]
+pnpm harness memory list --status proposed   # o que os agentes propuseram
+pnpm harness memory approve <id> | reject <id> | update <id> "<texto>" | outdate <id>
+```
+
+- O pacote de contexto do `harness run` traz as memórias **ativas** relevantes para a task (task,
+  agente, projeto, conhecimento; global só com `memory.global: true`). Trate `fato`/`decisão` como
+  verificado e `suposição`/`observação` como algo a confirmar; aponte no resumo o que estiver velho.
+- Ao terminar, registre o que evita retrabalho num bloco `MEMÓRIA:` no fim do resumo (até 5 linhas,
+  `- <tipo> [nível]: <texto> #tag`). Vira proposta — o humano aprova antes de entrar no contexto.
+
 ---
 
 ## Regras inegociáveis (genéricas)
