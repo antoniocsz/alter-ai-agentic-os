@@ -455,6 +455,21 @@
 - Pendências: validar o painel no Windows com as tools reais; depois, memória em níveis.
 - Decisões: —
 
+## Handoff (task 118 — memoria-em-niveis: núcleo)
+- Feito: `lib/memories.js` (NOVO) — níveis global/project/knowledge/agent/task/session; tipos
+  fact/decision/discovery/assumption/observation; estados proposed/active/outdated/rejected;
+  metadados (tags, origem, agente, task, run, confiança, versão, acessos, expiração). Tabela
+  `memories` + `memories_fts` (FTS5, sem acento; cai para LIKE sem FTS5). `addMemory` com dedupe por
+  texto normalizado, TTL (sessão 14d, observação 30d, `--ttl`), redaction e aviso de parecidas;
+  `setMemoryStatus`, `updateMemory` (nova versão; anterior outdated; `memoryChain`), `searchMemories`,
+  `listMemories`, `rankForTask`, `selectWithinBudget`. Global em `~/.alter-harness/memory.db`
+  (`HARNESS_HOME`); agente nunca escreve no global. `db.js` migra; `config.js` valida `memory.global`
+  e `memory.budget`. `src/memory.js` — `harness memory add|list|search|show|approve|reject|update|outdate`
+  (+ `--global`, `--json`); `prune` de sessões mantido; sessões listadas em `session list`.
+  +7 testes (`memories.test.js`); memory, config e db verdes.
+- Pendências: contexto e colheita do agente (119); docs (120).
+- Decisões: ranking textual (FTS5 + metadados), sem embeddings (sem dependências novas).
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do

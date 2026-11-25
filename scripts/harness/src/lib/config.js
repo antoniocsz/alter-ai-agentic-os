@@ -92,5 +92,17 @@ export function validateConfig(cfg) {
     errors.push('context.budget deve ser inteiro >= 0 (0 desliga o pacote no harness run)')
   }
 
+  // Memória em níveis (task 118): `memory.global` libera a leitura da memória global no projeto;
+  // `memory.budget` = tokens da seção de memória no pacote de contexto (0 desliga).
+  const mem = cfg.memory
+  if (mem !== undefined) {
+    if (mem === null || typeof mem !== 'object' || Array.isArray(mem)) errors.push('memory deve ser um objeto')
+    else {
+      if (mem.global !== undefined && typeof mem.global !== 'boolean') errors.push('memory.global deve ser true/false')
+      if (mem.budget !== undefined && (!Number.isInteger(mem.budget) || mem.budget < 0)) errors.push('memory.budget deve ser inteiro >= 0 (0 desliga a seção de memória)')
+      for (const k of Object.keys(mem)) if (!['global', 'budget'].includes(k)) errors.push(`memory.${k} desconhecido (use global, budget)`)
+    }
+  }
+
   return errors
 }

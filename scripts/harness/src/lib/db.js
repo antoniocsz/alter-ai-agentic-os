@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { queueDir, activeDir, doneDir, listTasks, parseTask } from './tasks.js'
 import { redact } from './redact.js'
+import { ensureMemorySchema } from './memories.js'
 
 const [NODE_MAJOR, NODE_MINOR] = process.versions.node.split('.').map(Number)
 if (NODE_MAJOR < 22 || (NODE_MAJOR === 22 && NODE_MINOR < 5)) {
@@ -136,6 +137,8 @@ function migrate(db) {
   // Task 107 (orcamento-de-custos): run iniciado com --ignore-budget fica marcado.
   if (!runCols.includes('budget_override')) db.exec('ALTER TABLE runs ADD COLUMN budget_override INTEGER NOT NULL DEFAULT 0')
   db.exec('CREATE INDEX IF NOT EXISTS idx_runs_batch ON runs(batch_id)')
+  // Task 118 (memoria-em-niveis): memórias em níveis + índice FTS5.
+  ensureMemorySchema(db)
 
   const row = db.prepare(`SELECT value FROM meta WHERE key = 'schema_version'`).get()
   if (!row) {

@@ -43,7 +43,7 @@ Comandos:
   gates [--phase finish|merge] [--json]   Roda os gates do harness.json
   status              WIP, ativas, worktrees, próximas e últimas sessões (prime de sessão)
   session <end|list>  Memória local: end "<resumo>" | list [--limit n]
-  memory <list|prune> Memória local: list | prune [--days n] [--apply] (arquiva antigas)
+  memory <add|list|search|show|approve|reject|update|outdate|prune>  Memória em níveis (global, project, knowledge, agent, task, session); prune arquiva sessões antigas
   retro [--days n]    Gera retrospectiva do período [--out <arquivo>] [--force]
   recall "<termo>"    Busca em sessões, tasks, notas e docs [--limit n] [--json]
   module <nome>       Scaffold de módulo [--with-prisma] [--with-http]
