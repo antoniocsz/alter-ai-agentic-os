@@ -551,6 +551,12 @@
 - Pendências: docs (126).
 - Decisões: —
 
+## Handoff (task 126 — execucao-competitiva: docs)
+- Feito: README — seção "Execução competitiva (`harness compete`)" (candidatas, comparação, juiz,
+  pick/discard, painel e API) e linha na tabela da CLI. AGENTS.md — papel de juiz. Spec com ACs e Estado.
+- Pendências: validar com tools reais.
+- Decisões: —
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do

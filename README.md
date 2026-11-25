@@ -27,6 +27,7 @@ Camada de operação que padroniza como agentes de IA trabalham em um projeto de
 - [Execução ao vivo (canvas)](#execução-ao-vivo-canvas)
 - [API local e canvas interativo](#api-local-e-canvas-interativo)
 - [Orquestração encadeada (`harness flow`)](#orquestração-encadeada-harness-flow)
+- [Execução competitiva (`harness compete`)](#execução-competitiva-harness-compete)
 - [Rotinas e `harness serve`](#rotinas-e-harness-serve)
 - [Worktree por task](#worktree-por-task)
 - [Perfis e `harness.json`](#perfis-e-harnessjson)
@@ -172,6 +173,7 @@ tasks/
 | `harness report` | Métricas do banco (WIP, cycle time, aging, throughput). Flags: `--format`, `--module`, `--days` |
 | `harness kanban` | Painel kanban: `--serve [porta]` (drag&drop) ou `--out <arquivo>` (estático) |
 | `harness flow <task> --implement <tool> --review <tool> [--fix t] [--rounds n] [--approve none\|review\|each]` | Orquestração encadeada: implementar → revisar → corrigir (ver "Orquestração encadeada") |
+| `harness compete <task> --tools <t1,t2,...> [--judge <tool>]` | Execução competitiva: candidatas em worktrees próprias, juiz opcional, você escolhe (ver "Execução competitiva") |
 | `harness serve [--port n] [--host h] [--allow-unsafe]` | Kanban + agendador de rotinas + webhook + API local de execuções num único processo (ver "Rotinas e `harness serve`" e "API local e canvas interativo") |
 | `harness check [flags]` | Valida o protocolo (pipeline, escopos, seções, módulos). Flags: `--json`, `--barrel`, `--lint`, `--typecheck`, `--db` |
 | `harness version [--bump patch\|minor\|major]` | Mostra ou incrementa a versão do harness (registra a mudança no banco) |
@@ -731,6 +733,37 @@ harness flow stop <flow> | list [<task>]
   "▶ Continuar fluxo" (com instruções), "■ Parar fluxo" e as etapas com veredito; API em
   `GET/POST /api/flows`, `GET /api/flows/:id`, `POST /api/flows/:id/resume|stop` (mesmo token e
   guardas da API de runs).
+
+### Execução competitiva (`harness compete`)
+
+Várias tools (ou modelos) resolvem a **mesma task** em paralelo, cada uma numa worktree própria
+criada a partir do HEAD da worktree da task. O harness compara, um juiz opcional recomenda e você
+escolhe qual mudança vai para a worktree da task.
+
+```bash
+harness compete 12 --tools claude,codex                          # 2 candidatas
+harness compete 12 --tools claude:claude-sonnet-4-6,claude:claude-opus-4-5,codex --judge claude
+harness compete show <comp>         # tabela: status, arquivos +/-, tokens, custo, tempo, escopo, juiz
+harness compete pick <comp> <candidata>   # aplica a escolhida na worktree da task e apaga as outras
+harness compete discard <comp> | list [<task>]
+```
+
+- A worktree da task precisa estar **sem mudanças pendentes** (a vencedora é aplicada sobre ela).
+- Cada candidata é um run normal (orçamento, contexto, permissões), em
+  `.worktrees/<task>--<candidata>` na branch `compete/<task>/<candidata>`. Chaves repetidas viram
+  `claude`, `claude-2`…; `--max-parallel` limita quantas rodam ao mesmo tempo (padrão: todas).
+- **Comparação**: status, arquivos e linhas alterados, tokens e custo (quando a tool reporta), tempo
+  e arquivos **fora do escopo** da task.
+- **Juiz** (`--judge`, opcional): recebe o diff de cada candidata, só lê (alterar a worktree descarta
+  a recomendação) e termina com `VENCEDOR: <candidata>` ou `VENCEDOR: NENHUM`. Ele recomenda;
+  quem escolhe é você.
+- **pick**: a escolhida é aplicada na worktree da task como mudança pendente (squash, sem commit) e
+  todas as worktrees/branches de candidatas são removidas — revise e integre com
+  `harness worktree finish`. **discard** remove tudo sem aplicar.
+- Uma competição aberta por task; não começa com um fluxo aberto na task.
+- **Pelo painel** (`harness serve`): "🏁 Competição" no cartão (até 3 candidatas, modelo por
+  candidata, juiz), tabela de comparação com "Escolher" por candidata e "Descartar"; API em
+  `GET/POST /api/competitions`, `GET /api/competitions/:id`, `POST /api/competitions/:id/pick|discard`.
 
 ## Pacote de contexto (`harness context`)
 

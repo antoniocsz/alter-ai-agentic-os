@@ -26,12 +26,21 @@ compara e escolhe. O harness só roda um agente por task (run, lote, fluxo).
 
 ## Critérios de aceitação
 
-- [ ] AC-1 — Candidatas em worktrees próprias a partir da worktree da task, em paralelo (`--max-parallel`), cada uma um run.
-- [ ] AC-2 — Comparação: status, tamanho, uso, custo, tempo e fora do escopo; `show` em tabela e `--json`.
-- [ ] AC-3 — Juiz opcional só leitura com recomendação parseável.
-- [ ] AC-4 — `pick` aplica na worktree da task e limpa; `discard` limpa; candidata com falha não pode ser escolhida.
-- [ ] AC-5 — API `/api/competitions` e canvas (iniciar, comparar, escolher, descartar).
-- [ ] AC-6 — Zero dependências novas; testes com agente falso.
+- [x] AC-1 — Candidatas em worktrees próprias a partir da worktree da task, em paralelo (`--max-parallel`), cada uma um run.
+- [x] AC-2 — Comparação: status, tamanho, uso, custo, tempo e fora do escopo; `show` em tabela e `--json`.
+- [x] AC-3 — Juiz opcional só leitura com recomendação parseável.
+- [x] AC-4 — `pick` aplica na worktree da task e limpa; `discard` limpa; candidata com falha não pode ser escolhida.
+- [x] AC-5 — API `/api/competitions` e canvas (iniciar, comparar, escolher, descartar).
+- [x] AC-6 — Zero dependências novas; testes com agente falso.
+
+## Estado (2026-11-25)
+
+- Entregue nas tasks 124 (motor + CLI), 125 (API + canvas) e 126 (docs).
+- Validado com agente falso: candidatas em paralelo e em série, candidata com falha, fora do
+  escopo, juiz que recomenda e juiz que altera a worktree, pick, discard (inclusive durante a
+  execução) e pela API/canvas.
+- Pendente: validar com tools reais (custo real de N candidatas; formato do VENCEDOR).
+- Decisões: vencedora aplicada como mudança pendente na worktree da task; juiz só recomenda.
 
 ## Fora de escopo
 
