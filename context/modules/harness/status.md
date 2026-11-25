@@ -518,6 +518,13 @@
 - Pendências: docs (123).
 - Decisões: fluxo disparado pelo serve é interrompido quando o serve encerra (fica `stopped`).
 
+## Handoff (task 123 — orquestracao-encadeada: docs)
+- Feito: README — seção "Orquestração encadeada (`harness flow`)" (papéis, revisor só-leitura,
+  veredito, correção, `--approve`, estados e retomada, painel e API) e linha na tabela da CLI.
+  AGENTS.md — como agir como revisor e como correção. Spec com ACs e Estado.
+- Pendências: validar com Claude/Codex reais; execução competitiva (fora de escopo desta feature).
+- Decisões: —
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do

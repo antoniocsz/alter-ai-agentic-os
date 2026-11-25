@@ -133,6 +133,10 @@ pnpm harness budget                 # consumo medido × limites (harness.json �
   skills, ADRs, escopo): consulte-o antes de investigar o repositório. `--no-context` desliga.
 - No lote, tasks com dependência entre si ou escopos sobrepostos são recusadas antes de qualquer
   execução; a integração continua task a task (`worktree finish`).
+- Fluxo encadeado: `pnpm harness flow <task> --implement claude --review codex [--approve review]`
+  — implementar → revisar → corrigir na mesma worktree até aprovar. Como **revisor**, só leia e
+  termine com `VEREDITO: APROVADO` ou `VEREDITO: MUDANÇAS` + lista; como **correção**, atenda a
+  revisão e as instruções do humano. `harness flow resume|stop|show <flow>`.
 - Pelo painel: `pnpm harness serve` → `/canvas` tem "▶ Rodar agente", "■ Parar" e a timeline ao
   vivo; a API local (`/api/runs`, token em `.harness/serve.json`) aplica as mesmas regras do
   `harness run`. `unsafe` pelo painel só com `harness serve --allow-unsafe` e aprovação explícita.

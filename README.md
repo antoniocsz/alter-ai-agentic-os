@@ -26,6 +26,7 @@ Camada de operação que padroniza como agentes de IA trabalham em um projeto de
 - [Painel kanban](#painel-kanban)
 - [Execução ao vivo (canvas)](#execução-ao-vivo-canvas)
 - [API local e canvas interativo](#api-local-e-canvas-interativo)
+- [Orquestração encadeada (`harness flow`)](#orquestração-encadeada-harness-flow)
 - [Rotinas e `harness serve`](#rotinas-e-harness-serve)
 - [Worktree por task](#worktree-por-task)
 - [Perfis e `harness.json`](#perfis-e-harnessjson)
@@ -170,6 +171,7 @@ tasks/
 | `harness history <task>` | Mostra eventos + interações de uma task (memorização) |
 | `harness report` | Métricas do banco (WIP, cycle time, aging, throughput). Flags: `--format`, `--module`, `--days` |
 | `harness kanban` | Painel kanban: `--serve [porta]` (drag&drop) ou `--out <arquivo>` (estático) |
+| `harness flow <task> --implement <tool> --review <tool> [--fix t] [--rounds n] [--approve none\|review\|each]` | Orquestração encadeada: implementar → revisar → corrigir (ver "Orquestração encadeada") |
 | `harness serve [--port n] [--host h] [--allow-unsafe]` | Kanban + agendador de rotinas + webhook + API local de execuções num único processo (ver "Rotinas e `harness serve`" e "API local e canvas interativo") |
 | `harness check [flags]` | Valida o protocolo (pipeline, escopos, seções, módulos). Flags: `--json`, `--barrel`, `--lint`, `--typecheck`, `--db` |
 | `harness version [--bump patch\|minor\|major]` | Mostra ou incrementa a versão do harness (registra a mudança no banco) |
@@ -697,6 +699,38 @@ pnpm harness worktree finish 12 --handoff "…"       # integração continua ta
 
 Fora desta versão: ondas por dependência (B esperar A ser integrada), integração automática e
 tool/modelo diferentes por task no mesmo lote.
+
+### Orquestração encadeada (`harness flow`)
+
+Um fluxo encadeia agentes na **mesma worktree** da task: um implementa, outro revisa, um corrige o
+que a revisão pediu — e repete até a revisão aprovar ou acabarem as rodadas. Cada etapa é um run
+normal (mesmas regras do `harness run`: orçamento, contexto, permissões), registrado no banco.
+
+```bash
+harness flow 12 --implement claude --review codex                 # corrige com a tool da implementação
+harness flow 12 --implement claude:claude-sonnet-4-6 --review codex:gpt-5 --fix claude --rounds 3
+harness flow 12 --implement claude --review codex --approve review   # pausa após cada revisão
+harness flow show <flow>            # etapas, vereditos e o que a revisão pediu
+harness flow resume <flow> [--note "use early return; não mexa na API"]
+harness flow stop <flow> | list [<task>]
+```
+
+- **Revisor só lê**: recebe o diff da worktree contra a base (commits, não commitado e arquivos
+  novos) e termina com `VEREDITO: APROVADO` ou `VEREDITO: MUDANÇAS` + lista. Claude revisa em modo
+  `plan`, Codex com `--sandbox read-only`; para qualquer tool, o harness compara a worktree antes e
+  depois — se o revisor alterou algo, a revisão é reprovada.
+- **Correção**: recebe a lista da revisão e, se houver, as instruções do humano (`--note`), que têm
+  prioridade.
+- **Aprovação humana** (`--approve`): `none` (padrão) segue direto; `review` pausa depois de cada
+  revisão; `each` pausa depois de cada etapa. `resume` segue (com `--note`, a instrução vai para a
+  próxima etapa).
+- **Fim**: revisão aprovada → `completed` (integre com `harness worktree finish`). Rodadas esgotadas
+  (`--rounds`, padrão 2) → `needs_human`: `resume` concede mais uma rodada. Etapa que falha →
+  `failed`: `resume` repete a etapa. Um fluxo aberto por task.
+- **Pelo painel** (`harness serve`): botão "🔗 Fluxo" no cartão (tools por papel, rodadas, aprovação),
+  "▶ Continuar fluxo" (com instruções), "■ Parar fluxo" e as etapas com veredito; API em
+  `GET/POST /api/flows`, `GET /api/flows/:id`, `POST /api/flows/:id/resume|stop` (mesmo token e
+  guardas da API de runs).
 
 ## Pacote de contexto (`harness context`)
 
