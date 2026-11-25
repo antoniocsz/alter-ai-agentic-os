@@ -66,6 +66,9 @@ export function createRunsApi(root, opts = {}) {
   const token = opts.token
   if (!token) throw new Error('createRunsApi: token obrigatório')
   const allowUnsafe = Boolean(opts.allowUnsafe)
+  // Encerramento gracioso pedido por quem subiu o serve (app desktop, task 135): no Windows não há
+  // SIGTERM tratável — o app chama POST /api/shutdown com o token da sessão.
+  const onShutdown = typeof opts.onShutdown === 'function' ? opts.onShutdown : null
   const allowedHosts = new Set([...LOOPBACK, String(opts.host ?? '127.0.0.1').toLowerCase()])
   const active = new Map() // runId → { taskId, controller, done }
   const flowsActive = new Map() // flowId → { taskId, controller, done }
@@ -563,7 +566,7 @@ export function createRunsApi(root, opts = {}) {
   /** Atende `/api/runtimes` e `/api/runs*`. Retorna false se a rota não é desta API. */
   function handle(req, res, url) {
     const p = url.pathname
-    if (!/^\/api\/(runtimes|runs|flows|competitions)(\/|$)/.test(p)) return false
+    if (!/^\/api\/(runtimes|runs|flows|competitions|shutdown)(\/|$)/.test(p)) return false
     const exec = async () => {
       if (!hostAllowed(req)) throw new ApiError(403, 'host não permitido')
       const q = url.searchParams
@@ -599,6 +602,13 @@ export function createRunsApi(root, opts = {}) {
       }
       const flowGet = p.match(/^\/api\/flows\/([^/]+)$/)
       if (req.method === 'GET' && flowGet) return send(res, 200, { ok: true, ...getFlowApi(decodeURIComponent(flowGet[1])) })
+      if (req.method === 'POST' && p === '/api/shutdown') {
+        checkWrite(req)
+        if (!onShutdown) throw new ApiError(404, 'encerramento remoto indisponível neste servidor')
+        send(res, 202, { ok: true, stopping: true })
+        setImmediate(() => onShutdown())
+        return
+      }
       if (req.method === 'GET' && p === '/api/competitions') return send(res, 200, { ok: true, competitions: listCompsApi({ task: q.get('task') }) })
       if (req.method === 'POST' && p === '/api/competitions') {
         checkWrite(req)

@@ -637,6 +637,21 @@
 - Pendências: gerar o digest do módulo harness com uma tool real.
 - Decisões: —
 
+## Handoff (task 135 — app-desktop: app Electron)
+- Feito: `apps/desktop/` (NOVO; electron ^45.3 e electron-builder ^26.15 aprovados pelo usuário, só
+  neste app) — `src/core.js` (sem Electron): `harnessEntry` (dev/empacotado/`HARNESS_BIN`),
+  `nodeCommand` (Node do Electron via `ELECTRON_RUN_AS_NODE` ou `HARNESS_NODE`), `isHarnessProject`,
+  `serveArgs`, `readServeFile`/`waitForServe` (pid e url loopback), `startServe`/`stopServe`,
+  `ringLog`, configurações (recentes, unsafe por projeto, janela), `isInternalUrl`. `src/main.js` —
+  janela isolada (contextIsolation, sandbox, sem Node), menus Arquivo/Visualizar/Servidor, recentes,
+  unsafe por projeto com confirmação, log, single instance, encerramento no quit. `package.json` —
+  scripts start/dist e build com o CLI do harness em `resources/harness` (sem testes).
+  `lib/runs-api.js` + `serve.js` — `POST /api/shutdown` (token) com o mesmo encerramento gracioso
+  dos sinais. +4 testes (`desktop-core.test.js`: serve real sobe e sai com exit 0 por /api/shutdown);
+  suíte completa verde (347).
+- Pendências: docs (136); rodar `npm install && npm start` no Windows (Electron não roda no CI nem na VM).
+- Decisões: app consome só a API local; o harness segue sem dependências.
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do

@@ -1,0 +1,62 @@
+{
+  "name": "alterai-desktop",
+  "productName": "AlterAI - Agentic OS",
+  "version": "0.1.0",
+  "private": true,
+  "description": "App desktop do AlterAI - Agentic OS: board, execução de agentes e analytics sobre a API local do harness serve",
+  "type": "module",
+  "main": "src/main.js",
+  "engines": {
+    "node": ">=22.5"
+  },
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac",
+    "dist:linux": "electron-builder --linux"
+  },
+  "devDependencies": {
+    "electron": "^45.3.0",
+    "electron-builder": "^26.15.0"
+  },
+  "build": {
+    "appId": "com.alterai.agentic-os",
+    "productName": "AlterAI - Agentic OS",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../../scripts/harness",
+        "to": "harness/scripts/harness",
+        "filter": [
+          "**/*",
+          "!tests/**",
+          "!node_modules/**"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.developer-tools"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Development"
+    }
+  }
+}

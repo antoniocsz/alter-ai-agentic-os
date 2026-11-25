@@ -190,7 +190,14 @@ export function buildServe(opts = {}) {
 
   // API local de execuções (api-local, task 115): token novo a cada start da sessão.
   const sessionToken = randomUUID()
-  const runs = createRunsApi(root, { env: opts.env, token: sessionToken, allowUnsafe: opts.allowUnsafe, host })
+  let shutdownHook = null
+  const runs = createRunsApi(root, {
+    env: opts.env,
+    token: sessionToken,
+    allowUnsafe: opts.allowUnsafe,
+    host,
+    onShutdown: () => shutdownHook?.()
+  })
 
   const server = serveBoard(ctxFromRoot(root), port, host, { routines: api, runs })
   scheduler.tick() // aquece o plano: payload do painel já mostra a 1ª execução real
@@ -222,7 +229,13 @@ export function buildServe(opts = {}) {
     removeServeFile(root)
   }
 
-  return { server, api, runs, scheduler, stop, root, tokenFile, tokenCreated, sessionToken }
+  const handles = { server, api, runs, scheduler, stop, root, tokenFile, tokenCreated, sessionToken }
+  // POST /api/shutdown: quem chamou `buildServe` decide o que fazer (o CLI encerra o processo).
+  handles.setShutdownHook = (fn) => {
+    shutdownHook = fn
+  }
+  shutdownHook = opts.onShutdown ?? (() => stop())
+  return handles
 }
 
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '[::1]'])
@@ -283,6 +296,8 @@ export function serve(args = [], opts = {}) {
         })
     }
     for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, shutdown)
+    // POST /api/shutdown (app desktop): mesmo encerramento gracioso dos sinais.
+    handles.setShutdownHook(() => shutdown('api'))
   }
 
   return handles
