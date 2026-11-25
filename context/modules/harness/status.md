@@ -659,6 +659,20 @@
 - Pendências: validar `npm start` e `npm run dist:win` no Windows; ícone do app.
 - Decisões: —
 
+## Handoff (task 137 — coordenador-de-tarefas)
+- Feito: `lib/coordinator.js` (NOVO) — prompt do coordenador (spec, plan.md, tasks da feature,
+  `git ls-files`, agentes e módulos), `parsePlanBlock` (JSON entre `--- PLANO ---`/`--- FIM ---`,
+  aceita cerca ```json), `validatePlan` (escopo exato e dentro do repo, dependências conhecidas,
+  ciclos, ids, tipos, critérios; tasks independentes não compartilham arquivos; avisos de ACs fora
+  da spec e ACs sem task), `waves`, `generatePlan` (runTool só leitura + `worktreeSignature`),
+  `editPlan`, `rejectPlan`, `approvePlan` (`createTaskFile` em ordem de ondas, `Depende de` com os
+  números criados, seções preenchidas), `planProgress`. `lib/plans-schema.js` (NOVO) — tabela
+  `plans`. `src/coordinate.js` (NOVO) — `harness coordinate plan|show|edit|approve|reject|list|status|next`;
+  `next` faz start + worktree + run ou fluxo (`--review`) das tasks prontas, em paralelo.
+  +3 testes (`coordinator.test.js`); suíte completa verde (350).
+- Pendências: docs (138); validar com o Claude real (qualidade do plano); painel no canvas.
+- Decisões: coordenador só propõe; o humano aprova e integra; tasks independentes com escopos disjuntos.
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do

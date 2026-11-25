@@ -42,6 +42,23 @@ process.stdin.on('end', () => {
     return
   }
   let text
+  // Coordenador (task 137): plano JSON entre --- PLANO --- e --- FIM ---. FAKE_PLAN: ok | overlap | noblock | write.
+  if (/Você é o COORDENADOR/.test(stdin)) {
+    const kind = process.env.FAKE_PLAN ?? 'ok'
+    if (kind === 'write') fs.writeFileSync(path.join(process.cwd(), 'coordenador.txt'), 'não devia')
+    const plan = {
+      tasks: [
+        { id: 'T1', title: 'implementar a', agent: 'backend', scope: ['src/a.js', 'tests/a.test.js'], depends_on: [], acs: ['AC-1'], type: 'feat', priority: 'P1', complexity: 'baixa', exists: 'nada', create: [{ path: 'src/a.js', what: 'função a' }], spec: 'a() retorna 1', criteria: ['a() retorna 1', 'teste passa'] },
+        { id: 'T2', title: 'implementar b', agent: 'backend', scope: kind === 'overlap' ? ['src/a.js', 'src/b.js'] : ['src/b.js'], depends_on: [], acs: ['AC-2'], criteria: ['b existe'] },
+        { id: 'T3', title: 'documentar a e b', agent: 'docs', scope: ['README.md'], depends_on: ['T1', 'T2'], acs: [], type: 'docs', criteria: ['README cita a e b'] }
+      ],
+      notes: 'T3 depois de T1 e T2.'
+    }
+    text = kind === 'noblock' ? 'Plano: faça tudo.' : 'Segue o plano.\n\n--- PLANO ---\n```json\n' + JSON.stringify(plan, null, 2) + '\n```\n--- FIM ---'
+    out({ type: 'assistant', message: { id: `m${n}`, role: 'assistant', content: [{ type: 'text', text }], usage: { input_tokens: 10, output_tokens: 5 } } })
+    out({ type: 'result', subtype: 'success', is_error: false, result: text, session_id: `sess-flow-${n}`, usage: { input_tokens: 10, output_tokens: 5 } })
+    return
+  }
   // Digest do módulo (task 133): redator só lê e responde entre --- DIGEST --- e --- FIM ---.
   if (/Você é o REDATOR/.test(stdin)) {
     if (process.env.FAKE_DIGEST_WRITE) fs.writeFileSync(path.join(process.cwd(), 'redator.txt'), 'não devia')

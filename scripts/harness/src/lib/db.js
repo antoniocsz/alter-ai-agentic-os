@@ -6,6 +6,7 @@ import { redact } from './redact.js'
 import { ensureMemorySchema } from './memories.js'
 import { ensureFlowSchema } from './flows.js'
 import { ensureCompetitionSchema } from './competitions.js'
+import { ensurePlanSchema } from './plans-schema.js'
 
 const [NODE_MAJOR, NODE_MINOR] = process.versions.node.split('.').map(Number)
 if (NODE_MAJOR < 22 || (NODE_MAJOR === 22 && NODE_MINOR < 5)) {
@@ -147,6 +148,8 @@ function migrate(db) {
   ensureFlowSchema(db)
   // Task 124 (execucao-competitiva): candidatas em worktrees próprias + juiz.
   ensureCompetitionSchema(db)
+  // Task 137 (coordenador-de-tarefas): planos de decomposição de feature.
+  ensurePlanSchema(db)
 
   const row = db.prepare(`SELECT value FROM meta WHERE key = 'schema_version'`).get()
   if (!row) {

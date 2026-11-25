@@ -24,6 +24,7 @@ import { memoryCmd } from '../memory.js'
 import { flowCmd } from '../flow.js'
 import { competeCmd } from '../compete.js'
 import { analyticsCmd } from '../analytics.js'
+import { coordinateCmd } from '../coordinate.js'
 import { retroCmd } from '../retro.js'
 import { statusCmd } from '../status.js'
 import { adapterCmd } from '../adapter.js'
@@ -74,6 +75,7 @@ Comandos:
   analytics [--by tool|model|task|agent|day] [--since 30d|all] [--json]   Tokens, custo, sucesso e gates das execuções (painel: /analytics)
   flow <task> --implement <tool> --review <tool> [--fix <tool>] [--rounds n] [--approve none|review|each]   Orquestração encadeada (implementar → revisar → corrigir); resume|stop|show|list
   compete <task> --tools <t1,t2,...> [--judge <tool>] [--max-parallel n]   Execução competitiva: candidatas em worktrees próprias, juiz opcional; pick|discard|show|list
+  coordinate plan|show|edit|approve|reject|status|next   Coordenador: decompõe uma feature em tasks (agente), você aprova, executa em ondas
   events <run>        Timeline normalizada de uma execução [--json] [--native]
   report              Métricas do banco [--format table|json|csv] [--module] [--days]
   kanban [--serve [porta] [--host <h>]] | --out <arquivo>   Painel kanban (servidor ou HTML)
@@ -115,6 +117,7 @@ export const commands = {
   flow: flowCmd,
   compete: competeCmd,
   analytics: analyticsCmd,
+  coordinate: coordinateCmd,
   retro: retroCmd,
   recall: recallCmd,
   task,
