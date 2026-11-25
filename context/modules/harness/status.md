@@ -539,6 +539,18 @@
 - Pendências: API e canvas (125); docs (126).
 - Decisões: vencedora aplicada como mudança pendente (o humano revisa e integra com worktree finish).
 
+## Handoff (task 125 — execucao-competitiva: API e canvas)
+- Feito: `lib/runs-api.js` — `GET /api/competitions?task=`, `GET /api/competitions/:id` (com o run
+  de cada candidata), `POST /api/competitions` (202; competição em segundo plano no serve),
+  `POST /api/competitions/:id/pick` (`{ key }`) e `/discard` (interrompe se ainda roda); mesmas
+  guardas; run, fluxo e competição não coexistem na task (409). `lib/canvas.js` — competição mais
+  recente no cartão (estado, candidatas, recomendação do juiz, escolhida). `kanban.js` —
+  "🏁 Competição" (até 3 candidatas com modelo, juiz, opções), "🏁 Comparar e escolher" (tabela:
+  status, mudança, tokens/custo, tempo, escopo, timeline e "Escolher"), "🗑 Descartar".
+  +2 testes (`competitions-api.test.js`); suíte completa verde (332).
+- Pendências: docs (126).
+- Decisões: —
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do

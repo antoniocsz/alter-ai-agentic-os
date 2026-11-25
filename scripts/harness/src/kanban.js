@@ -1012,6 +1012,7 @@ function cardHtml(c) {
     '</span></div>' +
     runHtml(c.run) +
     flowHtml(c) +
+    compHtml(c) +
     actionsHtml(c) +
     note +
     '<div class="foot"><span>' + esc(c.id) + '</span><span>' +
@@ -1069,12 +1070,33 @@ function flowHtml(c) {
   '</div>';
 }
 
+var COMP_STATUS = { running: '▶ rodando', ready: '🏁 pronta para escolher', picked: '✅ escolhida', discarded: '🗑 descartada', failed: '✖ falhou' };
+function compHtml(c) {
+  var k = c.competition;
+  if (!k) return '';
+  var chips = (k.competitors || []).map(function (x) {
+    var icon = x.status === 'completed' ? '✔' : x.status === 'running' ? '▶' : x.status === 'pending' ? '·' : '✖';
+    var star = k.winner === x.key ? ' ✅' : k.judge_winner === x.key ? ' ⭐' : '';
+    return '<span class="tag" title="' + esc(x.tool) + '">' + esc(x.key) + ' ' + icon + star + '</span>';
+  }).join('');
+  return '<div class="run comp" data-comp="' + esc(k.id) + '">' +
+    '<div class="row"><span>🏁 competição</span><span class="val">' + esc(COMP_STATUS[k.status] || k.status) + '</span></div>' +
+    '<div class="meta">' + chips + '</div>' +
+    (k.error && k.status === 'failed' ? '<div class="note">' + esc(k.error) + '</div>' : '') +
+  '</div>';
+}
+
 function actionsHtml(c) {
   if (!CONTROL.enabled || c.project) return '';
   var b = '';
   var f = c.flow;
+  var k = c.competition;
   var flowOpen = f && ['running', 'waiting_approval', 'needs_human', 'failed'].indexOf(f.status) !== -1;
-  if (flowOpen) {
+  var compOpen = k && ['running', 'ready'].indexOf(k.status) !== -1;
+  if (compOpen) {
+    b += '<button class="go" data-act="comp-show" data-comp="' + esc(k.id) + '">🏁 ' + (k.status === 'ready' ? 'Comparar e escolher' : 'Acompanhar') + '</button>';
+    b += '<button class="stop" data-act="comp-discard" data-comp="' + esc(k.id) + '">🗑 Descartar</button>';
+  } else if (flowOpen) {
     if (f.status !== 'running') b += '<button class="go" data-act="flow-resume" data-flow="' + esc(f.id) + '">▶ Continuar fluxo</button>';
     b += '<button class="stop" data-act="flow-stop" data-flow="' + esc(f.id) + '">■ Parar fluxo</button>';
   } else if (c.run && c.run.status === 'running') {
@@ -1082,12 +1104,131 @@ function actionsHtml(c) {
   } else if (c.worktree && c.worktree !== 'raiz') {
     b += '<button class="go" data-act="run" data-task="' + esc(c.id) + '">▶ Rodar agente</button>';
     b += '<button class="go" data-act="flow" data-task="' + esc(c.id) + '">🔗 Fluxo</button>';
+    b += '<button class="go" data-act="comp" data-task="' + esc(c.id) + '">🏁 Competição</button>';
   } else {
     b += '<span class="hint" title="o agente só roda isolado numa worktree">harness worktree start ' + esc(taskNum(c.id)) + '</span>';
   }
   if (c.run) b += '<button data-act="timeline" data-run="' + esc(c.run.id) + '">📜 timeline</button>';
   if (f) b += '<button data-act="flow-show" data-flow="' + esc(f.id) + '">🔗 etapas</button>';
   return '<div class="actions">' + b + '</div>';
+}
+
+/* ---------- execução competitiva (task 125) ---------- */
+async function openCompForm(taskId) {
+  stopView();
+  modalBox.innerHTML = '<p style="color:var(--muted)">verificando tools instaladas…</p>';
+  modal.classList.add('open');
+  var list;
+  try { list = (await loadRuntimes()).filter(function (r) { return r.installed; }); } catch (err) { closeModal(); return showToast(err.message); }
+  if (!list.length) { closeModal(); return showToast('nenhuma tool de agente instalada (harness runtimes)'); }
+  var slots = '';
+  for (var i = 0; i < 3; i++) {
+    slots += '<label for="k-t' + i + '">candidata ' + (i + 1) + (i === 2 ? ' (opcional)' : '') + '</label><div>' +
+      '<select id="k-t' + i + '">' + (i === 2 ? '<option value="">—</option>' : '') + toolOptions(list) + '</select> ' +
+      '<input type="text" id="k-m' + i + '" placeholder="modelo (opcional)" style="width:180px" /></div>';
+  }
+  modalBox.innerHTML =
+    '<button class="close" onclick="closeModal()">✕</button>' +
+    '<h2>🏁 Execução competitiva</h2><div class="sub">' + esc(taskId) + ' · cada candidata resolve a task numa worktree própria; você compara e escolhe a que vai para a worktree da task</div>' +
+    '<form class="run-form" id="compForm">' + slots +
+      '<label for="k-judge">juiz (opcional)</label><select id="k-judge"><option value="">sem juiz</option>' + toolOptions(list) + '</select>' +
+      '<label>opções</label><div>' +
+        '<label><input type="checkbox" id="k-budget" /> ignorar orçamento</label><br/>' +
+        '<label><input type="checkbox" id="k-unsafe"' + (CONTROL.allowUnsafe ? '' : ' disabled') + ' /> unsafe (todas)</label>' +
+      '</div>' +
+      '<div class="full warn">A worktree da task precisa estar sem mudanças pendentes. O juiz só lê e recomenda; quem escolhe é você.</div>' +
+      '<div class="full"><button class="go" type="submit">🏁 Iniciar</button></div>' +
+    '</form>';
+  if (list.length > 1) document.getElementById('k-t1').selectedIndex = 1;
+  var form = document.getElementById('compForm');
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    var tools = [];
+    for (var j = 0; j < 3; j++) {
+      var t = document.getElementById('k-t' + j).value;
+      var m = document.getElementById('k-m' + j).value.trim();
+      if (t) tools.push(m ? t + ':' + m : t);
+    }
+    var body = { task: taskId, tools: tools };
+    var judge = document.getElementById('k-judge').value;
+    if (judge) body.judge = judge;
+    if (document.getElementById('k-budget').checked) body.ignoreBudget = true;
+    if (document.getElementById('k-unsafe').checked) body.unsafe = true;
+    form.querySelector('button[type=submit]').disabled = true;
+    try {
+      var data = await api('POST', '/api/competitions', body);
+      openComp(data.competition.id);
+      loadCanvas();
+    } catch (err) {
+      form.querySelector('button[type=submit]').disabled = false;
+      showToast(err.message);
+    }
+  });
+}
+
+async function discardCompUi(id) {
+  if (!confirm('Descartar ' + id + '? As worktrees das candidatas são apagadas.')) return;
+  try {
+    await api('POST', '/api/competitions/' + encodeURIComponent(id) + '/discard');
+    closeModal();
+    loadCanvas();
+  } catch (err) { showToast(err.message); }
+}
+
+async function pickCompUi(id, key) {
+  if (!confirm('Aplicar a candidata ' + key + ' na worktree da task e apagar as outras?')) return;
+  try {
+    await api('POST', '/api/competitions/' + encodeURIComponent(id) + '/pick', { key: key });
+    showToast('✅ ' + key + ' aplicada na worktree da task — revise e integre com harness worktree finish');
+    closeModal();
+    loadCanvas();
+  } catch (err) { showToast(err.message); }
+}
+
+function openComp(id) {
+  stopView();
+  var mine = { runId: null, seq: 0, timer: null };
+  view = mine;
+  modal.classList.add('open');
+  modalBox.innerHTML = '<button class="close" onclick="closeModal()">✕</button><div id="kc-body"><p style="color:var(--muted)">carregando…</p></div>';
+  var tick = async function () {
+    if (view !== mine) return;
+    try {
+      var d = await api('GET', '/api/competitions/' + encodeURIComponent(id));
+      if (view !== mine) return;
+      var k = d.competition;
+      var rows = d.competitors.map(function (x) {
+        var r = x.run;
+        var size = x.files_changed == null ? 'n/d' : x.files_changed + ' arq · +' + x.insertions + '/-' + x.deletions;
+        var marks = (k.judge_winner === x.key ? ' ⭐ juiz' : '') + (k.winner === x.key ? ' ✅' : '');
+        var pick = k.status === 'ready' && x.status === 'completed'
+          ? '<button class="go" data-pick="' + esc(x.key) + '">Escolher</button>' : '';
+        return '<tr><td>' + esc(x.key) + marks + '</td><td>' + esc(x.tool) + (x.model ? ':' + esc(x.model) : '') + '</td>' +
+          '<td class="run-status ' + esc(x.status) + '">' + esc(x.status) + '</td><td>' + esc(size) + '</td>' +
+          '<td>' + (r ? esc(fmtUsage(r)) : 'n/d') + '</td><td>' + (r ? esc(fmtDur(r.duration_ms)) : '—') + '</td>' +
+          '<td>' + (x.out_of_scope && x.out_of_scope.length ? '⚠️ ' + esc(x.out_of_scope.join(', ')) : '—') + '</td>' +
+          '<td>' + (x.run_id ? '<button data-tl="' + esc(x.run_id) + '">📜</button> ' : '') + pick + '</td></tr>' +
+          (x.error ? '<tr><td colspan="8" style="color:var(--danger);font-size:12px">' + esc(x.error) + '</td></tr>' : '');
+      }).join('');
+      document.getElementById('kc-body').innerHTML =
+        '<h2>🏁 ' + esc(k.id) + '</h2>' +
+        '<div class="sub">' + esc(k.task_id) + ' · ' + esc(COMP_STATUS[k.status] || k.status) + (k.error ? ' · ' + esc(k.error) : '') + '</div>' +
+        '<table style="width:100%;font-size:12px;border-collapse:collapse"><thead><tr style="color:var(--muted);text-align:left">' +
+        '<th>candidata</th><th>tool</th><th>status</th><th>mudança</th><th>tokens · custo</th><th>tempo</th><th>escopo</th><th></th></tr></thead><tbody>' + rows + '</tbody></table>' +
+        (k.judge_tool ? '<h3>Juiz (' + esc(k.judge_tool) + ')' + (k.judge_winner ? ' — recomenda ' + esc(k.judge_winner) : '') + '</h3>' +
+          (k.judge_notes ? '<pre class="file">' + esc(k.judge_notes) + '</pre>' : '<p class="empty">' + (k.status === 'running' ? 'aguardando as candidatas' : 'sem recomendação') + '</p>') : '') +
+        (['running', 'ready'].indexOf(k.status) !== -1 ? '<p><button class="stop" id="kc-discard">🗑 Descartar competição</button></p>' : '');
+      var box = document.getElementById('kc-body');
+      box.querySelectorAll('[data-pick]').forEach(function (b) { b.addEventListener('click', function () { pickCompUi(id, b.dataset.pick); }); });
+      box.querySelectorAll('[data-tl]').forEach(function (b) { b.addEventListener('click', function () { openTimeline(b.dataset.tl); }); });
+      var dbtn = document.getElementById('kc-discard');
+      if (dbtn) dbtn.addEventListener('click', function () { discardCompUi(id); });
+      if (k.status === 'running') mine.timer = setTimeout(tick, 2000);
+    } catch (err) {
+      if (view === mine) document.getElementById('kc-body').innerHTML = '<p style="color:var(--danger)">' + esc(err.message) + '</p>';
+    }
+  };
+  tick();
 }
 
 /* ---------- fluxo encadeado (task 122) ---------- */
@@ -1411,6 +1552,9 @@ function attachCardClicks() {
         if (btn.dataset.act === 'flow-resume') return openResumeForm(btn.dataset.flow);
         if (btn.dataset.act === 'flow-stop') return stopFlowUi(btn.dataset.flow);
         if (btn.dataset.act === 'flow-show') return openFlow(btn.dataset.flow);
+        if (btn.dataset.act === 'comp') return openCompForm(btn.dataset.task);
+        if (btn.dataset.act === 'comp-show') return openComp(btn.dataset.comp);
+        if (btn.dataset.act === 'comp-discard') return discardCompUi(btn.dataset.comp);
         return;
       }
       openDetail(card.dataset.id, card.dataset.project);

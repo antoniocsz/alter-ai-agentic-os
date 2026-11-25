@@ -15,10 +15,15 @@ import { activeDir, resolveTaskName } from './tasks.js'
 import { prepareRun, resolveRunOptions, taskWorktree } from '../run.js'
 import { FlowError, APPROVE_MODES, createFlow, flowSteps, getFlow, listFlows, parseAgentSpec, resumeFlow, runFlow, stopFlow } from './flows.js'
 import { detectRuntimes } from '../runtimes.js'
+import { parseTask } from './tasks.js'
+import { parseBaseline } from './pipeline.js'
+import { CompetitionError, competitors as compCandidates, createCompetition, discardCompetition, getCompetition, listCompetitions, openCompetitionFor, parseCompetitors, pickCompetitor, runCompetition } from './competitions.js'
+import path from 'node:path'
 
 const MAX_BODY = 16 * 1024
 const RUN_ID_RE = /^run-[A-Za-z0-9x]+-\d{8,}[0-9-]*$/
 const FLOW_ID_RE = /^flow-[A-Za-z0-9x]+-\d{8,}$/
+const COMP_ID_RE = /^comp-[A-Za-z0-9x]+-\d{8,}$/
 const TASK_ARG_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,120}$/
 const LOOPBACK = ['localhost', '127.0.0.1', '::1', '[::1]']
 const RUNTIMES_TTL_MS = 30_000
@@ -64,6 +69,7 @@ export function createRunsApi(root, opts = {}) {
   const allowedHosts = new Set([...LOOPBACK, String(opts.host ?? '127.0.0.1').toLowerCase()])
   const active = new Map() // runId → { taskId, controller, done }
   const flowsActive = new Map() // flowId → { taskId, controller, done }
+  const compsActive = new Map() // compId → { taskId, controller, done }
   let runtimesCache = null
 
   function withDb(fn) {
@@ -150,7 +156,7 @@ export function createRunsApi(root, opts = {}) {
       } catch (err) {
         throw new ApiError(err.code === 'BUDGET' ? 409 : 422, err.message)
       }
-      const busy = [...active.values(), ...flowsActive.values()].some((a) => a.taskId === prep.taskId)
+      const busy = [...active.values(), ...flowsActive.values(), ...compsActive.values()].some((a) => a.taskId === prep.taskId)
       const last = latestRun(db, prep.taskId)
       if (busy || (last?.status === 'running' && pidAlive(last.pid))) {
         throw new ApiError(409, `já há um run em andamento para ${prep.taskId}${last?.status === 'running' ? ` (${last.id})` : ''}`)
@@ -265,6 +271,7 @@ export function createRunsApi(root, opts = {}) {
   function taskBusy(db, taskId) {
     if ([...active.values()].some((a) => a.taskId === taskId)) return true
     if ([...flowsActive.values()].some((a) => a.taskId === taskId)) return true
+    if ([...compsActive.values()].some((a) => a.taskId === taskId)) return true
     const last = latestRun(db, taskId)
     return last?.status === 'running' && pidAlive(last.pid)
   }
@@ -355,6 +362,139 @@ export function createRunsApi(root, opts = {}) {
     })
   }
 
+  // ---------- execução competitiva (task 125) ----------
+
+  function compOut(db, id) {
+    const competition = getCompetition(db, id)
+    if (!competition) throw new ApiError(404, `competição não encontrada: ${id}`)
+    const list = compCandidates(db, id).map((c) => {
+      const run = c.run_id ? getRun(db, c.run_id) : null
+      return { ...c, run: run ? publicRun(run) : null }
+    })
+    return { competition, competitors: list, running: compsActive.has(id) }
+  }
+
+  function listCompsApi({ task = null } = {}) {
+    if (task !== null && !TASK_ARG_RE.test(task)) throw new ApiError(400, `task inválida: ${task}`)
+    const taskId = task ? resolveTaskId(root, task) : null
+    return withDb((db) => listCompetitions(db, { taskId }).map((c) => ({ ...c, running: compsActive.has(c.id) })))
+  }
+
+  function getCompApi(id) {
+    if (!COMP_ID_RE.test(id)) throw new ApiError(400, `id de competição inválido: ${id}`)
+    return withDb((db) => compOut(db, id))
+  }
+
+  function startCompApi(body) {
+    if (!body || typeof body !== 'object' || Array.isArray(body)) throw new ApiError(400, 'body deve ser um objeto JSON')
+    const task = body.task === undefined || body.task === null ? '' : String(body.task)
+    if (!TASK_ARG_RE.test(task)) throw new ApiError(400, 'task obrigatória')
+    for (const k of ['unsafe', 'ignoreBudget', 'noContext']) {
+      if (body[k] !== undefined && typeof body[k] !== 'boolean') throw new ApiError(400, `${k} deve ser true/false`)
+    }
+    if (body.unsafe && !allowUnsafe) throw new ApiError(403, 'unsafe desativado neste serve — suba com: harness serve --allow-unsafe')
+    const plan = { unsafe: Boolean(body.unsafe), ignoreBudget: Boolean(body.ignoreBudget), noContext: Boolean(body.noContext) }
+    let candidates
+    let judge = null
+    try {
+      candidates = parseCompetitors(Array.isArray(body.tools) ? body.tools.join(',') : body.tools)
+      if (body.judge) judge = parseAgentSpec(body.judge, 'judge')
+    } catch (err) {
+      throw new ApiError(400, err.message)
+    }
+    for (const agent of [...candidates, ...(judge ? [judge] : [])]) {
+      try {
+        resolveRunOptions(stepFlagsOf(plan, agent), agent.tool)
+      } catch (err) {
+        throw new ApiError(422, `${agent.key ?? 'juiz'} (${agent.tool}): ${err.message}`)
+      }
+    }
+    const max = body.maxParallel === undefined || body.maxParallel === null ? candidates.length : body.maxParallel
+    if (!Number.isInteger(max) || max < 1) throw new ApiError(400, 'maxParallel deve ser inteiro >= 1')
+    return withDb((db) => {
+      let taskId
+      try {
+        taskId = resolveTaskName(activeDir(root), task)
+      } catch {
+        throw new ApiError(422, `task não está ativa: ${task}`)
+      }
+      const wt = taskWorktree(root, taskId)
+      if (!wt) throw new ApiError(422, `task sem worktree: ${taskId} — rode: harness worktree start ${task}`)
+      if (taskBusy(db, taskId) || [...compsActive.values()].some((a) => a.taskId === taskId)) throw new ApiError(409, `já há um run, fluxo ou competição em andamento para ${taskId}`)
+      let comp
+      try {
+        comp = createCompetition(root, db, { taskId, taskWt: wt, candidates, plan, judge })
+      } catch (err) {
+        throw new ApiError(err instanceof CompetitionError ? 409 : 500, err.message)
+      }
+      const task0 = parseTask(path.join(activeDir(root), taskId))
+      const cdb = openDb(root)
+      const controller = new AbortController()
+      const entry = { taskId, controller, done: null }
+      entry.done = runCompetition({
+        root,
+        db: cdb,
+        id: comp.id,
+        taskWt: wt,
+        scope: task0.scope,
+        baseline: parseBaseline(task0),
+        max,
+        env,
+        signal: controller.signal,
+        prepare: (agent, candidateWt, role, extra) => prepareRun(root, stepFlagsOf(plan, agent), taskId, cdb, { role, extra, wt: candidateWt })
+      })
+        .catch(() => null)
+        .finally(() => {
+          compsActive.delete(comp.id)
+          try {
+            cdb.close()
+          } catch {}
+        })
+      compsActive.set(comp.id, entry)
+      return compOut(db, comp.id)
+    })
+  }
+
+  function pickCompApi(id, body = {}) {
+    if (!COMP_ID_RE.test(id)) throw new ApiError(400, `id de competição inválido: ${id}`)
+    if (typeof body.key !== 'string' || !body.key) throw new ApiError(400, 'key obrigatória (chave da candidata)')
+    if (compsActive.has(id)) throw new ApiError(409, 'competição ainda rodando')
+    return withDb((db) => {
+      const comp = getCompetition(db, id)
+      if (!comp) throw new ApiError(404, `competição não encontrada: ${id}`)
+      const wt = taskWorktree(root, comp.task_id)
+      if (!wt) throw new ApiError(409, `a worktree da task ${comp.task_id} não existe mais`)
+      try {
+        pickCompetitor(root, db, id, body.key, wt)
+      } catch (err) {
+        throw new ApiError(409, err.message)
+      }
+      return compOut(db, id)
+    })
+  }
+
+  async function discardCompApi(id) {
+    if (!COMP_ID_RE.test(id)) throw new ApiError(400, `id de competição inválido: ${id}`)
+    const own = compsActive.get(id)
+    if (own) {
+      own.controller.abort()
+      await own.done
+    }
+    return withDb((db) => {
+      if (!getCompetition(db, id)) throw new ApiError(404, `competição não encontrada: ${id}`)
+      try {
+        discardCompetition(root, db, id)
+      } catch (err) {
+        throw new ApiError(409, err.message)
+      }
+      return compOut(db, id)
+    })
+  }
+
+  function compSettled(id) {
+    return compsActive.get(id)?.done ?? Promise.resolve(null)
+  }
+
   function flowSettled(id) {
     return flowsActive.get(id)?.done ?? Promise.resolve(null)
   }
@@ -366,7 +506,7 @@ export function createRunsApi(root, opts = {}) {
 
   /** Encerramento do serve: interrompe os runs em andamento e espera fecharem. */
   async function stopAll() {
-    const pending = [...active.values(), ...flowsActive.values()]
+    const pending = [...active.values(), ...flowsActive.values(), ...compsActive.values()]
     for (const a of pending) a.controller.abort()
     await Promise.all(pending.map((a) => a.done))
   }
@@ -422,7 +562,7 @@ export function createRunsApi(root, opts = {}) {
   /** Atende `/api/runtimes` e `/api/runs*`. Retorna false se a rota não é desta API. */
   function handle(req, res, url) {
     const p = url.pathname
-    if (p !== '/api/runtimes' && p !== '/api/runs' && !p.startsWith('/api/runs/') && p !== '/api/flows' && !p.startsWith('/api/flows/')) return false
+    if (!/^\/api\/(runtimes|runs|flows|competitions)(\/|$)/.test(p)) return false
     const exec = async () => {
       if (!hostAllowed(req)) throw new ApiError(403, 'host não permitido')
       const q = url.searchParams
@@ -458,11 +598,25 @@ export function createRunsApi(root, opts = {}) {
       }
       const flowGet = p.match(/^\/api\/flows\/([^/]+)$/)
       if (req.method === 'GET' && flowGet) return send(res, 200, { ok: true, ...getFlowApi(decodeURIComponent(flowGet[1])) })
+      if (req.method === 'GET' && p === '/api/competitions') return send(res, 200, { ok: true, competitions: listCompsApi({ task: q.get('task') }) })
+      if (req.method === 'POST' && p === '/api/competitions') {
+        checkWrite(req)
+        return send(res, 202, { ok: true, ...startCompApi(await readJson(req)) })
+      }
+      const compAct = p.match(/^\/api\/competitions\/([^/]+)\/(pick|discard)$/)
+      if (req.method === 'POST' && compAct) {
+        checkWrite(req)
+        const id = decodeURIComponent(compAct[1])
+        if (compAct[2] === 'discard') return send(res, 200, { ok: true, ...(await discardCompApi(id)) })
+        return send(res, 200, { ok: true, ...pickCompApi(id, await readJson(req)) })
+      }
+      const compGet = p.match(/^\/api\/competitions\/([^/]+)$/)
+      if (req.method === 'GET' && compGet) return send(res, 200, { ok: true, ...getCompApi(decodeURIComponent(compGet[1])) })
       throw new ApiError(404, 'rota não encontrada')
     }
     exec().catch((err) => send(res, err instanceof ApiError ? err.status : 500, { ok: false, error: err.message }))
     return true
   }
 
-  return { token, allowUnsafe, runtimes, list, get, dispatch, stop, settled, stopAll, handle, active, flowSettled, flowsActive }
+  return { token, allowUnsafe, runtimes, list, get, dispatch, stop, settled, stopAll, handle, active, flowSettled, flowsActive, compSettled, compsActive }
 }

@@ -90,6 +90,19 @@ function flowFor(db, taskId) {
   return { id: row.id, status: row.status, error: row.error, approve: row.approve, rounds: row.rounds, updated_at: row.updated_at, steps }
 }
 
+/** Competição mais recente da task (task 125): estado, recomendação do juiz e candidatas. */
+function competitionFor(db, taskId) {
+  let row
+  try {
+    row = db.prepare('SELECT * FROM competitions WHERE task_id = ? ORDER BY created_at DESC LIMIT 1').get(taskId)
+  } catch {
+    return null
+  }
+  if (!row) return null
+  const list = db.prepare('SELECT key, tool, status, files_changed FROM competitors WHERE competition_id = ? ORDER BY id').all(row.id)
+  return { id: row.id, status: row.status, winner: row.winner, judge_winner: row.judge_winner, error: row.error, competitors: list }
+}
+
 function runFor(db, taskId) {
   let run
   try {
@@ -154,6 +167,7 @@ function cardFor(t, proj, root, reg, db, now) {
     last_note: lastNote ? { content: lastNote.content, at: lastNote.at } : null,
     run,
     flow: db ? flowFor(db, t.id) : null,
+    competition: db ? competitionFor(db, t.id) : null,
     last_activity_at: lastActivityAt,
     // Sem atividade alguma (db indisponível) → nada julgado, cartão normal.
     stale: lastActivityAt !== null && now - Date.parse(lastActivityAt) > STALE_MS
