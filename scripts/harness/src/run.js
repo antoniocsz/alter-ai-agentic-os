@@ -47,6 +47,9 @@ export function buildPrompt(taskId, taskBody, wt, contextMd = null) {
     '- NÃO rode `harness finish`, `harness worktree finish`, merge, push nem comandos git que reescrevem histórico ou descartam mudanças — a integração é feita fora desta execução.',
     '- NÃO mova nem edite arquivos de tasks/ (queue/active/done) nem o status.md — o harness gerencia o pipeline.',
     '- Ao terminar, responda com um resumo curto: o que foi feito, pendências e decisões.',
+    '- Se aprendeu algo que evita retrabalho em tasks futuras, termine o resumo com um bloco `MEMÓRIA:`',
+    '  (até 5 linhas, uma por item): `- <fato|decisão|descoberta|suposição|observação> [task|projeto|conhecimento|agente]: <texto> #tag`.',
+    '  O nível padrão é task. Só o que for útil e verificado; o humano revisa antes de entrar no contexto.',
     '',
     '--- TASK ---',
     taskBody
@@ -93,7 +96,7 @@ export function contextBudget(root, flags) {
 
 export function contextForRun(root, taskId, budget, db = null) {
   if (budget === null) return null
-  const pkg = buildContextPackage(root, taskId, { budget, exclude: ['task'] })
+  const pkg = buildContextPackage(root, taskId, { budget, exclude: ['task'], touch: true })
   if (!pkg.sections.length) return null
   const summary = `${pkg.sections.length} seção(ões) · ~${pkg.total_tokens} tokens (estimado)` +
     (pkg.omitted.length ? ` · omitidas: ${pkg.omitted.map((o) => o.id).join(', ')}` : '')
@@ -284,6 +287,7 @@ export async function runCmd(args) {
     const run = db.prepare('SELECT * FROM runs WHERE id = ?').get(result.runId)
     if (result.status === 'completed') {
       line(`✅ ${result.runId} concluído · ${fmtUsage(run)}`)
+      if (result.memories) line(`🧠 ${result.memories} memória(s) proposta(s) pelo agente — revise: harness memory list --status proposed`)
       line(`   timeline: harness events ${result.runId} · revise a worktree e integre com: harness worktree finish ${arg}`)
     } else {
       line(`❌ ${result.runId} falhou: ${oneLine(result.error, 300)}`)

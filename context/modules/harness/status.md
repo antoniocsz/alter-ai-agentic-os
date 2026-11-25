@@ -470,6 +470,20 @@
 - Pendências: contexto e colheita do agente (119); docs (120).
 - Decisões: ranking textual (FTS5 + metadados), sem embeddings (sem dependências novas).
 
+## Handoff (task 119 — memoria-em-niveis: contexto e colheita)
+- Feito: `lib/context.js` — seção `memory` no pacote (depois de `deps`): memórias ativas e não
+  expiradas da própria task, do agente da task, do projeto, de conhecimento e global (só com
+  `memory.global: true`), por relevância × nível × tipo × confiança × recência, cortadas por
+  `memory.budget` (padrão 1500; 0 desliga). Último acesso registrado só no run (`touch`), não na
+  prévia do `harness context`. `lib/memories.js` — `parseMemoryBlock` (pt/en, `[nível]`, `#tags`,
+  até 10 itens) e `harvestRunMemories`; consulta da task só com termos significativos.
+  `lib/runner.js` — ao fim de run concluído grava o bloco `MEMÓRIA:` como `proposed` (CLI, lote e
+  API pelo mesmo caminho). `run.js` — prompt pede o bloco; CLI avisa quantas foram propostas.
+  +4 testes (`memory-run.test.js`); suíte completa verde (321).
+- Pendências: docs (120).
+- Decisões: proposta do agente nunca entra no contexto sem aprovação; texto do agente é cortado em
+  4000 caracteres pelos drivers — bloco muito no fim de um resumo longo pode se perder.
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do

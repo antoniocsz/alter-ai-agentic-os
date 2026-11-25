@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { spawn, execFileSync } from 'node:child_process'
 import { startRun, updateRun, appendRunEvent, finishRun, getRun } from './runs.js'
+import { harvestRunMemories } from './memories.js'
 
 /**
  * Runner de agentes (feature `execucao-agentes`, task 94).
@@ -301,7 +302,14 @@ export function runTool({ db, taskId, cwd, driver, prompt, opts = {}, env = proc
           ? { type: 'run.completed', payload: { exit_code: exitCode } }
           : { type: 'run.failed', payload: { reason: overBudget ? 'budget' : error, detail: overBudget ? error : undefined, exit_code: exitCode } }
       )
-      resolve({ runId, status, exitCode, error })
+      // Memória em níveis (task 119): bloco `MEMÓRIA:` do agente → memórias propostas.
+      let memories = []
+      if (status === 'completed') {
+        try {
+          memories = harvestRunMemories(db, runId)
+        } catch {}
+      }
+      resolve({ runId, status, exitCode, error, memories: memories.length })
     }
     child.on('error', (err) => settle(null, err))
     child.on('close', (code) => settle(code))

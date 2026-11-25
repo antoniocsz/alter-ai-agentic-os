@@ -4,6 +4,8 @@ import { execFileSync } from 'node:child_process'
 import { queueDir, activeDir, doneDir, resolveTaskName, parseTask, norm } from './tasks.js'
 import { tryOpenDb } from './db.js'
 import { redact } from './redact.js'
+import { resolveConfig } from './config.js'
+import { DEFAULT_MEMORY_BUDGET, memoryLine, openGlobalDb, rankForTask, selectWithinBudget, touchMemories } from './memories.js'
 
 /**
  * Pacote de contexto por task (feature `pacote-de-contexto`, task 103).
@@ -133,11 +135,13 @@ function historySection(root, scope, isRepo) {
  * Monta o pacote. `budget` (tokens estimados) opcional; sem orçamento, tudo entra.
  * Retorna { task, state, generated_at, estimated, total_tokens, budget, sections[], omitted[] }.
  */
-export function buildContextPackage(root, arg, { budget = null, handoffs = DEFAULT_HANDOFFS, exclude = [] } = {}) {
+export function buildContextPackage(root, arg, { budget = null, handoffs = DEFAULT_HANDOFFS, exclude = [], touch = false, env = process.env } = {}) {
   const loc = locateTask(root, arg)
   const task = parseTask(loc.file)
   const db = tryOpenDb(root)
   const candidates = []
+  let memoryIds = []
+  let memoryNote = null
   const add = (id, title, source, content) => {
     if (content === null || content === undefined || !String(content).trim()) return
     if (exclude.includes(id)) return
@@ -188,6 +192,16 @@ export function buildContextPackage(root, arg, { budget = null, handoffs = DEFAU
       add('deps', 'Dependências (handoffs registrados)', '.harness/harness.db', lines.join('\n'))
     }
 
+    // Memória em níveis (task 119): só memórias ATIVAS relevantes para a task, com orçamento próprio.
+    if (db && !exclude.includes('memory')) {
+      const mem = memorySection(root, db, task, loc.name, env)
+      if (mem) {
+        add('memory', 'Memória do projeto (ativas, por relevância)', `.harness/harness.db${mem.global ? ' + memória global' : ''}`, mem.text)
+        memoryIds = mem.ids
+        memoryNote = mem.note
+      }
+    }
+
     const skillsRaw = clean(task.values?.['Skills a carregar'] ?? '')
     const skills = [...new Set(skillsRaw.match(/[a-z0-9-]+\.md/gi) ?? [])]
     const skillParts = skills
@@ -228,15 +242,71 @@ export function buildContextPackage(root, arg, { budget = null, handoffs = DEFAU
     sections.push(section)
   })
 
+  // Último acesso só quando a seção realmente entra no prompt de um run.
+  if (touch && memoryIds.length && sections.some((s) => s.id === 'memory')) {
+    const wdb = tryOpenDb(root)
+    if (wdb) {
+      try {
+        touchMemories(wdb, memoryIds)
+      } catch {} finally {
+        wdb.close()
+      }
+    }
+  }
+
   return {
     task: loc.name,
     state: loc.state,
+    memory: memoryNote,
     generated_at: new Date().toISOString(),
     estimated: true,
     budget,
     total_tokens: total,
     sections,
     omitted
+  }
+}
+
+/**
+ * Seção de memória: candidatas por nível (task, agente da task, projeto, conhecimento e global
+ * se `harness.json → memory.global`), ranqueadas por relevância à task e cortadas pelo orçamento
+ * `memory.budget` (padrão 1500 tokens estimados; 0 desliga).
+ */
+function memorySection(root, db, task, taskId, env) {
+  const cfg = resolveConfig(root).memory ?? {}
+  const budget = cfg.budget ?? DEFAULT_MEMORY_BUDGET
+  if (budget === 0) return null
+  const agent = clean(task.values?.Agente ?? '').split(/\s/)[0] || null
+  const query = [
+    (task.raw.match(/^#\s*Task:\s*(.+)$/m)?.[1] ?? taskId.replace(/^\d+-|\.md$/g, '').replace(/-/g, ' ')),
+    clean(task.values?.Feature ?? ''),
+    moduleOf(task) ?? '',
+    task.scope.join(' ').replace(/[/._-]+/g, ' '),
+    clean(task.values?.['O que já existe'] ?? '').slice(0, 400)
+  ].join(' ')
+  let gdb = null
+  try {
+    if (cfg.global === true) {
+      try {
+        gdb = openGlobalDb(env)
+      } catch {}
+    }
+    const ranked = rankForTask(db, { taskId, agent, query, globalDb: gdb })
+    if (!ranked.length) return null
+    const { items, omitted } = selectWithinBudget(ranked, budget)
+    if (!items.length) return null
+    const kinds = 'fato/decisão = verificado ou decidido; suposição/observação = confirmar antes de agir'
+    const text =
+      `Memórias aprovadas relevantes para esta task (${kinds}). Se alguma estiver desatualizada, diga no resumo.\n\n` +
+      items.map(memoryLine).join('\n')
+    return {
+      text,
+      ids: items.filter((m) => m.origin !== 'global').map((m) => m.id),
+      global: items.some((m) => m.origin === 'global'),
+      note: { items: items.length, omitted, budget }
+    }
+  } finally {
+    gdb?.close()
   }
 }
 
