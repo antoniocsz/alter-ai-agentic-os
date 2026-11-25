@@ -38,7 +38,13 @@ export function taskWorktree(root, taskId) {
   return fs.existsSync(dir) ? { ...entry, dir } : null
 }
 
-export function buildPrompt(taskId, taskBody, wt, contextMd = null) {
+/**
+ * Prompt do run. `role` (orquestração encadeada, task 121): `implement` (padrão), `review` (só lê
+ * e dá veredito) ou `fix` (corrige o que a revisão pediu). `extra` = blocos anexados no fim
+ * (diff para o revisor, notas da revisão e do humano para a correção).
+ */
+export function buildPrompt(taskId, taskBody, wt, contextMd = null, { role = 'implement', extra = null } = {}) {
+  if (role === 'review') return buildReviewPrompt(taskId, taskBody, wt, contextMd, extra)
   const parts = [
     `Você está executando a task ${taskId} do harness (AlterAI - Agentic OS)`,
     `na worktree ${wt.path} (branch ${wt.branch}). Regras desta execução:`,
@@ -54,8 +60,40 @@ export function buildPrompt(taskId, taskBody, wt, contextMd = null) {
     '--- TASK ---',
     taskBody
   ]
+  if (role === 'fix') {
+    parts.splice(
+      2,
+      0,
+      '- Esta execução é uma CORREÇÃO: a implementação já está na worktree e passou por revisão.',
+      '  Resolva os pontos da revisão abaixo (e as instruções do humano, se houver) sem refazer o que está certo.'
+    )
+  }
+  if (extra) parts.push('', extra)
   if (contextMd) {
     parts.push('', '--- CONTEXTO DO PROJETO (gerado pelo harness para esta task; consulte antes de investigar) ---', contextMd)
+  }
+  return parts.join('\n')
+}
+
+/** Prompt do revisor: não altera nada; compara a mudança com a task e dá veredito parseável. */
+function buildReviewPrompt(taskId, taskBody, wt, contextMd, extra) {
+  const parts = [
+    `Você é o REVISOR da task ${taskId} do harness (AlterAI - Agentic OS), na worktree ${wt.path} (branch ${wt.branch}).`,
+    'Outro agente implementou a task; revise a mudança. Regras desta execução:',
+    '- NÃO altere, crie, mova nem apague arquivos, e não rode comandos que mudem a worktree — só leia.',
+    '  (o harness compara a worktree antes e depois; qualquer alteração reprova a revisão).',
+    '- Verifique: critérios de conclusão da task, escopo declarado, regras do AGENTS.md, bugs, testes faltando.',
+    '- Aponte só problemas reais e acionáveis; não peça mudanças de estilo sem motivo.',
+    '- Termine a resposta com UMA destas linhas, exatamente:',
+    '  `VEREDITO: APROVADO`',
+    '  `VEREDITO: MUDANÇAS` — seguida da lista numerada do que precisa mudar (arquivo e motivo).',
+    '',
+    '--- TASK ---',
+    taskBody
+  ]
+  if (extra) parts.push('', extra)
+  if (contextMd) {
+    parts.push('', '--- CONTEXTO DO PROJETO (gerado pelo harness para esta task) ---', contextMd)
   }
   return parts.join('\n')
 }
@@ -114,7 +152,7 @@ function line(text) {
 
 const oneLine = (s, max = 110) => String(s ?? '').replace(/\s+/g, ' ').trim().slice(0, max)
 
-function printEvent(ev, prefix = '') {
+export function printRunEvent(ev, prefix = '') {
   const p = ev.payload ?? {}
   switch (ev.type) {
     case 'run.started':
@@ -177,10 +215,15 @@ export function resolveRunOptions(flags, toolName) {
  * (`tool`, `model`, `permission-mode`, `unsafe`, `no-context`, `context-budget`, `ignore-budget`).
  * Lança Error com a mensagem acionável; não imprime nada.
  */
-export function prepareRun(root, flags, arg, db) {
+export function prepareRun(root, flags, arg, db, { role = 'implement', extra = null } = {}) {
   const toolName = flagString(flags, 'tool')
   if (!toolName) throw new Error(USAGE)
   const { probe: driver, opts, unsafe } = resolveRunOptions(flags, toolName)
+  if (role === 'review' && !unsafe) {
+    // Revisor só lê: Claude em modo plan, Codex com sandbox read-only (os demais: guarda do harness).
+    opts.readOnly = true
+    if (driver.id === 'claude') opts.permissionMode = 'plan'
+  }
 
   let taskId
   try {
@@ -207,11 +250,11 @@ export function prepareRun(root, flags, arg, db) {
     throw err
   }
   const ctx = contextForRun(root, taskId, budget, db)
-  const prompt = buildPrompt(taskId, fs.readFileSync(path.join(activeDir(root), taskId), 'utf8'), wt, ctx?.md)
+  const prompt = buildPrompt(taskId, fs.readFileSync(path.join(activeDir(root), taskId), 'utf8'), wt, ctx?.md, { role, extra })
   return { taskId, wt, driver, opts, unsafe, gate, money, ctx, prompt }
 }
 
-function withSigint(onAbort) {
+export function withSigint(onAbort) {
   const controller = new AbortController()
   const handler = () => {
     line('\n⏹️  interrompendo (Ctrl+C)…')
@@ -281,7 +324,7 @@ export async function runCmd(args) {
           announced = true
           line(`▶️  ${ev.runId} · ${driver.id} · ${taskId} @ ${wt.path}`)
         }
-        printEvent(ev)
+        printRunEvent(ev)
       }
     })
     const run = db.prepare('SELECT * FROM runs WHERE id = ?').get(result.runId)
@@ -391,7 +434,7 @@ async function runBatchCmd(root, flags, toolName, batchArg) {
           announced.add(ev.runId)
           line(`${tag} ▶️  ${ev.runId}`)
         }
-        printEvent(ev, tag)
+        printRunEvent(ev, tag)
       }
     })
 

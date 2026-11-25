@@ -4,6 +4,7 @@ import path from 'node:path'
 import { queueDir, activeDir, doneDir, listTasks, parseTask } from './tasks.js'
 import { redact } from './redact.js'
 import { ensureMemorySchema } from './memories.js'
+import { ensureFlowSchema } from './flows.js'
 
 const [NODE_MAJOR, NODE_MINOR] = process.versions.node.split('.').map(Number)
 if (NODE_MAJOR < 22 || (NODE_MAJOR === 22 && NODE_MINOR < 5)) {
@@ -139,6 +140,8 @@ function migrate(db) {
   db.exec('CREATE INDEX IF NOT EXISTS idx_runs_batch ON runs(batch_id)')
   // Task 118 (memoria-em-niveis): memórias em níveis + índice FTS5.
   ensureMemorySchema(db)
+  // Task 121 (orquestracao-encadeada): fluxos implementar → revisar → corrigir.
+  ensureFlowSchema(db)
 
   const row = db.prepare(`SELECT value FROM meta WHERE key = 'schema_version'`).get()
   if (!row) {

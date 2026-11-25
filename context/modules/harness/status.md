@@ -491,6 +491,21 @@
 - Pendências: validar o bloco `MEMÓRIA:` com as tools reais.
 - Decisões: —
 
+## Handoff (task 121 — orquestracao-encadeada: motor e CLI)
+- Feito: `lib/flows.js` (NOVO) — tabelas `flows`/`flow_steps`; `createFlow` (um fluxo aberto por
+  task), `nextStep` (implementar → revisar → corrigir… a partir do histórico), `runFlow` (cada etapa
+  é um run via `prepareRun`; pausa em `waiting_approval`/`needs_human`/`failed`), `parseVerdict`
+  (VEREDITO: APROVADO|MUDANÇAS, tolera markdown e inglês), `worktreeDiff` (base + não commitado +
+  arquivos novos, cortado em 60 KB) e `worktreeSignature` (revisor que altera a worktree reprova),
+  `resumeFlow` (nota do humano; needs_human ganha uma rodada; failed repete a etapa), `stopFlow`.
+  `run.js` — `buildPrompt`/`prepareRun` com `role` e `extra` (prompt do revisor, da correção);
+  revisor com `readOnly` (Codex `--sandbox read-only`) e Claude em `plan`. `src/flow.js` (NOVO) —
+  `harness flow <task> --implement --review [--fix] [--rounds] [--approve]`, `resume|stop|show|list`;
+  valida as tools de cada papel antes de abrir. +4 testes (`flows.test.js`, agente falso
+  `fake-flow-agent.js`); suíte completa verde (325).
+- Pendências: API e canvas (122); docs (123).
+- Decisões: estado do fluxo no banco e execução em primeiro plano (CLI) — retomável a qualquer momento.
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do

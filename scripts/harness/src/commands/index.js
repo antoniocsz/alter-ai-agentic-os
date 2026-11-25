@@ -21,6 +21,7 @@ import { gatesCmd } from '../gates.js'
 import { sessionCmd } from '../session.js'
 import { recallCmd } from '../recall.js'
 import { memoryCmd } from '../memory.js'
+import { flowCmd } from '../flow.js'
 import { retroCmd } from '../retro.js'
 import { statusCmd } from '../status.js'
 import { adapterCmd } from '../adapter.js'
@@ -67,6 +68,7 @@ Comandos:
                       [--budget <tokens>] [--json | --out <arquivo>]
   budget              Consumo medido (hoje, mês, tasks ativas) contra os limites do harness.json [--json]
   runs [<task>]       Execuções de agentes registradas [--batch <id>] [--json] [--limit n]
+  flow <task> --implement <tool> --review <tool> [--fix <tool>] [--rounds n] [--approve none|review|each]   Orquestração encadeada (implementar → revisar → corrigir); resume|stop|show|list
   events <run>        Timeline normalizada de uma execução [--json] [--native]
   report              Métricas do banco [--format table|json|csv] [--module] [--days]
   kanban [--serve [porta] [--host <h>]] | --out <arquivo>   Painel kanban (servidor ou HTML)
@@ -105,6 +107,7 @@ export const commands = {
   status: statusCmd,
   session: sessionCmd,
   memory: memoryCmd,
+  flow: flowCmd,
   retro: retroCmd,
   recall: recallCmd,
   task,

@@ -26,8 +26,9 @@ const MAX_TEXT = 4000
 const clip = (s) => (typeof s === 'string' && s.length > MAX_TEXT ? s.slice(0, MAX_TEXT) + '…' : s)
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null)
 
-export function command({ model = null, unsafe = false } = {}) {
-  const args = ['exec', '--json', '--sandbox', unsafe ? 'danger-full-access' : 'workspace-write']
+export function command({ model = null, unsafe = false, readOnly = false } = {}) {
+  // readOnly (revisor da orquestração encadeada, task 121): sandbox só de leitura.
+  const args = ['exec', '--json', '--sandbox', unsafe ? 'danger-full-access' : readOnly ? 'read-only' : 'workspace-write']
   if (model) args.push('--model', model)
   args.push('-')
   return args
