@@ -8,7 +8,7 @@ export async function contextCmd(args) {
   const root = process.cwd()
   const { positionals, flags } = parseArgs(args)
   const arg = positionals[0]
-  if (!arg) throw new Error('uso: harness context <task> [--budget <tokens>] [--json | --out <arquivo>]')
+  if (!arg) throw new Error('uso: harness context <task> [--budget <tokens>] [--full] [--stats | --json | --out <arquivo>]')
 
   const raw = flagString(flags, 'budget')
   if (flags.budget === true) throw new Error('--budget exige um número de tokens (ex.: --budget 6000)')
@@ -17,7 +17,25 @@ export async function contextCmd(args) {
     throw new Error(`--budget inválido: ${raw} (use inteiro > 0)`)
   }
 
-  const pkg = buildContextPackage(root, arg, { budget })
+  const pkg = buildContextPackage(root, arg, { budget, optimize: flagBool(flags, 'full') ? false : null })
+
+  // `--stats` (task 132): tokens por seção, integral × otimizado, e o que ficou de fora.
+  if (flagBool(flags, 'stats')) {
+    const rows = pkg.sections.map((s) => [s.id, String(s.tokens), String(s.full_tokens), s.outline ? 'resumida' : s.compacted ? 'compactada' : '—'])
+    for (const o of pkg.omitted) rows.push([o.id, '0', String(o.tokens), 'omitida'])
+    const header = ['seção', 'tokens', 'integral', 'otimização']
+    const widths = header.map((h, i) => Math.max(h.length, ...rows.map((r) => r[i].length)))
+    const line = (cells) => cells.map((c, i) => c.padEnd(widths[i])).join('  ').trimEnd()
+    process.stdout.write(
+      [
+        `📦 ${pkg.task} · ~${pkg.total_tokens} tokens (estimado)${pkg.budget !== null ? ` de ${pkg.budget}` : ''} · integral ~${pkg.full_tokens} · otimizador ${pkg.optimized ? `ligado (-${pkg.saved_tokens})` : 'desligado'}`,
+        line(header),
+        line(widths.map((w) => '-'.repeat(w))),
+        ...rows.map(line)
+      ].join('\n') + '\n'
+    )
+    return
+  }
 
   if (flagBool(flags, 'json')) {
     process.stdout.write(JSON.stringify(pkg, null, 2) + '\n')

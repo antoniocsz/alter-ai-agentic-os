@@ -92,6 +92,11 @@ export function validateConfig(cfg) {
   if (budget !== undefined && (!Number.isInteger(budget) || budget < 0)) {
     errors.push('context.budget deve ser inteiro >= 0 (0 desliga o pacote no harness run)')
   }
+  // Otimizador de contexto (task 132): handoffs antigos compactados e seções resumidas antes de
+  // serem omitidas. Padrão ligado; `false` volta ao pacote integral.
+  if (cfg.context?.optimize !== undefined && typeof cfg.context.optimize !== 'boolean') {
+    errors.push('context.optimize deve ser true/false')
+  }
 
   // Memória em níveis (task 118): `memory.global` libera a leitura da memória global no projeto;
   // `memory.budget` = tokens da seção de memória no pacote de contexto (0 desliga).

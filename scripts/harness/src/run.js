@@ -157,6 +157,7 @@ export function contextForRun(root, taskId, budget, db = null) {
   const pkg = buildContextPackage(root, taskId, { budget, exclude: ['task'], touch: true })
   if (!pkg.sections.length) return null
   const summary = `${pkg.sections.length} seção(ões) · ~${pkg.total_tokens} tokens (estimado)` +
+    (pkg.saved_tokens ? ` · otimizador -${pkg.saved_tokens}` : '') +
     (pkg.omitted.length ? ` · omitidas: ${pkg.omitted.map((o) => o.id).join(', ')}` : '')
   if (db) {
     try {

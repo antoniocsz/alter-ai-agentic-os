@@ -91,10 +91,11 @@ test('run: anexa o pacote (sem repetir a task), registra context_built; --no-con
   assert.ok(!noCtx.stdin.includes('CONTEXTO DO PROJETO'))
   assert.ok(!zero.stdin.includes('CONTEXTO DO PROJETO'))
 
-  // Orçamento pequeno: seções grandes saem e são listadas no pacote.
+  // Orçamento pequeno: o otimizador (task 132) resume as seções grandes antes de omitir; o que
+  // nem resumido cabe sai e é listado no pacote.
   cli(['run', '01', '--tool', 'claude', '--context-budget', '400'], fakeEnv(p.file))
   const small = p.read().at(-1).stdin
-  assert.match(small, /Omitidas por orçamento: /)
+  assert.match(small, /resumida \(não coube inteira\)|Omitidas por orçamento: /)
 
   const bad = cli(['run', '01', '--tool', 'claude', '--context-budget', '-1'], fakeEnv(p.file))
   assert.notEqual(bad.status, 0)

@@ -72,6 +72,67 @@ export function recentHandoffs(statusText, n = DEFAULT_HANDOFFS) {
     .slice(0, n)
 }
 
+// ---------- otimizador de contexto (task 132) ----------
+
+const firstSentence = (text, max = 240) => {
+  const t = String(text ?? '').replace(/\s+/g, ' ').trim()
+  const m = t.match(/^(.{8,}?[.;])\s/)
+  const s = m ? m[1] : t
+  return s.length > max ? s.slice(0, max - 1).trimEnd() + '…' : s
+}
+
+/**
+ * Handoff compacto: título + 1ª frase do "Feito" + Pendências + Decisões (o que a próxima task
+ * precisa saber); o detalhe completo continua no status.md.
+ */
+export function compactHandoff(text) {
+  const lines = String(text).split(/\r?\n/)
+  const heading = lines[0].replace(/^##\s+/, '').trim()
+  const items = []
+  let cur = null
+  for (const line of lines.slice(1)) {
+    const m = line.match(/^-\s+(Feito|Pendências|Pendencias|Decisões|Decisoes)\s*:\s*(.*)$/i)
+    if (m) {
+      cur = { key: m[1], text: m[2] }
+      items.push(cur)
+    } else if (cur && /^\s+\S/.test(line)) {
+      cur.text += ' ' + line.trim()
+    } else if (/^-\s/.test(line)) {
+      cur = null
+    }
+  }
+  if (!items.length) return `#### ${heading}\n${firstSentence(lines.slice(1).join(' '), 300)}`
+  const out = items.map((it) => {
+    const value = /^feito$/i.test(it.key) ? firstSentence(it.text) : firstSentence(it.text, 200)
+    return `- ${it.key}: ${value}`
+  })
+  return `#### ${heading}\n${out.join('\n')}`
+}
+
+/**
+ * Esqueleto de um markdown: títulos + a 1ª linha de conteúdo de cada um. Usado quando a seção
+ * inteira não cabe no orçamento — melhor o mapa do documento do que nada.
+ */
+export function outline(text, maxLines = 60) {
+  const lines = String(text).split(/\r?\n/)
+  const out = []
+  let wantBody = false
+  let inFence = false
+  for (const line of lines) {
+    if (/^\s*```/.test(line)) inFence = !inFence
+    if (inFence) continue
+    if (/^#{1,6}\s/.test(line)) {
+      out.push(line)
+      wantBody = true
+    } else if (wantBody && line.trim() && !/^\s*```/.test(line)) {
+      out.push(line.length > 200 ? line.slice(0, 199) + '…' : line)
+      wantBody = false
+    }
+    if (out.length >= maxLines) break
+  }
+  return out.length ? out.join('\n') + '\n\n_(resumo: títulos + 1ª linha de cada parte; leia a fonte para o resto)_' : null
+}
+
 function moduleOf(task) {
   const raw = clean(task.values?.['Módulo'] ?? '')
   if (isEmpty(raw)) return null
@@ -135,17 +196,29 @@ function historySection(root, scope, isRepo) {
  * Monta o pacote. `budget` (tokens estimados) opcional; sem orçamento, tudo entra.
  * Retorna { task, state, generated_at, estimated, total_tokens, budget, sections[], omitted[] }.
  */
-export function buildContextPackage(root, arg, { budget = null, handoffs = DEFAULT_HANDOFFS, exclude = [], touch = false, env = process.env } = {}) {
+export function buildContextPackage(root, arg, { budget = null, handoffs = DEFAULT_HANDOFFS, exclude = [], touch = false, env = process.env, optimize = null } = {}) {
+  const opt = optimize ?? resolveConfig(root).context?.optimize !== false
   const loc = locateTask(root, arg)
   const task = parseTask(loc.file)
   const db = tryOpenDb(root)
   const candidates = []
   let memoryIds = []
   let memoryNote = null
-  const add = (id, title, source, content) => {
+  // `full` = conteúdo sem otimização (para medir a economia); `short` = forma resumida (outline)
+  // tentada antes de omitir a seção por orçamento.
+  const add = (id, title, source, content, { full = null, short = undefined } = {}) => {
     if (content === null || content === undefined || !String(content).trim()) return
     if (exclude.includes(id)) return
-    candidates.push({ id, title, source, content: redact(String(content).trim()) })
+    const text = redact(String(content).trim())
+    const shortText = !opt || short === null ? null : short !== undefined ? short : id === 'task' || id === 'memory' || id === 'deps' ? null : outline(text)
+    candidates.push({
+      id,
+      title,
+      source,
+      content: text,
+      fullTokens: estimateTokens(full !== null ? redact(String(full).trim()) : text),
+      short: shortText ? redact(shortText) : null
+    })
   }
 
   try {
@@ -171,11 +244,21 @@ export function buildContextPackage(root, arg, { budget = null, handoffs = DEFAU
       const parts = []
       const ctxText = readIf(path.join(root, ctxRel))
       if (ctxText) parts.push(ctxText.trim())
+      const fullParts = [...parts]
+      const digestRel = `context/modules/${mod}/digest.md`
+      const digest = opt ? readIf(path.join(root, digestRel)) : null
+      if (digest) parts.push(`### Resumo do histórico (${digestRel})\n\n${digest.trim()}`)
       if (status) {
         const hs = recentHandoffs(status, handoffs)
-        if (hs.length) parts.push(`### Handoffs mais recentes (${statusRel})\n\n` + hs.map((h) => h.text.replace(/^## /, '#### ')).join('\n\n'))
+        if (hs.length) {
+          const fullText = hs.map((h) => h.text.replace(/^## /, '#### ')).join('\n\n')
+          fullParts.push(`### Handoffs mais recentes (${statusRel})\n\n` + fullText)
+          // Otimizado: o mais recente inteiro; os anteriores só com o essencial.
+          const optText = opt ? hs.map((h, i) => (i === 0 ? h.text.replace(/^## /, '#### ') : compactHandoff(h.text))).join('\n\n') : fullText
+          parts.push(`### Handoffs mais recentes (${statusRel}${opt && hs.length > 1 ? '; anteriores compactados' : ''})\n\n` + optText)
+        }
       }
-      add('module', `Módulo ${mod}`, [ctxText && ctxRel, status && statusRel].filter(Boolean).join(' + '), parts.join('\n\n'))
+      add('module', `Módulo ${mod}`, [ctxText && ctxRel, digest && digestRel, status && statusRel].filter(Boolean).join(' + '), parts.join('\n\n'), { full: fullParts.join('\n\n') })
     }
 
     const deps = depsOf(task)
@@ -230,11 +313,21 @@ export function buildContextPackage(root, arg, { budget = null, handoffs = DEFAU
   const sections = []
   const omitted = []
   let total = 0
+  let fullTotal = 0
   candidates.forEach((c, i) => {
+    const { short, fullTokens, ...base } = c
     const tokens = estimateTokens(c.content)
-    const section = { ...c, priority: i + 1, tokens }
-    // Seções que não cabem saem inteiras; menores, de prioridade mais baixa, ainda entram se couberem.
+    fullTotal += fullTokens
+    const section = { ...base, priority: i + 1, tokens, full_tokens: fullTokens, compacted: fullTokens > tokens }
+    // Seções que não cabem: com o otimizador, tenta o resumo (títulos + 1ª linha) antes de omitir;
+    // menores, de prioridade mais baixa, ainda entram se couberem.
     if (budget !== null && c.id !== 'task' && total + tokens > budget) {
+      const shortTokens = short ? estimateTokens(short) : null
+      if (short && total + shortTokens <= budget) {
+        total += shortTokens
+        sections.push({ ...section, content: short, tokens: shortTokens, compacted: true, outline: true })
+        return
+      }
       omitted.push({ id: c.id, title: c.title, tokens, reason: `não cabe no orçamento (${total}/${budget})` })
       return
     }
@@ -261,7 +354,11 @@ export function buildContextPackage(root, arg, { budget = null, handoffs = DEFAU
     generated_at: new Date().toISOString(),
     estimated: true,
     budget,
+    optimized: opt,
     total_tokens: total,
+    full_tokens: fullTotal,
+    // Economia do otimizador: o que as seções incluídas teriam a mais sem compactação/resumo.
+    saved_tokens: sections.reduce((sum, s) => sum + Math.max(0, s.full_tokens - s.tokens), 0),
     sections,
     omitted
   }
@@ -317,13 +414,16 @@ export function renderContextMarkdown(pkg) {
     '',
     `> Gerado pelo harness em ${pkg.generated_at}. Tokens **estimados** (caracteres/4): ~${pkg.total_tokens}` +
       (pkg.budget !== null ? ` de ${pkg.budget} de orçamento` : '') +
+      (pkg.saved_tokens ? ` (otimizador: ~${pkg.saved_tokens} a menos)` : '') +
       '.',
     pkg.omitted.length
       ? `> Omitidas por orçamento: ${pkg.omitted.map((o) => `${o.title} (~${o.tokens})`).join(', ')}.`
       : null
   ].filter((l) => l !== null)
   const body = pkg.sections.map(
-    (s) => `---\n\n## [${s.id}] ${s.title}\n\n_fonte: ${s.source} · ~${s.tokens} tokens (estimado)_\n\n${s.content}`
+    (s) =>
+      `---\n\n## [${s.id}] ${s.title}\n\n_fonte: ${s.source} · ~${s.tokens} tokens (estimado)` +
+      `${s.outline ? ' · resumida (não coube inteira)' : s.compacted ? ` · compactada de ~${s.full_tokens}` : ''}_\n\n${s.content}`
   )
   return [...head, '', ...body].join('\n') + '\n'
 }

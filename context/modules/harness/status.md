@@ -608,6 +608,18 @@
 - Pendências: —
 - Decisões: órfão = run `running` cujo processo morreu e que nenhum runner deste processo acompanha.
 
+## Handoff (task 132 — otimizador-de-contexto: compactação e medição)
+- Feito: `lib/context.js` — otimizador (padrão ligado; `harness.json → context.optimize`):
+  handoff mais recente inteiro e anteriores via `compactHandoff` (título, 1ª frase do Feito,
+  Pendências, Decisões); seção que não cabe no orçamento entra como `outline` (títulos + 1ª linha)
+  antes de ser omitida; por seção `full_tokens`/`compacted`/`outline`, no pacote `full_tokens` e
+  `saved_tokens`; digest do módulo (`digest.md`) entra se existir. `src/context.js` — `--stats`
+  (tokens por seção, integral × otimizado) e `--full`. `run.js` — economia no `context_built`.
+  No próprio repo: pacote da 132 ~3964 tokens (integral ~4108). +3 testes; `run-context.test.js`
+  aceita seção resumida; suíte completa verde (341).
+- Pendências: digest do módulo (133); docs (134).
+- Decisões: otimização determinística (sem LLM, sem custo); o agente é orientado a abrir a fonte.
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do
