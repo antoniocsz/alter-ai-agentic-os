@@ -42,6 +42,16 @@ process.stdin.on('end', () => {
     return
   }
   let text
+  // Digest do módulo (task 133): redator só lê e responde entre --- DIGEST --- e --- FIM ---.
+  if (/Você é o REDATOR/.test(stdin)) {
+    if (process.env.FAKE_DIGEST_WRITE) fs.writeFileSync(path.join(process.cwd(), 'redator.txt'), 'não devia')
+    text = process.env.FAKE_DIGEST_NOBLOCK
+      ? 'Resumo sem o bloco pedido.'
+      : 'Aqui está.\n\n--- DIGEST ---\n- Decisão vigente: prompt sempre pelo stdin.\n- Pendência aberta: validar no Windows.\n--- FIM ---'
+    out({ type: 'assistant', message: { id: `m${n}`, role: 'assistant', content: [{ type: 'text', text }], usage: { input_tokens: 10, output_tokens: 5 } } })
+    out({ type: 'result', subtype: 'success', is_error: false, result: text, session_id: `sess-flow-${n}`, usage: { input_tokens: 10, output_tokens: 5 } })
+    return
+  }
   if (role === 'judge') {
     if (process.env.FAKE_JUDGE_WRITE) fs.writeFileSync(path.join(process.cwd(), 'juiz.txt'), 'não devia')
     const pick = process.env.FAKE_JUDGE_PICK ?? 'claude'

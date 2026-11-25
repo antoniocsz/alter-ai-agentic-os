@@ -620,6 +620,16 @@
 - Pendências: digest do módulo (133); docs (134).
 - Decisões: otimização determinística (sem LLM, sem custo); o agente é orientado a abrir a fonte.
 
+## Handoff (task 133 — otimizador-de-contexto: digest do módulo)
+- Feito: `lib/digest.js` (NOVO) — `generateDigest`: prompt de redator com context.md + status.md,
+  agente só leitura (Claude `plan`, Codex `read-only`; `worktreeSignature` da árvore antes/depois),
+  resposta entre `--- DIGEST ---` e `--- FIM ---`, harness grava `context/modules/<m>/digest.md` com
+  cabeçalho (data, run, nº de handoffs, mais recente). Run registrado como `module:<m>`, com
+  orçamento. `src/context.js` — `harness context digest <módulo> --tool <t> [--model] [--max-words]
+  [--dry-run] [--ignore-budget]`. +2 testes; suíte completa verde (343).
+- Pendências: docs (134); gerar o digest do módulo harness com uma tool real.
+- Decisões: o arquivo é escrito pelo harness, nunca pelo agente; digest versionado (revisar antes de commitar).
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do

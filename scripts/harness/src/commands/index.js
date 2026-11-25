@@ -66,7 +66,8 @@ Comandos:
                       orçamento do harness.json: recusa/corta o run; [--ignore-budget] (registrado)
                       [--raw <arquivo>]: grava a saída bruta da tool (diagnóstico; sem redaction)
   runtimes            Tools de agente instaladas: caminho, versão e o comando que o run executa [--json]
-  context <task>      Pacote de contexto da task (regras, feature, módulo, deps, skills, ADRs, escopo)
+  context <task>      Pacote de contexto da task (regras, feature, módulo, deps, skills, ADRs, escopo) [--stats] [--full]
+  context digest <módulo> --tool <t>   Resume o histórico de handoffs em context/modules/<m>/digest.md
                       [--budget <tokens>] [--json | --out <arquivo>]
   budget              Consumo medido (hoje, mês, tasks ativas) contra os limites do harness.json [--json]
   runs [<task>]       Execuções de agentes registradas [--batch <id>] [--json] [--limit n]
