@@ -23,6 +23,7 @@ import { recallCmd } from '../recall.js'
 import { memoryCmd } from '../memory.js'
 import { flowCmd } from '../flow.js'
 import { competeCmd } from '../compete.js'
+import { analyticsCmd } from '../analytics.js'
 import { retroCmd } from '../retro.js'
 import { statusCmd } from '../status.js'
 import { adapterCmd } from '../adapter.js'
@@ -69,6 +70,7 @@ Comandos:
                       [--budget <tokens>] [--json | --out <arquivo>]
   budget              Consumo medido (hoje, mês, tasks ativas) contra os limites do harness.json [--json]
   runs [<task>]       Execuções de agentes registradas [--batch <id>] [--json] [--limit n]
+  analytics [--by tool|model|task|agent|day] [--since 30d|all] [--json]   Tokens, custo, sucesso e gates das execuções (painel: /analytics)
   flow <task> --implement <tool> --review <tool> [--fix <tool>] [--rounds n] [--approve none|review|each]   Orquestração encadeada (implementar → revisar → corrigir); resume|stop|show|list
   compete <task> --tools <t1,t2,...> [--judge <tool>] [--max-parallel n]   Execução competitiva: candidatas em worktrees próprias, juiz opcional; pick|discard|show|list
   events <run>        Timeline normalizada de uma execução [--json] [--native]
@@ -111,6 +113,7 @@ export const commands = {
   memory: memoryCmd,
   flow: flowCmd,
   compete: competeCmd,
+  analytics: analyticsCmd,
   retro: retroCmd,
   recall: recallCmd,
   task,

@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { DB_DIR, openDb, boardQuery, taskDetails, resolveTaskId, syncFromMarkdown } from './lib/db.js'
 import { canvasState } from './lib/canvas.js'
+import { analytics, parseSince } from './lib/analytics.js'
 import { startTask, finishTask, requeueTask, reopenTask } from './lib/pipeline.js'
 import { taskLocation, queueDir, activeDir, doneDir } from './lib/tasks.js'
 import { templatesDir } from './lib/paths.js'
@@ -271,6 +272,32 @@ function route(req, res, ctx, page, canvasPage, extras = {}) {
       return json(res, 200, { ok: true, board: buildBoard(ctx) })
     } catch (err) {
       return sendError(res, 500, err.message)
+    }
+  }
+
+  // Analytics (task 129): leitura pura — vale no `kanban --serve` e no `harness serve`.
+  if (req.method === 'GET' && pathname === '/analytics') {
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
+    return res.end(renderAnalyticsPage(ctx.title))
+  }
+  if (req.method === 'GET' && pathname === '/api/analytics') {
+    let target
+    try {
+      target = projectRoot(ctx, url.searchParams.get('project') ?? '')
+    } catch (err) {
+      return sendError(res, 400, err.message)
+    }
+    let db = null
+    try {
+      const since = parseSince(url.searchParams.get('since') ?? '30d')
+      db = openDb(target)
+      return json(res, 200, { ok: true, ...analytics(db, { by: url.searchParams.get('by') ?? 'tool', since }) })
+    } catch (err) {
+      return sendError(res, 400, err.message)
+    } finally {
+      try {
+        db?.close()
+      } catch {}
     }
   }
 
@@ -729,6 +756,141 @@ function renderRoutinesPanel(apiEnabled) {
  * Estética = mesmo tema do board (tokens/estilos de templates/kanban/board.html,
  * copiado aqui porque o template não está no escopo desta task).
  */
+/**
+ * Painel de analytics (task 129): totais, barras por grupo (custo e tokens) e tabela, alimentados
+ * por GET /api/analytics?by=&since=. Mesmo tema da vista Execução; sem dependências.
+ */
+export function renderAnalyticsPage(title = 'AlterAI - Agentic OS — Tasks') {
+  const tt = String(title).replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  return `<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>${tt} — Analytics</title>
+<style>
+  :root { --bg: #0f1117; --col: #171a21; --border: #262b36; --text: #e6e9ef; --muted: #8b93a5; --accent: #6366f1; --ok: #4ade80; --bad: #f87171; --bar: #6366f1; --bar2: #22d3ee; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid var(--border); background: var(--col); flex-wrap: wrap; }
+  header h1 { font-size: 16px; margin: 0; font-weight: 600; }
+  header a { color: var(--accent); text-decoration: none; font-size: 12px; }
+  header .spacer { flex: 1; }
+  select, button { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; font-size: 12px; }
+  main { padding: 20px; display: grid; gap: 18px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+  .card { background: var(--col); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+  .card .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+  .card .value { font-size: 22px; font-weight: 600; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .card .hint { color: var(--muted); font-size: 11px; margin-top: 2px; }
+  .panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 14px; }
+  .panel { background: var(--col); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+  .panel h2 { font-size: 13px; margin: 0 0 10px; color: var(--muted); font-weight: 600; }
+  .bar-row { display: grid; grid-template-columns: 140px 1fr 90px; gap: 8px; align-items: center; font-size: 12px; margin: 5px 0; }
+  .bar-row .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar-track { background: var(--bg); border-radius: 4px; height: 12px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 4px; background: var(--bar); }
+  .bar-fill.tokens { background: var(--bar2); }
+  .bar-row .num { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+  th, td { padding: 6px 8px; border-bottom: 1px solid var(--border); text-align: right; }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--muted); font-weight: 600; }
+  .ok { color: var(--ok); } .bad { color: var(--bad); }
+  .empty { color: var(--muted); font-size: 13px; text-align: center; padding: 30px 0; }
+  .note { color: var(--muted); font-size: 11px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>${tt}</h1>
+  <a href="/">← Board</a>
+  <a href="/canvas">Execução</a>
+  <span class="spacer"></span>
+  <label class="note">agrupar por <select id="by">
+    <option value="tool">tool</option><option value="model">modelo</option><option value="agent">agente</option>
+    <option value="task">task</option><option value="day">dia</option></select></label>
+  <label class="note">período <select id="since">
+    <option value="7d">7 dias</option><option value="30d" selected>30 dias</option><option value="90d">90 dias</option><option value="all">tudo</option></select></label>
+  <button id="refresh">↻</button>
+</header>
+<main>
+  <section class="cards" id="cards"></section>
+  <section class="panels">
+    <div class="panel"><h2>Custo (USD reportado)</h2><div id="cost"></div></div>
+    <div class="panel"><h2>Tokens (entrada + saída reportados)</h2><div id="tokens"></div></div>
+  </section>
+  <section class="panel"><h2 id="tableTitle">Detalhe</h2><div id="table"></div></section>
+  <p class="note">Tokens e custo só entram quando a tool reporta; runs sem uso reportado aparecem em "sem uso" e ficam fora das somas. "Gates ok" = runs com gates pós-run aprovados (harness.json → gates.run).</p>
+</main>
+<script>
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+function num(v) { return v == null ? 'n/d' : Number(v).toLocaleString('pt-BR'); }
+function pct(v) { return v == null ? 'n/d' : Math.round(v * 100) + '%'; }
+function usd(v) { return '$' + Number(v || 0).toFixed(v >= 1 ? 2 : 4); }
+function dur(ms) {
+  if (ms == null) return 'n/d';
+  var s = Math.round(ms / 1000);
+  return s < 60 ? s + 's' : Math.floor(s / 60) + 'm' + String(s % 60).padStart(2, '0') + 's';
+}
+function card(label, value, hint) {
+  return '<div class="card"><div class="label">' + esc(label) + '</div><div class="value">' + esc(value) + '</div>' + (hint ? '<div class="hint">' + esc(hint) + '</div>' : '') + '</div>';
+}
+function bars(groups, value, fmt, cls) {
+  var max = Math.max.apply(null, groups.map(value).concat([0]));
+  if (!max) return '<div class="empty">nada reportado no período</div>';
+  return groups.slice(0, 12).map(function (g) {
+    var v = value(g);
+    return '<div class="bar-row"><span class="name" title="' + esc(g.key) + '">' + esc(g.key) + '</span>' +
+      '<div class="bar-track"><div class="bar-fill ' + (cls || '') + '" style="width:' + Math.max(1, Math.round(v / max * 100)) + '%"></div></div>' +
+      '<span class="num">' + esc(fmt(v)) + '</span></div>';
+  }).join('');
+}
+async function load() {
+  var by = document.getElementById('by').value;
+  var since = document.getElementById('since').value;
+  try {
+    var res = await fetch('/api/analytics?by=' + encodeURIComponent(by) + '&since=' + encodeURIComponent(since));
+    var d = await res.json();
+    if (!d.ok) throw new Error(d.error || 'erro');
+    var t = d.totals;
+    document.getElementById('cards').innerHTML =
+      card('execuções', num(t.runs), t.running ? t.running + ' rodando' : '') +
+      card('sucesso', pct(t.success_rate), num(t.completed) + ' ok · ' + num(t.failed) + ' falha') +
+      card('custo', usd(t.cost_usd), t.unmeasured ? t.unmeasured + ' sem uso reportado' : 'tudo medido') +
+      card('tokens', num(t.tokens_in + t.tokens_out), num(t.tokens_in) + ' in · ' + num(t.tokens_out) + ' out') +
+      card('duração média', dur(t.avg_duration_ms), '') +
+      card('gates ok', pct(t.quality_rate), num(t.quality_passed) + ' ok · ' + num(t.quality_failed) + ' falha');
+    var groups = d.groups;
+    document.getElementById('cost').innerHTML = bars(groups, function (g) { return g.cost_usd; }, usd);
+    document.getElementById('tokens').innerHTML = bars(groups, function (g) { return g.tokens_in + g.tokens_out; }, num, 'tokens');
+    document.getElementById('tableTitle').textContent = 'Detalhe por ' + document.getElementById('by').selectedOptions[0].textContent;
+    document.getElementById('table').innerHTML = groups.length
+      ? '<table><thead><tr><th>' + esc(by) + '</th><th>runs</th><th>sucesso</th><th>tokens in</th><th>tokens out</th><th>custo</th><th>duração média</th><th>gates ok</th><th>sem uso</th></tr></thead><tbody>' +
+        groups.map(function (g) {
+          return '<tr><td>' + esc(g.key) + '</td><td>' + num(g.runs) + '</td><td class="' + (g.success_rate == null ? '' : g.success_rate >= 0.8 ? 'ok' : 'bad') + '">' + pct(g.success_rate) + '</td>' +
+            '<td>' + num(g.tokens_in) + '</td><td>' + num(g.tokens_out) + '</td><td>' + usd(g.cost_usd) + '</td><td>' + dur(g.avg_duration_ms) + '</td>' +
+            '<td class="' + (g.quality_rate == null ? '' : g.quality_rate >= 0.8 ? 'ok' : 'bad') + '">' + pct(g.quality_rate) + '</td><td>' + num(g.unmeasured) + '</td></tr>';
+        }).join('') + '</tbody></table>'
+      : '<div class="empty">nenhuma execução no período</div>';
+  } catch (err) {
+    document.getElementById('cards').innerHTML = '<div class="empty">' + esc(err.message) + '</div>';
+  }
+}
+document.getElementById('by').addEventListener('change', load);
+document.getElementById('since').addEventListener('change', load);
+document.getElementById('refresh').addEventListener('click', load);
+load();
+setInterval(load, 15000);
+</script>
+</body>
+</html>`
+}
+
 export function renderCanvasPage(title = 'AlterAI - Agentic OS — Tasks', opts = {}) {
   const tt = String(title).replace(/</g, '&lt;').replace(/>/g, '&gt;')
   // JSON dentro de <script>: escapar `<` evita fechar a tag com dados.
@@ -897,6 +1059,7 @@ export function renderCanvasPage(title = 'AlterAI - Agentic OS — Tasks', opts 
   <h1>${tt}</h1>
   <span class="mode">vista Execução · ao vivo (auto-refresh 3s) · ${modeLabel}</span>
   <a href="/">← Board (kanban)</a>
+  <a href="/analytics">📊 Analytics</a>
   <span class="spacer"></span>
   <span class="mode" id="stamp"></span>
   <button id="refreshBtn">↻ atualizar</button>

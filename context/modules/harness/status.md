@@ -579,6 +579,17 @@
 - Pendências: analytics (129); docs (130).
 - Decisões: gate informa, não muda o status do run; gates rodam via pnpm (VM de dev precisa do shim no PATH).
 
+## Handoff (task 129 — qualidade-e-analytics: analytics)
+- Feito: `lib/analytics.js` (NOVO) — `analytics(db, { by, since, until })` agrega runs por tool,
+  modelo, task, agente (tasks.agent) ou dia: runs, rodando, concluídos, falhos, taxa de sucesso,
+  tokens e custo SÓ de runs medidos, sem uso reportado, duração média, gates ok/falha e taxa;
+  `parseSince` (7d, 24h, AAAA-MM-DD, all). `src/analytics.js` (NOVO) — `harness analytics [--by]
+  [--since] [--json]`. `kanban.js` — painel `/analytics` (totais, barras de custo e tokens, tabela,
+  filtros, auto-refresh 15 s) e `GET /api/analytics?by=&since=&project=` no `kanban --serve` e no
+  `harness serve`; link na vista Execução. +2 testes; suíte completa verde (337).
+- Pendências: docs (130).
+- Decisões: período padrão 30 dias; dia agrupado pela data UTC do início do run.
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do
