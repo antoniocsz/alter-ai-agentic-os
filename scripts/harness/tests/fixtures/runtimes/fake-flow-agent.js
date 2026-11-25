@@ -18,7 +18,8 @@ process.stdin.setEncoding('utf8')
 process.stdin.on('data', (c) => (stdin += c))
 process.stdin.on('end', () => {
   const dir = process.env.FAKE_FLOW_DIR
-  const role = /Você é o REVISOR/.test(stdin) ? 'review' : /CORREÇÃO/.test(stdin) ? 'fix' : 'implement'
+  const role = /Você é o JUIZ/.test(stdin) ? 'judge' : /Você é o REVISOR/.test(stdin) ? 'review' : /CORREÇÃO/.test(stdin) ? 'fix' : 'implement'
+  const argv = process.argv.slice(2).join(' ')
   let n = 1
   if (dir) {
     const countFile = path.join(dir, 'count')
@@ -34,7 +35,21 @@ process.stdin.on('end', () => {
     process.exitCode = 1
     return
   }
+  // Execução competitiva (task 124): comportamento por modelo (--model no argv).
+  if (process.env.FAKE_FAIL_MODEL && argv.includes(process.env.FAKE_FAIL_MODEL)) {
+    process.stderr.write('modelo falhou')
+    process.exitCode = 1
+    return
+  }
   let text
+  if (role === 'judge') {
+    if (process.env.FAKE_JUDGE_WRITE) fs.writeFileSync(path.join(process.cwd(), 'juiz.txt'), 'não devia')
+    const pick = process.env.FAKE_JUDGE_PICK ?? 'claude'
+    text = `Comparei as candidatas. A melhor cobre os critérios.\n\nVENCEDOR: ${pick}`
+    out({ type: 'assistant', message: { id: `m${n}`, role: 'assistant', content: [{ type: 'text', text }], usage: { input_tokens: 10, output_tokens: 5 } } })
+    out({ type: 'result', subtype: 'success', is_error: false, result: text, session_id: `sess-flow-${n}`, usage: { input_tokens: 10, output_tokens: 5 } })
+    return
+  }
   if (role === 'review') {
     if (process.env.FAKE_REVIEW_WRITE) fs.writeFileSync(path.join(process.cwd(), 'revisor.txt'), 'não devia')
     const list = dir && fs.existsSync(path.join(dir, 'verdicts')) ? fs.readFileSync(path.join(dir, 'verdicts'), 'utf8').trim().split(',') : ['approved']
@@ -51,6 +66,9 @@ process.stdin.on('end', () => {
     const file = path.join(process.cwd(), 'src', 'a.js')
     const prev = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : ''
     fs.writeFileSync(file, prev + `// ${role} ${n}\n`)
+    const model = (argv.match(/--model (\S+)/) ?? [])[1]
+    if (model) fs.appendFileSync(file, `// modelo ${model}\n`)
+    if (process.env.FAKE_OUTSCOPE_MODEL && argv.includes(process.env.FAKE_OUTSCOPE_MODEL)) fs.writeFileSync(path.join(process.cwd(), 'fora.js'), 'x\n')
     text = `${role === 'fix' ? 'Corrigi' : 'Implementei'} src/a.js.`
   }
   out({ type: 'assistant', message: { id: `m${n}`, role: 'assistant', content: [{ type: 'text', text }], usage: { input_tokens: 10, output_tokens: 5 } } })

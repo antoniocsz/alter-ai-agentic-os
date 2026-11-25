@@ -22,6 +22,7 @@ import { sessionCmd } from '../session.js'
 import { recallCmd } from '../recall.js'
 import { memoryCmd } from '../memory.js'
 import { flowCmd } from '../flow.js'
+import { competeCmd } from '../compete.js'
 import { retroCmd } from '../retro.js'
 import { statusCmd } from '../status.js'
 import { adapterCmd } from '../adapter.js'
@@ -69,6 +70,7 @@ Comandos:
   budget              Consumo medido (hoje, mês, tasks ativas) contra os limites do harness.json [--json]
   runs [<task>]       Execuções de agentes registradas [--batch <id>] [--json] [--limit n]
   flow <task> --implement <tool> --review <tool> [--fix <tool>] [--rounds n] [--approve none|review|each]   Orquestração encadeada (implementar → revisar → corrigir); resume|stop|show|list
+  compete <task> --tools <t1,t2,...> [--judge <tool>] [--max-parallel n]   Execução competitiva: candidatas em worktrees próprias, juiz opcional; pick|discard|show|list
   events <run>        Timeline normalizada de uma execução [--json] [--native]
   report              Métricas do banco [--format table|json|csv] [--module] [--days]
   kanban [--serve [porta] [--host <h>]] | --out <arquivo>   Painel kanban (servidor ou HTML)
@@ -108,6 +110,7 @@ export const commands = {
   session: sessionCmd,
   memory: memoryCmd,
   flow: flowCmd,
+  compete: competeCmd,
   retro: retroCmd,
   recall: recallCmd,
   task,

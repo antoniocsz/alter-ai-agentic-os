@@ -525,6 +525,20 @@
 - Pendências: validar com Claude/Codex reais; execução competitiva (fora de escopo desta feature).
 - Decisões: —
 
+## Handoff (task 124 — execucao-competitiva: motor e CLI)
+- Feito: `lib/competitions.js` (NOVO) — tabelas `competitions`/`competitors`; `createCompetition`
+  (exige worktree da task limpa; uma worktree por candidata, `<task>--<chave>` na branch
+  `compete/<task>/<chave>`, a partir do HEAD da worktree da task; desfaz tudo se falhar),
+  `runCompetition` (pool com `--max-parallel`; cada candidata é um run via `prepareRun({ wt })`;
+  `candidateStats` = arquivos, +/-, fora do escopo; juiz opcional só leitura com
+  `VENCEDOR: <chave>|NENHUM`), `pickCompetitor` (commit na candidata + `merge --squash` na worktree
+  da task, sem commit; remove todas as candidatas), `discardCompetition`. `run.js` — `prepareRun`
+  aceita `wt` e papel `judge` (Claude plan, Codex read-only). `src/compete.js` (NOVO) —
+  `harness compete <task> --tools ... [--judge] [--max-parallel]`, `pick|discard|show|list`.
+  +3 testes (`compete.test.js`); suíte completa verde (330).
+- Pendências: API e canvas (125); docs (126).
+- Decisões: vencedora aplicada como mudança pendente (o humano revisa e integra com worktree finish).
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do

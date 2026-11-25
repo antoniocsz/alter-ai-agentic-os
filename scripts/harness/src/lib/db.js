@@ -5,6 +5,7 @@ import { queueDir, activeDir, doneDir, listTasks, parseTask } from './tasks.js'
 import { redact } from './redact.js'
 import { ensureMemorySchema } from './memories.js'
 import { ensureFlowSchema } from './flows.js'
+import { ensureCompetitionSchema } from './competitions.js'
 
 const [NODE_MAJOR, NODE_MINOR] = process.versions.node.split('.').map(Number)
 if (NODE_MAJOR < 22 || (NODE_MAJOR === 22 && NODE_MINOR < 5)) {
@@ -142,6 +143,8 @@ function migrate(db) {
   ensureMemorySchema(db)
   // Task 121 (orquestracao-encadeada): fluxos implementar → revisar → corrigir.
   ensureFlowSchema(db)
+  // Task 124 (execucao-competitiva): candidatas em worktrees próprias + juiz.
+  ensureCompetitionSchema(db)
 
   const row = db.prepare(`SELECT value FROM meta WHERE key = 'schema_version'`).get()
   if (!row) {

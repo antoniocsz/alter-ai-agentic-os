@@ -45,6 +45,7 @@ export function taskWorktree(root, taskId) {
  */
 export function buildPrompt(taskId, taskBody, wt, contextMd = null, { role = 'implement', extra = null } = {}) {
   if (role === 'review') return buildReviewPrompt(taskId, taskBody, wt, contextMd, extra)
+  if (role === 'judge') return buildJudgePrompt(taskId, taskBody, wt, contextMd, extra)
   const parts = [
     `Você está executando a task ${taskId} do harness (AlterAI - Agentic OS)`,
     `na worktree ${wt.path} (branch ${wt.branch}). Regras desta execução:`,
@@ -72,6 +73,25 @@ export function buildPrompt(taskId, taskBody, wt, contextMd = null, { role = 'im
   if (contextMd) {
     parts.push('', '--- CONTEXTO DO PROJETO (gerado pelo harness para esta task; consulte antes de investigar) ---', contextMd)
   }
+  return parts.join('\n')
+}
+
+/** Prompt do juiz da execução competitiva (task 124): compara as candidatas e recomenda uma. */
+function buildJudgePrompt(taskId, taskBody, wt, contextMd, extra) {
+  const parts = [
+    `Você é o JUIZ de uma execução competitiva da task ${taskId} do harness (AlterAI - Agentic OS).`,
+    `Agentes diferentes resolveram a mesma task, cada um na sua worktree. Você está em ${wt.path}. Regras:`,
+    '- NÃO altere, crie, mova nem apague arquivos — só leia (alteração reprova o julgamento).',
+    '- Compare as candidatas pelos critérios de conclusão da task, escopo, regras do AGENTS.md,',
+    '  corretude, testes e simplicidade. Custo e tamanho só desempatam.',
+    '- Termine com UMA linha, exatamente: `VENCEDOR: <chave da candidata>` ou `VENCEDOR: NENHUM`',
+    '  (nenhuma serve), precedida da justificativa curta. O humano decide; você recomenda.',
+    '',
+    '--- TASK ---',
+    taskBody
+  ]
+  if (extra) parts.push('', extra)
+  if (contextMd) parts.push('', '--- CONTEXTO DO PROJETO (gerado pelo harness para esta task) ---', contextMd)
   return parts.join('\n')
 }
 
@@ -215,11 +235,11 @@ export function resolveRunOptions(flags, toolName) {
  * (`tool`, `model`, `permission-mode`, `unsafe`, `no-context`, `context-budget`, `ignore-budget`).
  * Lança Error com a mensagem acionável; não imprime nada.
  */
-export function prepareRun(root, flags, arg, db, { role = 'implement', extra = null } = {}) {
+export function prepareRun(root, flags, arg, db, { role = 'implement', extra = null, wt: wtOverride = null } = {}) {
   const toolName = flagString(flags, 'tool')
   if (!toolName) throw new Error(USAGE)
   const { probe: driver, opts, unsafe } = resolveRunOptions(flags, toolName)
-  if (role === 'review' && !unsafe) {
+  if ((role === 'review' || role === 'judge') && !unsafe) {
     // Revisor só lê: Claude em modo plan, Codex com sandbox read-only (os demais: guarda do harness).
     opts.readOnly = true
     if (driver.id === 'claude') opts.permissionMode = 'plan'
@@ -231,7 +251,8 @@ export function prepareRun(root, flags, arg, db, { role = 'implement', extra = n
   } catch {
     throw new Error(`task não está ativa: ${arg}\n  rode antes: harness start ${arg} && harness worktree start ${arg}`)
   }
-  const wt = taskWorktree(root, taskId)
+  // Execução competitiva (task 124): cada candidata roda na sua worktree, não na da task.
+  const wt = wtOverride ?? taskWorktree(root, taskId)
   if (!wt) {
     throw new Error(`task sem worktree: ${taskId}\n  o agente só roda isolado — rode antes: harness worktree start ${arg}`)
   }
