@@ -134,6 +134,9 @@ pnpm harness budget                 # consumo medido × limites (harness.json �
   reportado passar do limite. `--ignore-budget` só com aprovação explícita — fica registrado.
 - O prompt inclui o pacote de contexto da task (regras, feature, módulo, handoffs das dependências,
   skills, ADRs, escopo): consulte-o antes de investigar o repositório. `--no-context` desliga.
+  O pacote é otimizado: handoffs antigos compactados e seções grandes resumidas (títulos + 1ª linha)
+  — quando precisar do detalhe, abra a fonte indicada. `harness context digest <módulo>` resume o
+  histórico do módulo em `digest.md`.
 - No lote, tasks com dependência entre si ou escopos sobrepostos são recusadas antes de qualquer
   execução; a integração continua task a task (`worktree finish`).
 - Fluxo encadeado: `pnpm harness flow <task> --implement claude --review codex [--approve review]`

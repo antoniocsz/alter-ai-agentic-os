@@ -630,6 +630,13 @@
 - Pendências: docs (134); gerar o digest do módulo harness com uma tool real.
 - Decisões: o arquivo é escrito pelo harness, nunca pelo agente; digest versionado (revisar antes de commitar).
 
+## Handoff (task 134 — otimizador-de-contexto: docs)
+- Feito: README — subseção "Otimizador de contexto" (compactação, resumo antes de omitir,
+  `--stats`/`--full`, `context.optimize`, `harness context digest`) e linha na tabela da CLI.
+  AGENTS.md — pacote otimizado e digest. Spec com ACs e Estado.
+- Pendências: gerar o digest do módulo harness com uma tool real.
+- Decisões: —
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do

@@ -175,6 +175,7 @@ tasks/
 | `harness kanban` | Painel kanban: `--serve [porta]` (drag&drop) ou `--out <arquivo>` (estático) |
 | `harness flow <task> --implement <tool> --review <tool> [--fix t] [--rounds n] [--approve none\|review\|each]` | Orquestração encadeada: implementar → revisar → corrigir (ver "Orquestração encadeada") |
 | `harness compete <task> --tools <t1,t2,...> [--judge <tool>]` | Execução competitiva: candidatas em worktrees próprias, juiz opcional, você escolhe (ver "Execução competitiva") |
+| `harness context <task> [--stats] [--full]` / `context digest <módulo> --tool <t>` | Pacote de contexto com estatística de economia; digest do histórico do módulo (ver "Otimizador de contexto") |
 | `harness analytics [--by tool\|model\|task\|agent\|day] [--since 30d] [--json]` | Tokens, custo, sucesso e gates das execuções (painel `/analytics`) |
 | `harness serve [--port n] [--host h] [--allow-unsafe]` | Kanban + agendador de rotinas + webhook + API local de execuções num único processo (ver "Rotinas e `harness serve`" e "API local e canvas interativo") |
 | `harness check [flags]` | Valida o protocolo (pipeline, escopos, seções, módulos). Flags: `--json`, `--barrel`, `--lint`, `--typecheck`, `--db` |
@@ -797,6 +798,30 @@ pnpm harness context 12 --json | --out ctx.md # para outras ferramentas
 - No `harness run`/`run --batch` o pacote vai anexado ao prompt (sem repetir a task), com orçamento
   de `harness.json → context.budget` (padrão **8000**; `0` desliga). O tamanho fica no histórico da
   task (`context_built`).
+
+### Otimizador de contexto
+
+Ligado por padrão (`harness.json → context.optimize: false` desliga; `harness context <task> --full`
+mostra o pacote integral). Sem LLM e sem custo:
+
+- **Handoffs**: o mais recente entra inteiro; os anteriores só com o essencial (título, 1ª frase do
+  "Feito", Pendências e Decisões). O detalhe continua no `status.md`.
+- **Resumo antes de omitir**: seção que não cabe no orçamento entra como esqueleto (títulos + 1ª
+  linha de cada parte) antes de ser cortada; só sai se nem assim couber.
+- **Medição**: `harness context <task> --stats` mostra tokens por seção (otimizado × integral) e a
+  economia; o `harness run` registra o tamanho e a economia em cada pacote (`context_built`).
+
+**Digest do módulo** — quando o histórico cresce, um agente resume os handoffs:
+
+```bash
+harness context digest harness --tool claude [--model m] [--max-words 400] [--dry-run]
+```
+
+- O agente só lê (Claude em `plan`, Codex `read-only`; se alterar algo, o resultado é descartado) e
+  responde entre `--- DIGEST ---` e `--- FIM ---`; o harness grava `context/modules/<m>/digest.md`
+  (com origem e data). É um run normal (orçamento, uso, custo), registrado como `module:<m>`.
+- O pacote de contexto passa a trazer o digest + o handoff mais recente; revise e commite o
+  digest, e gere de novo quando o histórico crescer.
 
 ## Orçamento (`harness budget`)
 

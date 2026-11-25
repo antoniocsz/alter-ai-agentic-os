@@ -21,11 +21,19 @@ Cada run de fluxo ou competição paga esse custo de novo, e não há medição 
 
 ## Critérios de aceitação
 
-- [ ] AC-1 — Handoffs anteriores compactados; o mais recente inteiro; config `context.optimize`.
-- [ ] AC-2 — Seção grande vira resumo antes de ser omitida por orçamento.
-- [ ] AC-3 — `--stats` e economia registrada; `--full` desliga.
-- [ ] AC-4 — `context digest`: agente só leitura, bloco parseável, harness grava; pacote usa o digest.
-- [ ] AC-5 — Zero dependências novas; testes.
+- [x] AC-1 — Handoffs anteriores compactados; o mais recente inteiro; config `context.optimize`.
+- [x] AC-2 — Seção grande vira resumo antes de ser omitida por orçamento.
+- [x] AC-3 — `--stats` e economia registrada; `--full` desliga.
+- [x] AC-4 — `context digest`: agente só leitura, bloco parseável, harness grava; pacote usa o digest.
+- [x] AC-5 — Zero dependências novas; testes.
+
+## Estado (2026-11-25)
+
+- Entregue nas tasks 132 (compactação, resumo, medição), 133 (digest do módulo) e 134 (docs).
+- Validado com testes e no próprio repo (pacote da task 132: ~3964 tokens contra ~4108 integral —
+  os handoffs deste repo já são curtos; a economia cresce com históricos longos e orçamento apertado).
+- Pendente: gerar o digest do módulo `harness` com uma tool real e medir.
+- Decisões: otimização determinística por padrão; digest por agente só sob demanda.
 
 ## Fora de escopo
 
