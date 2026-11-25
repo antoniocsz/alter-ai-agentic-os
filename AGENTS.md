@@ -127,6 +127,9 @@ pnpm harness budget                 # consumo medido × limites (harness.json �
   `--unsafe` (pode aprovar sozinho).
   Liberar tudo só com `--unsafe`, que fica gravado no run.
 - Tokens e custo só entram quando a tool reporta — nunca são estimados.
+- Gates pós-run (`harness.json → gates.run`): depois do run, o harness roda lint/testes na worktree
+  e registra o resultado (`harness runs`, timeline, canvas); no fluxo, o revisor recebe o resultado.
+  Deixe a worktree passando nos gates antes de encerrar. `harness analytics` mostra uso e custo.
 - Orçamento (`harness.json → budget`): run recusado se task/dia/mês estouraram e cortado se o uso
   reportado passar do limite. `--ignore-budget` só com aprovação explícita — fica registrado.
 - O prompt inclui o pacote de contexto da task (regras, feature, módulo, handoffs das dependências,

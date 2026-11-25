@@ -590,6 +590,13 @@
 - Pendências: docs (130).
 - Decisões: período padrão 30 dias; dia agrupado pela data UTC do início do run.
 
+## Handoff (task 130 — qualidade-e-analytics: docs)
+- Feito: README — seção "Qualidade pós-run e analytics" (gates.run, onde aparece, `--no-gates`,
+  worktree sem node_modules; `harness analytics`, painel `/analytics`, API) e linha na tabela da CLI.
+  AGENTS.md — gates pós-run para o agente. Spec com ACs e Estado.
+- Pendências: medir em projeto real o tempo dos gates por run.
+- Decisões: —
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do

@@ -23,12 +23,20 @@ tool, modelo, agente ou task custa nem qual entrega com mais qualidade.
 
 ## Critérios de aceitação
 
-- [ ] AC-1 — `gates.run` validado e executado após runs concluídos (todos os caminhos), sem bloquear o processo.
-- [ ] AC-2 — Resultado em `quality.gate` + `runs.quality`; visível no CLI, `harness runs`, canvas e competição; `--no-gates`.
-- [ ] AC-3 — Revisor do fluxo recebe os gates da última alteração.
-- [ ] AC-4 — `harness analytics` agrega por tool/modelo/task/agente/dia com período; uso não reportado fora das somas.
-- [ ] AC-5 — Painel `/analytics` e `GET /api/analytics`.
-- [ ] AC-6 — Zero dependências novas; testes.
+- [x] AC-1 — `gates.run` validado e executado após runs concluídos (todos os caminhos), sem bloquear o processo.
+- [x] AC-2 — Resultado em `quality.gate` + `runs.quality`; visível no CLI, `harness runs`, canvas e competição; `--no-gates`.
+- [x] AC-3 — Revisor do fluxo recebe os gates da última alteração.
+- [x] AC-4 — `harness analytics` agrega por tool/modelo/task/agente/dia com período; uso não reportado fora das somas.
+- [x] AC-5 — Painel `/analytics` e `GET /api/analytics`.
+- [x] AC-6 — Zero dependências novas; testes.
+
+## Estado (2026-11-25)
+
+- Entregue nas tasks 128 (gates pós-run), 129 (analytics: CLI, API, painel) e 130 (docs).
+- Validado com scripts reais de package.json (lint ok, test falhando), gates nativos, agente
+  falso no run/fluxo e banco semeado no analytics.
+- Pendente: ver com projeto real quanto tempo os gates acrescentam por run.
+- Decisões: gate informa e não altera o status do run; período padrão do analytics 30 dias.
 
 ## Fora de escopo
 

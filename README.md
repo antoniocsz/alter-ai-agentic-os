@@ -24,6 +24,7 @@ Camada de operação que padroniza como agentes de IA trabalham em um projeto de
 - [Memória local (sessões, recall, status)](#memória-local-sessões-recall-status)
 - [Memória em níveis (`harness memory`)](#memória-em-níveis-harness-memory)
 - [Painel kanban](#painel-kanban)
+- [Qualidade pós-run e analytics](#qualidade-pós-run-e-analytics)
 - [Execução ao vivo (canvas)](#execução-ao-vivo-canvas)
 - [API local e canvas interativo](#api-local-e-canvas-interativo)
 - [Orquestração encadeada (`harness flow`)](#orquestração-encadeada-harness-flow)
@@ -174,6 +175,7 @@ tasks/
 | `harness kanban` | Painel kanban: `--serve [porta]` (drag&drop) ou `--out <arquivo>` (estático) |
 | `harness flow <task> --implement <tool> --review <tool> [--fix t] [--rounds n] [--approve none\|review\|each]` | Orquestração encadeada: implementar → revisar → corrigir (ver "Orquestração encadeada") |
 | `harness compete <task> --tools <t1,t2,...> [--judge <tool>]` | Execução competitiva: candidatas em worktrees próprias, juiz opcional, você escolhe (ver "Execução competitiva") |
+| `harness analytics [--by tool\|model\|task\|agent\|day] [--since 30d] [--json]` | Tokens, custo, sucesso e gates das execuções (painel `/analytics`) |
 | `harness serve [--port n] [--host h] [--allow-unsafe]` | Kanban + agendador de rotinas + webhook + API local de execuções num único processo (ver "Rotinas e `harness serve`" e "API local e canvas interativo") |
 | `harness check [flags]` | Valida o protocolo (pipeline, escopos, seções, módulos). Flags: `--json`, `--barrel`, `--lint`, `--typecheck`, `--db` |
 | `harness version [--bump patch\|minor\|major]` | Mostra ou incrementa a versão do harness (registra a mudança no banco) |
@@ -826,6 +828,40 @@ pnpm harness budget --json
 - **`--ignore-budget`**: roda mesmo assim e fica gravado no run (`budget_override`).
 - Limitação: runs simultâneos de um lote só enxergam o gasto uns dos outros quando terminam (o saldo
   é calculado no início de cada task) — num lote grande, o total pode passar do limite do dia/mês.
+
+## Qualidade pós-run e analytics
+
+**Gates pós-run** — depois de cada run **concluído** (`harness run`, lote, painel, cada etapa de
+implementação/correção de um fluxo e cada candidata de uma competição), o harness roda na worktree
+os gates de `harness.json → gates.run` — os mesmos nomes de `gates.finish`/`gates.merge`: script do
+`package.json` (`lint`, `test`, `typecheck`…) ou nativo (`secrets`, `links`, `test:affected`).
+
+```jsonc
+// harness.json
+"gates": { "finish": ["scope", "secrets"], "merge": [], "run": ["lint", "test"] }
+```
+
+- Cada gate vira um evento `quality.gate` na timeline do run e o resultado agregado fica em
+  `runs.quality` (`passed`, `failed` ou `skipped`). O run continua `completed` — o gate informa, não
+  desfaz o trabalho do agente.
+- Aparece no `harness run` (🧪), em `harness runs` (`completed · gates failed`), no cartão do canvas,
+  na tabela da competição e, no fluxo, **vai para o revisor** junto com o diff.
+- Rodam num processo separado (não travam o `harness serve`). `--no-gates` pula. Worktree sem
+  `node_modules` com dependências declaradas: gate de script é pulado (`skipped`), ou falha com
+  `gates.strict: true`.
+
+**Analytics** — tokens, custo, sucesso, duração e gates das execuções, agrupados:
+
+```bash
+harness analytics                         # por tool, últimos 30 dias
+harness analytics --by agent|model|task|day --since 7d|90d|all|2026-11-01 [--json]
+```
+
+- Só o uso **reportado** pelas tools entra nas somas; runs sem uso reportado são contados à parte
+  ("sem uso") — o total é um piso, nunca estimativa.
+- Painel em **`/analytics`** (no `kanban --serve` e no `harness serve`; link na vista Execução):
+  totais, barras de custo e de tokens por grupo e tabela, com filtros de agrupamento e período;
+  API `GET /api/analytics?by=&since=`.
 
 ## Execução ao vivo (canvas)
 
