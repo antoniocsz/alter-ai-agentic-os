@@ -169,14 +169,24 @@ export function pidAlive(pid) {
 }
 
 /**
+ * Runs que ESTE processo ainda está acompanhando (task 131). Entre o fim do processo do agente e o
+ * `close` dos pipes, o pid já não existe mas o run ainda vai ser fechado pelo runner — o
+ * `reapOrphans` de outro run disparado no mesmo processo (serve, lote, competição) não pode
+ * marcá-lo como órfão.
+ */
+export const inFlightRuns = new Set()
+
+/**
  * Run `running` cujo processo não existe mais (harness morto, máquina reiniciada)
  * vira `failed`/`orphaned`. Run sem pid registrado também é órfão: o runner grava o
  * pid logo após o spawn, então `running` sem pid significa que o spawn nunca terminou.
+ * Runs em `inFlightRuns` (deste processo) nunca são órfãos.
  */
 export function reapOrphans(db, { isAlive = pidAlive } = {}) {
   const running = db.prepare("SELECT id, pid FROM runs WHERE status = 'running'").all()
   const reaped = []
   for (const r of running) {
+    if (inFlightRuns.has(r.id)) continue
     if (r.pid !== null && isAlive(r.pid)) continue
     finishRun(db, r.id, { status: 'failed', error: 'orphaned' })
     appendRunEvent(db, r.id, { type: 'run.failed', payload: { reason: 'orphaned', pid: r.pid } })

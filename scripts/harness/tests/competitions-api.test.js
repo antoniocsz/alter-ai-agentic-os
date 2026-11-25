@@ -120,7 +120,7 @@ test('api de competições: inicia em segundo plano, compara, juiz recomenda, pi
     await h.runs.compSettled(id)
     const got = await call(h, 'GET', `/api/competitions/${id}`)
     assert.equal(got.json.competition.status, 'ready')
-    assert.equal(got.json.competition.judge_winner, 'claude-2')
+    assert.equal(got.json.competition.judge_winner, 'claude-2', JSON.stringify(got.json.competitors.map((c) => [c.key, c.status, c.files_changed, c.error])))
     assert.deepEqual(got.json.competitors.map((c) => [c.key, c.status, c.files_changed]), [['claude', 'completed', 1], ['claude-2', 'completed', 1]])
     assert.equal(got.json.competitors[0].run.status, 'completed')
 

@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { spawn, execFileSync } from 'node:child_process'
-import { startRun, updateRun, appendRunEvent, finishRun, getRun } from './runs.js'
+import { startRun, updateRun, appendRunEvent, finishRun, getRun, inFlightRuns } from './runs.js'
 import { harvestRunMemories } from './memories.js'
 import { runGatesAsync, qualityOf } from './gates.js'
 
@@ -151,6 +151,7 @@ export function runTool({ db, taskId, cwd, driver, prompt, opts = {}, env = proc
     batchId,
     budgetOverride
   })
+  inFlightRuns.add(runId) // task 131: não é órfão enquanto este processo o acompanha
   // API local (task 115): o chamador conhece o id antes do fim (responde 202 com ele).
   try {
     onStart?.(runId)
@@ -266,6 +267,7 @@ export function runTool({ db, taskId, cwd, driver, prompt, opts = {}, env = proc
     const settle = (exitCode, spawnError = null) => {
       if (settled) return
       settled = true
+      inFlightRuns.delete(runId)
       if (buffer.trim()) handleLine(buffer)
       buffer = ''
       signal?.removeEventListener?.('abort', onAbort)

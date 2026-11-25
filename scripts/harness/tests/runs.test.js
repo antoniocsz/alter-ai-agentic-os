@@ -16,6 +16,7 @@ import {
   runEvents,
   latestRun,
   reapOrphans,
+  inFlightRuns,
   pidAlive,
   RUN_EVENT_TYPES
 } from '../src/lib/runs.js'
@@ -137,6 +138,20 @@ test('listRuns/latestRun: mais recente primeiro e filtro por task; ids únicos n
   assert.equal(listRuns(db).length, 3)
   assert.equal(latestRun(db, '08-outra.md').tool, 'codex')
   assert.equal(latestRun(db, '99-nada.md'), null)
+  db.close()
+})
+
+test('reapOrphans: run acompanhado por este processo (pid já morto, close pendente) não vira órfão (task 131)', () => {
+  const db = openDb(tmpdir())
+  const mine = startRun(db, { taskId: TASK, tool: 'claude', pid: 999 })
+  inFlightRuns.add(mine)
+  try {
+    assert.deepEqual(reapOrphans(db, { isAlive: () => false }), [])
+    assert.equal(getRun(db, mine).status, 'running')
+  } finally {
+    inFlightRuns.delete(mine)
+  }
+  assert.deepEqual(reapOrphans(db, { isAlive: () => false }), [mine])
   db.close()
 })
 

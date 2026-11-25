@@ -597,6 +597,17 @@
 - Pendências: medir em projeto real o tempo dos gates por run.
 - Decisões: —
 
+## Handoff (task 131 — run do próprio processo não é órfão)
+- Feito: CI do push da 130 falhou em `competitions-api.test.js` (juiz não rodou). Causa real, não
+  do teste: `prepareRun` chama `reapOrphans`, que fechava como `failed/orphaned` um run ainda
+  acompanhado por este processo — o processo do agente já tinha saído, mas o `close` dos pipes não
+  tinha chegado; um dispatch nesse intervalo (outra candidata, outro run do serve) o matava.
+  `lib/runs.js` — `inFlightRuns`; `reapOrphans` ignora esses ids. `lib/runner.js` — adiciona ao
+  abrir o run e retira no settle. +1 teste (`runs.test.js`); competitions-api 6/6 (antes 2/6
+  falhavam); suíte completa verde (338).
+- Pendências: —
+- Decisões: órfão = run `running` cujo processo morreu e que nenhum runner deste processo acompanha.
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do
