@@ -26,6 +26,9 @@ const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null)
 // Tools do Gemini CLI que alteram arquivos → também viram `agent.file_changed`.
 const FILE_TOOLS = new Set(['write_file', 'replace', 'edit'])
 
+/** Conversa contínua (task 139): sem retomada por id de sessão no modo não interativo do harness (ainda). */
+export const supportsResume = false
+
 export function command({ model = null, unsafe = false } = {}) {
   const args = ['--output-format', 'stream-json', '--approval-mode', unsafe ? 'yolo' : 'auto_edit']
   if (model) args.push('--model', model)
@@ -105,5 +108,5 @@ export function create() {
     return { events }
   }
 
-  return { id, bin, installHint, command, normalize }
+  return { id, bin, installHint, supportsResume, command, normalize }
 }

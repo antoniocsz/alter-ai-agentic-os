@@ -680,6 +680,17 @@
 - Pendências: validar o plano com o Claude real; painel do coordenador no canvas.
 - Decisões: —
 
+## Handoff (task 139 — conversa-continua: run --continue + API)
+- Feito: drivers com `supportsResume` e `command({ resume })` — claude `--resume <id>`, codex
+  `exec … resume <id> -`, opencode `--session <id>`; gemini não suporta. `lib/conversation.js` (NOVO)
+  — `validateMessage`, `resolveContinuation` (recusa run rodando, sem sessão, revisor/juiz, fora da
+  worktree), `buildContinuePrompt`, `conversationOf`. `runs.parent_run_id` + evento `user.message`;
+  `harness run <task> --continue [<run>] --message`; API: `continue`/`message` no `POST /api/runs`
+  e `GET /api/conversation`. README e AGENTS.md. +4 testes; suíte completa verde (354).
+- Pendências: validar a retomada com as tools reais (sobretudo `codex exec resume` com stdin);
+  interface de conversa no app (Workspace).
+- Decisões: continuação manda só a mensagem + lembrete das regras; tool fixa pela sessão.
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do

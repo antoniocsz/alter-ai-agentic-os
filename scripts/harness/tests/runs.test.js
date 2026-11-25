@@ -107,7 +107,7 @@ test('appendRunEvent: tipo fora da lista e run inexistente são rejeitados', () 
   const runId = startRun(db, { taskId: TASK, tool: 'codex' })
   assert.throws(() => appendRunEvent(db, runId, { type: 'agent.thinking' }), /tipo de evento de run inválido/)
   assert.throws(() => appendRunEvent(db, 'run-nao-existe', { type: 'agent.message' }), /run não encontrado/)
-  assert.ok(RUN_EVENT_TYPES.every((t) => /^(run|agent|quality)\.[a-z_]+$/.test(t)))
+  assert.ok(RUN_EVENT_TYPES.every((t) => /^(run|agent|quality|user)\.[a-z_]+$/.test(t)))
   db.close()
 })
 

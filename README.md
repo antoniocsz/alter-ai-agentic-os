@@ -151,6 +151,7 @@ tasks/
 | `harness worktree finish <task>` | Commita, rebase, roda gates.merge, squash merge, conclui a task e remove a worktree |
 | `harness worktree list` / `prune` | Lista worktrees registradas / limpa entradas órfãs |
 | `harness run <task> --tool <claude\|codex\|opencode\|gemini>` | Executa a task no agente, de verdade, dentro da worktree da task. Flags: `--model`, `--unsafe`, `--permission-mode` (só claude); `--stop <run>` interrompe |
+| `harness run <task> --continue [<run>] --message "<texto>"` | Continua a conversa: retoma a sessão do agente do último run da task (ou do run indicado) e manda só a sua mensagem. claude, codex e opencode |
 | `harness run --batch <t1,t2,...> --tool <t>` | Lote paralelo: prepara as tasks (start + worktree) e roda um agente por worktree ao mesmo tempo. Flag: `--max-parallel` (padrão `wip.active`) |
 | `harness runs [<task>]` | Lista execuções de agentes: status, duração, tokens e custo (medido ou n/d). Flags: `--batch <id>`, `--json`, `--limit` |
 | `harness budget` | Consumo **medido** (hoje, mês, tasks ativas) contra os limites de `harness.json → budget`; avisa runs sem uso reportado. Flag: `--json` |
@@ -680,6 +681,31 @@ interpolado num comando de shell.
   `danger-full-access` no Codex); fica gravado no run e aparece no `/canvas`.
 - **Status**: implementado e testado com executáveis falsos que reproduzem o formato documentado de
   cada tool. A validação com as tools reais instaladas ainda está pendente.
+
+### Conversa contínua (`run --continue`)
+
+Depois de um run, dá para **continuar a conversa** com o mesmo agente, na mesma sessão, em vez
+de abrir um run do zero:
+
+```bash
+pnpm harness run 12 --tool claude
+pnpm harness run 12 --continue --message "use o validarEmail do cadastro"
+pnpm harness run 12 --continue run-12-20261125… --message "…"   # continua um run específico
+```
+
+- A tool retoma a sessão que ela mesma reportou: `claude -p --resume <id>`,
+  `codex exec … resume <id> -`, `opencode run --session <id>`. O Gemini ainda não continua.
+- O prompt é só a sua mensagem com um lembrete das regras (escopo, sem finish/merge/push): a
+  sessão já tem a task e o contexto.
+- O novo run aponta para o anterior (`parent_run_id`) e a timeline abre com `user.message`.
+  Orçamento, gates pós-run e `--unsafe` valem como num run normal.
+- Recusas: run ainda rodando, run sem sessão registrada, revisor ou juiz (rodaram só leitura),
+  candidata de competição (outra worktree), `--tool` diferente da sessão.
+- Pela API local: `POST /api/runs` com `{ "task": "12", "continue": true | "<run>", "message": "…" }`;
+  `GET /api/conversation?task=12` devolve os runs da task em ordem, com mensagens, ações e
+  `can_continue`.
+- **Status**: testado com agente falso. A retomada com as tools reais ainda precisa de validação
+  (em especial o `codex exec resume` com o prompt pelo stdin).
 
 ### Lote paralelo (`run --batch`)
 

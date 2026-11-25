@@ -23,8 +23,15 @@ const FILE_TOOLS = { Edit: 'file_path', Write: 'file_path', MultiEdit: 'file_pat
 const MAX_TEXT = 4000
 const clip = (s) => (typeof s === 'string' && s.length > MAX_TEXT ? s.slice(0, MAX_TEXT) + '…' : s)
 
-export function command({ model = null, permissionMode = 'acceptEdits', unsafe = false } = {}) {
+/**
+ * Conversa contínua (task 139): `resume` = session_id de um run anterior → `--resume <id>` retoma a
+ * mesma sessão (doc headless: `claude -p --resume "$session_id" "..."`); o prompt segue pelo stdin.
+ */
+export const supportsResume = true
+
+export function command({ model = null, permissionMode = 'acceptEdits', unsafe = false, resume = null } = {}) {
   const args = ['-p', '--output-format', 'stream-json', '--verbose']
+  if (resume) args.push('--resume', resume)
   if (model) args.push('--model', model)
   if (unsafe) {
     args.push('--permission-mode', 'bypassPermissions')
@@ -172,5 +179,5 @@ export function create() {
     }
     return out
   }
-  return { id, bin, installHint, command, normalize: normalizeWithPartial }
+  return { id, bin, installHint, supportsResume, command, normalize: normalizeWithPartial }
 }

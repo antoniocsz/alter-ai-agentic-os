@@ -29,8 +29,12 @@ const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null)
 // Tools de edição do OpenCode → também viram `agent.file_changed`.
 const FILE_TOOLS = new Set(['edit', 'write', 'patch', 'multiedit'])
 
-export function command({ model = null } = {}) {
+/** Conversa contínua (task 139): `resume` = sessionID de um run anterior → `--session <id>` (doc da CLI). */
+export const supportsResume = true
+
+export function command({ model = null, resume = null } = {}) {
   const args = ['run', '--format', 'json']
+  if (resume) args.push('--session', resume)
   if (model) args.push('--model', model)
   return args
 }
@@ -111,5 +115,5 @@ export function create() {
     return { events: [{ type: 'agent.message', payload: { text: null }, native: obj }] }
   }
 
-  return { id, bin, installHint, requiresUnsafe, command, normalize }
+  return { id, bin, installHint, requiresUnsafe, supportsResume, command, normalize }
 }

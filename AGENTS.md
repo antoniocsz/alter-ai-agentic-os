@@ -115,6 +115,7 @@ pnpm harness run <task> --tool claude|codex|opencode|gemini [--model m]   # prom
 pnpm harness runs [<task>]          # execuções: status, duração, tokens, custo (medido ou n/d)
 pnpm harness events <run>           # timeline normalizada (mensagens, ferramentas, arquivos, uso)
 pnpm harness run --stop <run>       # interrompe (mata a árvore de processos)
+pnpm harness run <task> --continue --message "<texto>"   # continua a sessão do agente do último run
 pnpm harness run --batch 12,13 --tool claude [--max-parallel n]  # lote: um agente por worktree, em paralelo
 pnpm harness runs --batch <id>      # resultado do lote
 pnpm harness context <task>         # pacote de contexto que o run anexa ao prompt (--budget n)
@@ -137,6 +138,8 @@ pnpm harness budget                 # consumo medido × limites (harness.json �
   O pacote é otimizado: handoffs antigos compactados e seções grandes resumidas (títulos + 1ª linha)
   — quando precisar do detalhe, abra a fonte indicada. `harness context digest <módulo>` resume o
   histórico do módulo em `digest.md`.
+- Conversa contínua: numa continuação você recebe só a mensagem do humano — as regras do início da
+  sessão continuam valendo (escopo, sem finish/merge/push, sem mexer em tasks/ e status.md).
 - No lote, tasks com dependência entre si ou escopos sobrepostos são recusadas antes de qualquer
   execução; a integração continua task a task (`worktree finish`).
 - Coordenador: `pnpm harness coordinate plan <feature> --tool claude` → o humano aprova

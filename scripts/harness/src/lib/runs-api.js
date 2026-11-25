@@ -12,7 +12,8 @@ import { getRun, listRuns, runEvents, latestRun, pidAlive, runDurationMs } from 
 import { runTool, stopRun } from './runner.js'
 import { resolveTaskId } from './db.js'
 import { activeDir, resolveTaskName } from './tasks.js'
-import { prepareRun, resolveRunOptions, taskWorktree } from '../run.js'
+import { prepareRun, prepareContinue, resolveRunOptions, taskWorktree } from '../run.js'
+import { ConversationError, conversationOf } from './conversation.js'
 import { FlowError, APPROVE_MODES, createFlow, flowSteps, getFlow, listFlows, parseAgentSpec, resumeFlow, runFlow, stopFlow } from './flows.js'
 import { detectRuntimes } from '../runtimes.js'
 import { parseTask } from './tasks.js'
@@ -20,7 +21,7 @@ import { parseBaseline } from './pipeline.js'
 import { CompetitionError, competitors as compCandidates, createCompetition, discardCompetition, getCompetition, listCompetitions, openCompetitionFor, parseCompetitors, pickCompetitor, runCompetition } from './competitions.js'
 import path from 'node:path'
 
-const MAX_BODY = 16 * 1024
+const MAX_BODY = 64 * 1024 // task 139: mensagens da conversa
 const RUN_ID_RE = /^run-[A-Za-z0-9x]+-\d{8,}[0-9-]*$/
 const FLOW_ID_RE = /^flow-[A-Za-z0-9x]+-\d{8,}$/
 const COMP_ID_RE = /^comp-[A-Za-z0-9x]+-\d{8,}$/
@@ -129,8 +130,9 @@ export function createRunsApi(root, opts = {}) {
     const task = body.task === undefined || body.task === null ? '' : String(body.task)
     if (!TASK_ARG_RE.test(task)) throw new ApiError(400, 'task obrigatória (ex.: "07" ou "07-exemplo.md")')
     const tool = str('tool')
-    if (!tool) throw new ApiError(400, 'tool obrigatória (veja GET /api/runtimes)')
-    const flags = { tool }
+    const continuing = body.continue !== undefined && body.continue !== null && body.continue !== false
+    if (!tool && !continuing) throw new ApiError(400, 'tool obrigatória (veja GET /api/runtimes)')
+    const flags = tool ? { tool } : {}
     const model = str('model')
     if (model) flags.model = model
     const mode = str('permissionMode')
@@ -144,20 +146,28 @@ export function createRunsApi(root, opts = {}) {
       if (!Number.isInteger(body.contextBudget) || body.contextBudget < 0) throw new ApiError(400, 'contextBudget deve ser inteiro >= 0 (0 desliga)')
       flags['context-budget'] = String(body.contextBudget)
     }
-    return { task, flags }
+    if (continuing) {
+      // Conversa contínua (task 139): `continue` = true (último run com sessão) ou o id do run.
+      if (body.continue !== true && (typeof body.continue !== 'string' || !RUN_ID_RE.test(body.continue))) {
+        throw new ApiError(400, 'continue deve ser true ou o id de um run')
+      }
+      if (typeof body.message !== 'string') throw new ApiError(400, 'message obrigatória para continuar a conversa')
+      return { task, flags, cont: { from: body.continue === true ? null : body.continue, message: body.message } }
+    }
+    return { task, flags, cont: null }
   }
 
   /** Dispara o agente; resolve com o run já aberto (`running`). O run segue em segundo plano. */
   function dispatch(body) {
-    const { task, flags } = flagsFrom(body)
+    const { task, flags, cont } = flagsFrom(body)
     const db = openDb(root)
     let keepOpen = false
     try {
       let prep
       try {
-        prep = prepareRun(root, flags, task, db)
+        prep = cont ? prepareContinue(root, flags, task, db, cont) : prepareRun(root, flags, task, db)
       } catch (err) {
-        throw new ApiError(err.code === 'BUDGET' ? 409 : 422, err.message)
+        throw new ApiError(err.code === 'BUDGET' ? 409 : err instanceof ConversationError ? 409 : 422, err.message)
       }
       const busy = [...active.values(), ...flowsActive.values(), ...compsActive.values()].some((a) => a.taskId === prep.taskId)
       const last = latestRun(db, prep.taskId)
@@ -181,6 +191,8 @@ export function createRunsApi(root, opts = {}) {
           limit: prep.gate.limit ?? null,
           budgetOverride: prep.money.ignore,
           gates: prep.gates,
+          parentRunId: prep.parentRunId ?? null,
+          userMessage: prep.userMessage ?? null,
           onStart: (id) => {
             runId = id
           }
@@ -203,6 +215,15 @@ export function createRunsApi(root, opts = {}) {
     } finally {
       if (!keepOpen) db.close()
     }
+  }
+
+  /** Conversa da task (task 139): runs em ordem com mensagens, ações e continuação. */
+  function conversation(task, { limit = 30 } = {}) {
+    if (!task || !TASK_ARG_RE.test(task)) throw new ApiError(400, 'task obrigatória (?task=07)')
+    const n = Number(limit)
+    if (!Number.isInteger(n) || n < 1 || n > 200) throw new ApiError(400, `limit inválido: ${limit} (1–200)`)
+    const taskId = resolveTaskId(root, task)
+    return withDb((db) => ({ task: taskId, runs: conversationOf(db, taskId, { limit: n }) }))
   }
 
   function stop(id) {
@@ -566,7 +587,7 @@ export function createRunsApi(root, opts = {}) {
   /** Atende `/api/runtimes` e `/api/runs*`. Retorna false se a rota não é desta API. */
   function handle(req, res, url) {
     const p = url.pathname
-    if (!/^\/api\/(runtimes|runs|flows|competitions|shutdown)(\/|$)/.test(p)) return false
+    if (!/^\/api\/(runtimes|runs|flows|competitions|shutdown|conversation)(\/|$)/.test(p)) return false
     const exec = async () => {
       if (!hostAllowed(req)) throw new ApiError(403, 'host não permitido')
       const q = url.searchParams
@@ -587,6 +608,9 @@ export function createRunsApi(root, opts = {}) {
       const getM = p.match(/^\/api\/runs\/([^/]+)$/)
       if (req.method === 'GET' && getM) {
         return send(res, 200, { ok: true, ...get(decodeURIComponent(getM[1]), { after: q.get('after') ?? 0, native: q.get('native') === '1' }) })
+      }
+      if (req.method === 'GET' && p === '/api/conversation') {
+        return send(res, 200, { ok: true, ...conversation(q.get('task'), { limit: q.get('limit') ?? 30 }) })
       }
       if (req.method === 'GET' && p === '/api/flows') return send(res, 200, { ok: true, flows: listFlowsApi({ task: q.get('task'), limit: q.get('limit') ?? 30 }) })
       if (req.method === 'POST' && p === '/api/flows') {
@@ -629,5 +653,5 @@ export function createRunsApi(root, opts = {}) {
     return true
   }
 
-  return { token, allowUnsafe, runtimes, list, get, dispatch, stop, settled, stopAll, handle, active, flowSettled, flowsActive, compSettled, compsActive }
+  return { token, allowUnsafe, runtimes, list, get, dispatch, conversation, stop, settled, stopAll, handle, active, flowSettled, flowsActive, compSettled, compsActive }
 }

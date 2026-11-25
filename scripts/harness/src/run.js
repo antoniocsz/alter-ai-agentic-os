@@ -14,6 +14,7 @@ import * as claude from './lib/runtimes/claude.js'
 import * as codex from './lib/runtimes/codex.js'
 import * as opencode from './lib/runtimes/opencode.js'
 import * as gemini from './lib/runtimes/gemini.js'
+import { resolveContinuation, buildContinuePrompt, validateMessage, ConversationError } from './lib/conversation.js'
 
 /** Drivers disponíveis para `--tool`. Drivers com `create()` guardam estado por run. */
 export const DRIVERS = { claude, codex, opencode, gemini }
@@ -28,6 +29,7 @@ const SAFE_VALUE = /^[A-Za-z0-9._:/@-]+$/
 
 const USAGE = `uso: harness run <task> --tool <${Object.keys(DRIVERS).join('|')}> [--model <m>] [--permission-mode <modo>] [--unsafe] [--no-context | --context-budget <n>] [--ignore-budget] [--raw <arquivo>]
      harness run --batch <t1,t2,...> --tool <tool> [--max-parallel <n>] [--model <m>] [--unsafe]
+     harness run <task> --continue [<run>] --message "<texto>" [--model <m>] [--unsafe]
      harness run --stop <run>`
 
 /** Worktree registrada da task (exigida: o agente nunca roda na árvore principal). */
@@ -179,6 +181,9 @@ export function printRunEvent(ev, prefix = '') {
     case 'run.started':
       line(`${prefix}   sessão ${p.session_id ?? 'n/d'}${p.model ? ` · ${p.model}` : ''}`)
       break
+    case 'user.message':
+      line(`${prefix}   🙋 ${oneLine(p.text)}`)
+      break
     case 'agent.message':
       if (p.text && !p.final) line(`${prefix}   💬 ${oneLine(p.text)}`)
       break
@@ -284,6 +289,57 @@ export function prepareRun(root, flags, arg, db, { role = 'implement', extra = n
 }
 
 /**
+ * Continuação da conversa (task 139): mesmas regras do `prepareRun` (task ativa com worktree,
+ * orçamento, gates pós-run), mas a tool é a do run anterior, o prompt é só a mensagem do humano
+ * (a sessão já tem a task e o contexto) e o driver retoma a sessão (`opts.resume`).
+ * `from` = id do run a continuar, ou null/true = último run da task com sessão.
+ */
+export function prepareContinue(root, flags, arg, db, { from = null, message } = {}) {
+  let taskId
+  try {
+    taskId = resolveTaskName(activeDir(root), String(arg))
+  } catch {
+    throw new Error(`task não está ativa: ${arg}`)
+  }
+  const wt = taskWorktree(root, taskId)
+  if (!wt) throw new Error(`task sem worktree: ${taskId}\n  rode antes: harness worktree start ${arg}`)
+  const text = validateMessage(message)
+  reapOrphans(db)
+  const parent = resolveContinuation(db, taskId, from, wt.dir)
+  const toolName = flagString(flags, 'tool')
+  if (toolName && toolName !== parent.tool) {
+    throw new ConversationError(`a sessão de ${parent.id} é do ${parent.tool} — não dá para continuar com --tool ${toolName} (rode um run novo)`)
+  }
+  const { probe: driver, opts, unsafe } = resolveRunOptions({ ...flags, tool: parent.tool }, parent.tool)
+  if (!driver.supportsResume) throw new ConversationError(`${parent.tool} não suporta continuar a sessão pelo harness — rode um run novo`)
+  if (!SAFE_VALUE.test(parent.session_id)) throw new ConversationError(`sessão inválida no run ${parent.id}: ${parent.session_id}`)
+  opts.resume = parent.session_id
+  driver.command(opts)
+
+  const money = budgetFor(root, flags)
+  const gate = budgetGate(db, money.budget, money.ignore, taskId)
+  if (gate.skip) {
+    const err = new Error(`orçamento estourado para ${taskId}:\n` + gate.violations.map((v) => `  - ${formatViolation(v)}`).join('\n'))
+    err.code = 'BUDGET'
+    throw err
+  }
+  return {
+    taskId,
+    wt,
+    driver,
+    opts,
+    unsafe,
+    gate,
+    money,
+    ctx: null,
+    prompt: buildContinuePrompt(taskId, text),
+    gates: runGatesFor(root, flags),
+    parentRunId: parent.id,
+    userMessage: text
+  }
+}
+
+/**
  * Gates pós-run (task 128): `harness.json → gates.run` (nomes de gate, como em finish/merge), na
  * worktree do run, depois que ele conclui. `--no-gates` desliga. null = nada a rodar.
  */
@@ -332,7 +388,8 @@ export async function runCmd(args) {
   if (flags.batch === true) throw new Error('--batch exige a lista de tasks (ex.: --batch 12,13,14)')
 
   const arg = positionals[0]
-  if (!arg || !toolName) throw new Error(USAGE)
+  const cont = flags.continue
+  if (!arg || (!toolName && cont === undefined)) throw new Error(USAGE)
   if (flags.raw === true) throw new Error('--raw exige o caminho do arquivo (ex.: --raw .tmp/claude-raw.jsonl)')
   const rawLog = flagString(flags, 'raw') ? path.resolve(root, flagString(flags, 'raw')) : null
 
@@ -340,8 +397,12 @@ export async function runCmd(args) {
   const { signal, dispose } = withSigint()
   let announced = false
   try {
-    const prep = prepareRun(root, flags, arg, db)
+    const prep =
+      cont === undefined
+        ? prepareRun(root, flags, arg, db)
+        : prepareContinue(root, flags, arg, db, { from: cont === true ? positionals[1] ?? null : cont, message: flagString(flags, 'message') ?? flagString(flags, 'm') })
     const { taskId, wt, driver, opts, unsafe, gate, money, ctx, prompt } = prep
+    if (prep.parentRunId) line(`💬 continuando a sessão de ${prep.parentRunId} (${driver.id})`)
     if (money.ignore && money.budget) line('⚠️  --ignore-budget: limites do harness.json ignorados (registrado no run).')
     if (gate.limit) line(`💰 limite deste run: ${fmtLimit(gate.limit)} (harness budget)`)
     if (rawLog) line(`🧾 saída bruta → ${path.relative(root, rawLog) || rawLog} (+ .stderr) — sem redaction: pode conter segredos`)
@@ -360,6 +421,8 @@ export async function runCmd(args) {
       budgetOverride: money.ignore,
       rawLog,
       gates: prep.gates,
+      parentRunId: prep.parentRunId ?? null,
+      userMessage: prep.userMessage ?? null,
       onEvent: (ev) => {
         if (!announced) {
           announced = true
@@ -372,7 +435,7 @@ export async function runCmd(args) {
     if (result.status === 'completed') {
       line(`✅ ${result.runId} concluído · ${fmtUsage(run)}${result.quality ? ` · gates ${result.quality}` : ''}`)
       if (result.memories) line(`🧠 ${result.memories} memória(s) proposta(s) pelo agente — revise: harness memory list --status proposed`)
-      line(`   timeline: harness events ${result.runId} · revise a worktree e integre com: harness worktree finish ${arg}`)
+      line(`   timeline: harness events ${result.runId} · continuar: harness run ${arg} --continue --message "..." · integrar: harness worktree finish ${arg}`)
     } else {
       line(`❌ ${result.runId} falhou: ${oneLine(result.error, 300)}`)
       line(`   timeline: harness events ${result.runId}`)
