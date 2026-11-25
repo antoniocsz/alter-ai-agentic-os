@@ -63,8 +63,13 @@ async function project() {
 }
 
 async function live(root, opts = {}) {
-  const handles = await withSilentStdout(() => buildServe({ root, port: 0, ...opts }))
-  await once(handles.server, 'listening')
+  // O banner do kanban sai no evento 'listening': esperar dentro do silenciador (o stdout do
+  // processo de teste é o canal do node:test — texto solto ali já corrompeu mensagem no CI).
+  const handles = await withSilentStdout(async () => {
+    const started = buildServe({ root, port: 0, ...opts })
+    await once(started.server, 'listening')
+    return started
+  })
   return handles
 }
 
@@ -254,8 +259,11 @@ test('canvas interativo (task 116): serve injeta token e controles; kanban --ser
     await h.stop()
   }
 
-  const board = await withSilentStdout(() => serveBoard(ctxFromRoot(root), 0, '127.0.0.1'))
-  await once(board, 'listening')
+  const board = await withSilentStdout(async () => {
+    const srv = serveBoard(ctxFromRoot(root), 0, '127.0.0.1')
+    await once(srv, 'listening')
+    return srv
+  })
   try {
     const page = await call({ server: board }, 'GET', '/canvas')
     assert.deepEqual(JSON.parse(page.raw.match(CONTROL_RE)[1]), { enabled: false, token: '', allowUnsafe: false })

@@ -57,8 +57,13 @@ async function project() {
 }
 
 async function live(root, opts) {
-  const h = await withSilentStdout(() => buildServe({ root, port: 0, ...opts }))
-  await once(h.server, 'listening')
+  // O banner do kanban sai no evento 'listening': esperar dentro do silenciador (o stdout do
+  // processo de teste é o canal do node:test — texto solto ali já corrompeu mensagem no CI).
+  const h = await withSilentStdout(async () => {
+    const started = buildServe({ root, port: 0, ...opts })
+    await once(started.server, 'listening')
+    return started
+  })
   return h
 }
 

@@ -557,6 +557,15 @@
 - Pendências: validar com tools reais.
 - Decisões: —
 
+## Handoff (task 127 — testes do serve silenciam o banner)
+- Feito: CI do push da task 126 falhou em `flows-api.test.js` com `Unable to deserialize cloned
+  data` (uncaughtException do runner): o banner do kanban (texto) saía no stdout do processo de
+  teste, que o node:test usa como canal binário. `runs-api`, `flows-api` e `competitions-api`
+  agora esperam o `listening` dentro do `withSilentStdout`. Suíte completa verde (332) sem nenhum
+  banner na saída.
+- Pendências: —
+- Decisões: teste que sobe servidor espera o `listening` dentro do silenciador.
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do
