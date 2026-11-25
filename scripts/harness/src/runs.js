@@ -32,6 +32,7 @@ function toView(run) {
     unsafe: Boolean(run.unsafe),
     session_id: run.session_id,
     batch_id: run.batch_id ?? null,
+    quality: run.quality ?? null,
     error: run.error
   }
 }
@@ -67,7 +68,7 @@ export async function runsCmd(args) {
       ...(withBatch ? [r.batch_id ?? '—'] : []),
       r.task,
       r.tool + (r.unsafe ? ' (unsafe)' : ''),
-      r.status,
+      r.status + (r.quality ? ` · gates ${r.quality}` : ''),
       fmtDuration(r.duration_ms),
       `${fmtNum(r.tokens_in)}/${fmtNum(r.tokens_out)}`,
       fmtCost(r.cost_usd),

@@ -23,7 +23,8 @@ export const RUN_EVENT_TYPES = [
   'agent.tool_result',
   'agent.file_changed',
   'agent.usage',
-  'agent.error'
+  'agent.error',
+  'quality.gate' // task 128: resultado de um gate pós-run (gates.run)
 ]
 
 const now = () => new Date().toISOString()

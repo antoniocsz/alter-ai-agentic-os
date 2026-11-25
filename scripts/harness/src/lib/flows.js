@@ -237,8 +237,29 @@ export function worktreeDiff(dir, base) {
 
 // ---------- execução ----------
 
-function extraFor(role, { diff, reviewNotes, humanNote }) {
+/** Gates pós-run (task 128) da última implementação/correção, para o revisor. */
+export function gatesNote(db, runId) {
+  if (!runId) return null
+  const run = db.prepare('SELECT quality FROM runs WHERE id = ?').get(runId)
+  if (!run?.quality) return null
+  const rows = db
+    .prepare("SELECT payload_json FROM run_events WHERE run_id = ? AND type = 'quality.gate' ORDER BY seq")
+    .all(runId)
+    .map((r) => {
+      try {
+        return JSON.parse(r.payload_json)
+      } catch {
+        return null
+      }
+    })
+    .filter(Boolean)
+  const lines = rows.map((g) => `- ${g.gate}: ${g.status}${g.reason ? ` (${g.reason})` : ''}${g.status === 'failed' && g.output ? `\n  ${String(g.output).split('\n').slice(-8).join('\n  ')}` : ''}`)
+  return `resultado: ${run.quality}\n${lines.join('\n')}`
+}
+
+function extraFor(role, { diff, reviewNotes, humanNote, gates }) {
   const blocks = []
+  if (role === 'review' && gates) blocks.push('--- GATES PÓS-RUN DA ÚLTIMA ALTERAÇÃO (harness.json → gates.run) ---', gates)
   if (role === 'review') {
     blocks.push(
       `--- MUDANÇA A REVISAR (diff da worktree contra a base${diff.truncated ? '; CORTADO — leia os arquivos para o resto' : ''}) ---`,
@@ -289,7 +310,9 @@ export async function runFlow({ db, flowId, prepare, worktree, env = process.env
         if (!wt) throw new FlowError(`task sem worktree: ${flow.task_id}`)
         diff = worktreeDiff(wt.dir, wt.base)
       }
-      prep = prepare(role, agent, extraFor(role, { diff, reviewNotes: lastReview?.notes, humanNote: flow.human_note }))
+      const lastChange = [...steps].reverse().find((s) => (s.role === 'implement' || s.role === 'fix') && s.status === 'completed')
+      const gates = role === 'review' ? gatesNote(db, lastChange?.run_id) : null
+      prep = prepare(role, agent, extraFor(role, { diff, reviewNotes: lastReview?.notes, humanNote: flow.human_note, gates }))
     } catch (err) {
       db.prepare('INSERT INTO flow_steps (flow_id, seq, role, tool, model, status, error, started_at, finished_at) VALUES (?,?,?,?,?,?,?,?,?)').run(
         flowId, seq, role, agent.tool, agent.model, 'failed', err.message, nowIso(), nowIso()
@@ -322,6 +345,7 @@ export async function runFlow({ db, flowId, prepare, worktree, env = process.env
         signal,
         limit: prep.gate.limit ?? null,
         budgetOverride: prep.money.ignore,
+        gates: prep.gates ?? null,
         onStart: (runId) => db.prepare('UPDATE flow_steps SET run_id = ? WHERE id = ?').run(runId, stepId),
         onEvent
       })

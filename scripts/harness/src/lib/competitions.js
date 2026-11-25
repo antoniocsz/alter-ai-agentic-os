@@ -262,6 +262,7 @@ export async function runCompetition({ root, db, id, prepare, taskWt, scope = []
           signal,
           limit: prep.gate.limit ?? null,
           budgetOverride: prep.money.ignore,
+          gates: prep.gates ?? null,
           onStart: (runId) => setCompetitor(db, c.id, { run_id: runId }),
           onEvent: (ev) => onEvent({ ...ev, key: c.key })
         })
@@ -302,7 +303,8 @@ export async function runCompetition({ root, db, id, prepare, taskWt, scope = []
       const d = worktreeDiff(path.join(root, c.dir), comp.start_sha)
       const body = d.diff.length > JUDGE_DIFF_LIMIT ? d.diff.slice(0, JUDGE_DIFF_LIMIT) + '\n… (cortado)' : d.diff
       return `=== CANDIDATA ${c.key} (${c.tool}${c.model ? `:${c.model}` : ''}) — ${c.files_changed} arquivo(s), +${c.insertions}/-${c.deletions}` +
-        `${c.out_of_scope.length ? `, FORA DO ESCOPO: ${c.out_of_scope.join(', ')}` : ''} ===\n${body}`
+        `${c.out_of_scope.length ? `, FORA DO ESCOPO: ${c.out_of_scope.join(', ')}` : ''}` +
+        `${c.run_id ? `, gates: ${db.prepare('SELECT quality FROM runs WHERE id = ?').get(c.run_id)?.quality ?? 'não rodaram'}` : ''} ===\n${body}`
     })
     const extra = `--- CANDIDATAS (diff de cada uma contra o ponto de partida) ---\n${blocks.join('\n\n')}`
     try {

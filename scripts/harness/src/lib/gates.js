@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process'
+import { execFile, execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { scanSecrets } from './redact.js'
@@ -128,6 +128,41 @@ export function checkArtifact(root) {
     if (filled.length > 0) return null
   }
   return 'sem artefato em assets/ e BRIEF.md vazio'
+}
+
+/**
+ * `runGates` sem bloquear o processo (task 128): roda num processo Node filho. O `harness serve`
+ * usa isso depois dos runs que dispara — testes longos não travam o servidor.
+ */
+export function runGatesAsync(root, gates = [], opts = {}) {
+  if (!gates.length) return Promise.resolve([])
+  const script =
+    `import(${JSON.stringify(new URL(import.meta.url).href)}).then((m) => {` +
+    `const a = JSON.parse(process.argv[1]); process.stdout.write(JSON.stringify(m.runGates(a.root, a.gates, a.opts)))})`
+  return new Promise((resolve) => {
+    const started = Date.now()
+    execFile(
+      process.execPath,
+      ['--input-type=module', '-e', script, JSON.stringify({ root, gates, opts: { strict: Boolean(opts.strict) } })],
+      { cwd: root, env: opts.env ?? process.env, maxBuffer: 16 * 1024 * 1024, windowsHide: true, timeout: Number(process.env.HARNESS_GATE_TIMEOUT_MS ?? 10 * 60_000) * Math.max(1, gates.length) },
+      (err, stdout) => {
+        try {
+          const results = JSON.parse(String(stdout).trim().split('\n').pop())
+          resolve(results.map((r) => ({ ...r, duration_ms: null })))
+        } catch {
+          resolve([{ gate: gates.join(','), status: 'failed', output: `gates não rodaram: ${err?.message ?? 'saída inválida'}`.slice(0, 2000), duration_ms: Date.now() - started }])
+        }
+      }
+    )
+  })
+}
+
+/** Qualidade agregada: algum falhou → failed; algum passou → passed; senão skipped. */
+export function qualityOf(results = []) {
+  if (!results.length) return null
+  if (results.some((r) => r.status === 'failed')) return 'failed'
+  if (results.some((r) => r.status === 'passed')) return 'passed'
+  return 'skipped'
 }
 
 export function runGates(root, gates = [], opts = {}) {

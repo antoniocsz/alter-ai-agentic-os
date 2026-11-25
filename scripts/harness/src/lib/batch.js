@@ -209,6 +209,7 @@ export async function runBatch({ db, jobs, max = 1, batchId = null, env = proces
           batchId,
           limit: gate.limit ?? null,
           budgetOverride: Boolean(job.budgetOverride),
+          gates: job.gates ?? null,
           onEvent: (ev) => onEvent({ ...ev, taskId: job.taskId })
         })
         results[i] = { taskId: job.taskId, ...res }

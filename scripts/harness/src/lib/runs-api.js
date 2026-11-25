@@ -177,6 +177,7 @@ export function createRunsApi(root, opts = {}) {
           signal: controller.signal,
           limit: prep.gate.limit ?? null,
           budgetOverride: prep.money.ignore,
+          gates: prep.gates,
           onStart: (id) => {
             runId = id
           }

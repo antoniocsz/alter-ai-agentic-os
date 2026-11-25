@@ -193,6 +193,12 @@ export function printRunEvent(ev, prefix = '') {
     case 'agent.error':
       line(`${prefix}   ❌ ${oneLine(p.reason)}`)
       break
+    case 'quality.gate': {
+      const icon = { passed: '✅', failed: '❌', skipped: '⏭️' }[p.status] ?? '·'
+      line(`${prefix}   🧪 gate ${p.gate}: ${icon} ${p.status}${p.reason ? ` (${p.reason})` : ''}`)
+      if (p.status === 'failed' && p.output) for (const l of String(p.output).split('\n').slice(-6)) line(`${prefix}      ${l}`)
+      break
+    }
     default:
       break
   }
@@ -272,7 +278,19 @@ export function prepareRun(root, flags, arg, db, { role = 'implement', extra = n
   }
   const ctx = contextForRun(root, taskId, budget, db)
   const prompt = buildPrompt(taskId, fs.readFileSync(path.join(activeDir(root), taskId), 'utf8'), wt, ctx?.md, { role, extra })
-  return { taskId, wt, driver, opts, unsafe, gate, money, ctx, prompt }
+  const gates = role === 'review' || role === 'judge' ? null : runGatesFor(root, flags)
+  return { taskId, wt, driver, opts, unsafe, gate, money, ctx, prompt, gates }
+}
+
+/**
+ * Gates pós-run (task 128): `harness.json → gates.run` (nomes de gate, como em finish/merge), na
+ * worktree do run, depois que ele conclui. `--no-gates` desliga. null = nada a rodar.
+ */
+export function runGatesFor(root, flags = {}) {
+  if (flagBool(flags, 'no-gates')) return null
+  const cfg = resolveConfig(root)
+  const list = Array.isArray(cfg.gates?.run) ? cfg.gates.run.filter((g) => typeof g === 'string' && g) : []
+  return list.length ? { list, strict: Boolean(cfg.gates?.strict) } : null
 }
 
 export function withSigint(onAbort) {
@@ -340,6 +358,7 @@ export async function runCmd(args) {
       limit: gate.limit ?? null,
       budgetOverride: money.ignore,
       rawLog,
+      gates: prep.gates,
       onEvent: (ev) => {
         if (!announced) {
           announced = true
@@ -350,7 +369,7 @@ export async function runCmd(args) {
     })
     const run = db.prepare('SELECT * FROM runs WHERE id = ?').get(result.runId)
     if (result.status === 'completed') {
-      line(`✅ ${result.runId} concluído · ${fmtUsage(run)}`)
+      line(`✅ ${result.runId} concluído · ${fmtUsage(run)}${result.quality ? ` · gates ${result.quality}` : ''}`)
       if (result.memories) line(`🧠 ${result.memories} memória(s) proposta(s) pelo agente — revise: harness memory list --status proposed`)
       line(`   timeline: harness events ${result.runId} · revise a worktree e integre com: harness worktree finish ${arg}`)
     } else {
@@ -430,7 +449,8 @@ async function runBatchCmd(root, flags, toolName, batchArg) {
         prompt: buildPrompt(it.name, fs.readFileSync(path.join(activeDir(root), it.name), 'utf8'), wt, ctx?.md),
         opts,
         unsafe,
-        budgetOverride: money.ignore
+        budgetOverride: money.ignore,
+        gates: runGatesFor(root, flags)
       }
     })
     line(`🧩 ${batchId} · ${probe.id} · ${jobs.length} task(s) · até ${max} em paralelo`)

@@ -566,6 +566,19 @@
 - Pendências: —
 - Decisões: teste que sobe servidor espera o `listening` dentro do silenciador.
 
+## Handoff (task 128 — qualidade-e-analytics: gates pós-run)
+- Feito: `harness.json → gates.run` (validado em `config.js`) roda na worktree depois de cada run
+  concluído. `lib/gates.js` — `runGatesAsync` (runGates num processo Node filho: não trava o serve)
+  e `qualityOf`. `lib/runner.js` — `runTool({ gates })`: eventos `quality.gate` (tipo novo em
+  `runs.js`) e `runs.quality` (migração em `db.js`); run falho não roda gates. `run.js` —
+  `runGatesFor` (`--no-gates`) no `prepareRun` só para implementar/corrigir; lote, API, fluxo e
+  competição repassam. CLI mostra 🧪 por gate; `harness runs` mostra `· gates <q>`; canvas mostra
+  no cartão e na timeline; competição na tabela e no prompt do juiz; fluxo manda os gates da última
+  alteração para o revisor (`gatesNote`). +3 testes (`quality.test.js`); `runs.test.js` aceita o
+  namespace `quality.`; suíte completa verde (335).
+- Pendências: analytics (129); docs (130).
+- Decisões: gate informa, não muda o status do run; gates rodam via pnpm (VM de dev precisa do shim no PATH).
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do

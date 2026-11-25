@@ -985,6 +985,7 @@ function runHtml(r) {
     '<div class="row"><span>' + head + '</span><span class="val run-status ' + esc(r.status) + '">' + esc(status) + '</span></div>' +
     '<div class="row"><span>agente</span><span class="val" title="' + last + '">' + last + '</span></div>' +
     '<div class="row"><span>tokens · custo</span><span class="val">' + esc(fmtUsage(r)) + '</span></div>' +
+    (r.quality ? '<div class="row"><span>🧪 gates</span><span class="val run-status ' + (r.quality === 'passed' ? 'completed' : r.quality === 'failed' ? 'failed' : '') + '">' + esc(r.quality) + '</span></div>' : '') +
     batch +
   '</div>';
 }
@@ -1204,7 +1205,7 @@ function openComp(id) {
         var pick = k.status === 'ready' && x.status === 'completed'
           ? '<button class="go" data-pick="' + esc(x.key) + '">Escolher</button>' : '';
         return '<tr><td>' + esc(x.key) + marks + '</td><td>' + esc(x.tool) + (x.model ? ':' + esc(x.model) : '') + '</td>' +
-          '<td class="run-status ' + esc(x.status) + '">' + esc(x.status) + '</td><td>' + esc(size) + '</td>' +
+          '<td class="run-status ' + esc(x.status) + '">' + esc(x.status) + (r && r.quality ? ' · gates ' + esc(r.quality) : '') + '</td><td>' + esc(size) + '</td>' +
           '<td>' + (r ? esc(fmtUsage(r)) : 'n/d') + '</td><td>' + (r ? esc(fmtDur(r.duration_ms)) : '—') + '</td>' +
           '<td>' + (x.out_of_scope && x.out_of_scope.length ? '⚠️ ' + esc(x.out_of_scope.join(', ')) : '—') + '</td>' +
           '<td>' + (x.run_id ? '<button data-tl="' + esc(x.run_id) + '">📜</button> ' : '') + pick + '</td></tr>' +
@@ -1454,7 +1455,7 @@ async function stopRun(runId) {
 
 var EV_ICON = {
   'run.started': '▶', 'run.completed': '✔', 'run.failed': '✖', 'agent.message': '💬', 'agent.tool_call': '🔧',
-  'agent.tool_result': '↳', 'agent.file_changed': '📝', 'agent.usage': '📊', 'agent.error': '⚠'
+  'agent.tool_result': '↳', 'agent.file_changed': '📝', 'agent.usage': '📊', 'agent.error': '⚠', 'quality.gate': '🧪'
 };
 function evText(e) {
   var p = e.payload || {};
@@ -1473,11 +1474,12 @@ function evText(e) {
       var tout = p.output_tokens != null ? p.output_tokens : p.tokens_out;
       return 'uso: ' + (tin != null ? tin : 'n/d') + ' / ' + (tout != null ? tout : 'n/d') + (p.cost_usd != null ? ' · $' + Number(p.cost_usd).toFixed(4) : '');
     case 'agent.error': return p.reason || '';
+    case 'quality.gate': return 'gate ' + (p.gate || '') + ': ' + (p.status || '') + (p.reason ? ' (' + p.reason + ')' : '') + (p.status === 'failed' && p.output ? ' — ' + String(p.output).slice(-600) : '');
     default: return e.type;
   }
 }
 function evHtml(e) {
-  var err = e.type === 'agent.error' || e.type === 'run.failed' || (e.type === 'agent.tool_result' && e.payload && e.payload.is_error);
+  var err = e.type === 'agent.error' || e.type === 'run.failed' || (e.type === 'agent.tool_result' && e.payload && e.payload.is_error) || (e.type === 'quality.gate' && e.payload && e.payload.status === 'failed');
   return '<li class="' + (err ? 'err' : '') + '"><span class="at">' + esc(new Date(e.at).toLocaleTimeString('pt-BR')) + '</span>' +
     '<span class="ic">' + (EV_ICON[e.type] || '·') + '</span><span class="tx">' + esc(evText(e)) + '</span></li>';
 }

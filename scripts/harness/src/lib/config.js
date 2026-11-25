@@ -60,7 +60,8 @@ export function validateConfig(cfg) {
     errors.push(`profile inválido: ${JSON.stringify(cfg.profile)} (esperado: ${PROFILES.join(' | ')})`)
   }
 
-  for (const key of ['finish', 'merge']) {
+  // `gates.run` (task 128): gates que rodam na worktree depois de cada run concluído.
+  for (const key of ['finish', 'merge', 'run']) {
     const list = cfg.gates?.[key]
     if (list !== undefined && (!Array.isArray(list) || list.some((g) => typeof g !== 'string'))) {
       errors.push(`gates.${key} deve ser uma lista de strings`)

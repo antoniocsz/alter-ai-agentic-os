@@ -3,6 +3,7 @@ import path from 'node:path'
 import { spawn, execFileSync } from 'node:child_process'
 import { startRun, updateRun, appendRunEvent, finishRun, getRun } from './runs.js'
 import { harvestRunMemories } from './memories.js'
+import { runGatesAsync, qualityOf } from './gates.js'
 
 /**
  * Runner de agentes (feature `execucao-agentes`, task 94).
@@ -122,7 +123,7 @@ const STDERR_TAIL = 4000
  * Executa `driver` com `prompt` (via stdin) em `cwd`, gravando o run em `db`.
  * Resolve com `{ runId, status, exitCode, error }`. `signal` (AbortSignal) interrompe.
  */
-export function runTool({ db, taskId, cwd, driver, prompt, opts = {}, env = process.env, signal = null, onEvent = () => {}, unsafe = false, batchId = null, limit = null, budgetOverride = false, rawLog = null, onStart = null }) {
+export function runTool({ db, taskId, cwd, driver, prompt, opts = {}, env = process.env, signal = null, onEvent = () => {}, unsafe = false, batchId = null, limit = null, budgetOverride = false, rawLog = null, onStart = null, gates = null }) {
   const exe = resolveExecutable(driver.bin, { env })
   if (!exe) throw new Error(`${driver.bin} não encontrado no PATH.\n  ${driver.installHint}`)
   if (!fs.existsSync(cwd)) throw new Error(`diretório de execução não existe: ${cwd}`)
@@ -309,7 +310,23 @@ export function runTool({ db, taskId, cwd, driver, prompt, opts = {}, env = proc
           memories = harvestRunMemories(db, runId)
         } catch {}
       }
-      resolve({ runId, status, exitCode, error, memories: memories.length })
+      const done = { runId, status, exitCode, error, memories: memories.length }
+      // Qualidade (task 128): gates de `harness.json → gates.run` na worktree, depois do run concluído.
+      if (status !== 'completed' || !gates?.list?.length) return resolve(done)
+      runGatesAsync(cwd, gates.list, { strict: gates.strict, env })
+        .then((results) => {
+          for (const r of results) {
+            try {
+              record({ type: 'quality.gate', payload: { gate: r.gate, status: r.status, reason: r.reason ?? null, output: r.output ? String(r.output).slice(-2000) : null } })
+            } catch {}
+          }
+          const quality = qualityOf(results)
+          try {
+            db.prepare('UPDATE runs SET quality = ? WHERE id = ?').run(quality, runId)
+          } catch {}
+          resolve({ ...done, quality, gates: results })
+        })
+        .catch(() => resolve(done))
     }
     child.on('error', (err) => settle(null, err))
     child.on('close', (code) => settle(code))

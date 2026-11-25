@@ -56,6 +56,7 @@ function table(db, comp) {
     const size = c.files_changed === null ? 'n/d' : `${c.files_changed} arq · +${c.insertions}/-${c.deletions}`
     const tokens = run && (run.tokens_in !== null || run.tokens_out !== null) ? `${run.tokens_in ?? 'n/d'}/${run.tokens_out ?? 'n/d'}` : 'n/d'
     const flags = [
+      run?.quality ? `gates ${run.quality}` : null,
       comp.judge_winner === c.key ? '⭐ juiz' : null,
       comp.winner === c.key ? '✅ escolhida' : null,
       c.out_of_scope.length ? `⚠️ fora do escopo: ${c.out_of_scope.join(', ')}` : null

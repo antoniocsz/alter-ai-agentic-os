@@ -138,6 +138,8 @@ function migrate(db) {
   if (!runCols.includes('batch_id')) db.exec('ALTER TABLE runs ADD COLUMN batch_id TEXT')
   // Task 107 (orcamento-de-custos): run iniciado com --ignore-budget fica marcado.
   if (!runCols.includes('budget_override')) db.exec('ALTER TABLE runs ADD COLUMN budget_override INTEGER NOT NULL DEFAULT 0')
+  // Task 128 (qualidade-e-analytics): resultado agregado dos gates pós-run (passed|failed|skipped).
+  if (!runCols.includes('quality')) db.exec('ALTER TABLE runs ADD COLUMN quality TEXT')
   db.exec('CREATE INDEX IF NOT EXISTS idx_runs_batch ON runs(batch_id)')
   // Task 118 (memoria-em-niveis): memórias em níveis + índice FTS5.
   ensureMemorySchema(db)
