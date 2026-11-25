@@ -74,6 +74,22 @@ export function summarizeAgentEvent(type, payload) {
  * caso contrário ficam `null` e a UI mostra "n/d". Leitura pura — o canvas não marca
  * órfãos (`harness runs` faz isso).
  */
+/**
+ * Fluxo encadeado mais recente da task (task 122): estado, erro e etapas (papel, tool, status,
+ * veredito) — o cartão mostra o progresso implementar → revisar → corrigir.
+ */
+function flowFor(db, taskId) {
+  let row
+  try {
+    row = db.prepare('SELECT * FROM flows WHERE task_id = ? ORDER BY created_at DESC LIMIT 1').get(taskId)
+  } catch {
+    return null // banco antigo sem a tabela flows
+  }
+  if (!row) return null
+  const steps = db.prepare('SELECT seq, role, tool, status, verdict, run_id FROM flow_steps WHERE flow_id = ? ORDER BY seq').all(row.id)
+  return { id: row.id, status: row.status, error: row.error, approve: row.approve, rounds: row.rounds, updated_at: row.updated_at, steps }
+}
+
 function runFor(db, taskId) {
   let run
   try {
@@ -137,6 +153,7 @@ function cardFor(t, proj, root, reg, db, now) {
       : null,
     last_note: lastNote ? { content: lastNote.content, at: lastNote.at } : null,
     run,
+    flow: db ? flowFor(db, t.id) : null,
     last_activity_at: lastActivityAt,
     // Sem atividade alguma (db indisponível) → nada julgado, cartão normal.
     stale: lastActivityAt !== null && now - Date.parse(lastActivityAt) > STALE_MS

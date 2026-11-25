@@ -1011,6 +1011,7 @@ function cardHtml(c) {
       (c.last_event ? esc(c.last_event.event) + ' · ' + esc(relTime(c.last_event.at)) : '—') +
     '</span></div>' +
     runHtml(c.run) +
+    flowHtml(c) +
     actionsHtml(c) +
     note +
     '<div class="foot"><span>' + esc(c.id) + '</span><span>' +
@@ -1048,18 +1049,173 @@ var view = null; // { runId, seq, timer } da timeline aberta
 
 function taskNum(id) { var m = String(id).match(/^(\d+)-/); return m ? m[1] : id; }
 
+var FLOW_STATUS = {
+  running: '▶ rodando', waiting_approval: '⏸ aguardando aprovação', needs_human: '🙋 pede humano',
+  completed: '✔ aprovado', failed: '✖ falhou', stopped: '⏹ parado'
+};
+var ROLE_SHORT = { implement: 'implementar', review: 'revisar', fix: 'corrigir' };
+function stepChip(st) {
+  var icon = st.status === 'running' ? '▶' : st.status === 'failed' ? '✖' :
+    st.role === 'review' ? (st.verdict === 'approved' ? '✅' : '🔁') : '✔';
+  return '<span class="tag" title="' + esc(st.tool) + (st.run_id ? ' · ' + esc(st.run_id) : '') + '">' + st.seq + '. ' + esc(ROLE_SHORT[st.role] || st.role) + ' ' + icon + '</span>';
+}
+function flowHtml(c) {
+  var f = c.flow;
+  if (!f) return '';
+  return '<div class="run flow" data-flow="' + esc(f.id) + '">' +
+    '<div class="row"><span>🔗 fluxo</span><span class="val run-status ' + esc(f.status === 'completed' ? 'completed' : f.status === 'running' ? 'running' : f.status === 'failed' || f.status === 'stopped' ? 'failed' : '') + '">' + esc(FLOW_STATUS[f.status] || f.status) + '</span></div>' +
+    '<div class="meta">' + (f.steps || []).map(stepChip).join('') + '</div>' +
+    (f.error && f.status !== 'completed' ? '<div class="note">' + esc(f.error) + '</div>' : '') +
+  '</div>';
+}
+
 function actionsHtml(c) {
   if (!CONTROL.enabled || c.project) return '';
   var b = '';
-  if (c.run && c.run.status === 'running') {
+  var f = c.flow;
+  var flowOpen = f && ['running', 'waiting_approval', 'needs_human', 'failed'].indexOf(f.status) !== -1;
+  if (flowOpen) {
+    if (f.status !== 'running') b += '<button class="go" data-act="flow-resume" data-flow="' + esc(f.id) + '">▶ Continuar fluxo</button>';
+    b += '<button class="stop" data-act="flow-stop" data-flow="' + esc(f.id) + '">■ Parar fluxo</button>';
+  } else if (c.run && c.run.status === 'running') {
     b += '<button class="stop" data-act="stop" data-run="' + esc(c.run.id) + '">■ Parar</button>';
   } else if (c.worktree && c.worktree !== 'raiz') {
     b += '<button class="go" data-act="run" data-task="' + esc(c.id) + '">▶ Rodar agente</button>';
+    b += '<button class="go" data-act="flow" data-task="' + esc(c.id) + '">🔗 Fluxo</button>';
   } else {
     b += '<span class="hint" title="o agente só roda isolado numa worktree">harness worktree start ' + esc(taskNum(c.id)) + '</span>';
   }
   if (c.run) b += '<button data-act="timeline" data-run="' + esc(c.run.id) + '">📜 timeline</button>';
+  if (f) b += '<button data-act="flow-show" data-flow="' + esc(f.id) + '">🔗 etapas</button>';
   return '<div class="actions">' + b + '</div>';
+}
+
+/* ---------- fluxo encadeado (task 122) ---------- */
+function toolOptions(list, withSame) {
+  var o = withSame ? '<option value="">mesma da implementação</option>' : '';
+  return o + list.map(function (r) {
+    return '<option value="' + esc(r.tool) + '">' + esc(r.tool) + (r.requires_unsafe ? ' (exige unsafe)' : '') + '</option>';
+  }).join('');
+}
+
+async function openFlowForm(taskId) {
+  stopView();
+  modalBox.innerHTML = '<p style="color:var(--muted)">verificando tools instaladas…</p>';
+  modal.classList.add('open');
+  var list;
+  try { list = (await loadRuntimes()).filter(function (r) { return r.installed; }); } catch (err) { closeModal(); return showToast(err.message); }
+  if (!list.length) { closeModal(); return showToast('nenhuma tool de agente instalada (harness runtimes)'); }
+  modalBox.innerHTML =
+    '<button class="close" onclick="closeModal()">✕</button>' +
+    '<h2>🔗 Fluxo encadeado</h2><div class="sub">' + esc(taskId) + ' · implementar → revisar → corrigir até aprovar, na worktree da task</div>' +
+    '<form class="run-form" id="flowForm">' +
+      '<label for="g-impl">implementar</label><select id="g-impl">' + toolOptions(list) + '</select>' +
+      '<label for="g-rev">revisar</label><select id="g-rev">' + toolOptions(list) + '</select>' +
+      '<label for="g-fix">corrigir</label><select id="g-fix">' + toolOptions(list, true) + '</select>' +
+      '<label for="g-rounds">máx. de revisões</label><input type="number" id="g-rounds" min="1" max="10" value="2" />' +
+      '<label for="g-approve">aprovação humana</label><select id="g-approve">' +
+        '<option value="none">não pausar</option><option value="review">pausar após cada revisão</option><option value="each">pausar após cada etapa</option></select>' +
+      '<label>opções</label><div>' +
+        '<label><input type="checkbox" id="g-budget" /> ignorar orçamento</label><br/>' +
+        '<label><input type="checkbox" id="g-unsafe"' + (CONTROL.allowUnsafe ? '' : ' disabled') + ' /> unsafe (todas as etapas)</label>' +
+      '</div>' +
+      '<div class="full warn">O revisor só lê: se alterar a worktree, a revisão é reprovada.</div>' +
+      '<div class="full"><button class="go" type="submit">🔗 Iniciar fluxo</button></div>' +
+    '</form>';
+  var rev = document.getElementById('g-rev');
+  if (list.length > 1) rev.selectedIndex = 1;
+  var form = document.getElementById('flowForm');
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    var body = {
+      task: taskId,
+      implement: document.getElementById('g-impl').value,
+      review: rev.value,
+      rounds: Number(document.getElementById('g-rounds').value) || 2,
+      approve: document.getElementById('g-approve').value
+    };
+    var fix = document.getElementById('g-fix').value;
+    if (fix) body.fix = fix;
+    if (document.getElementById('g-budget').checked) body.ignoreBudget = true;
+    if (document.getElementById('g-unsafe').checked) body.unsafe = true;
+    form.querySelector('button[type=submit]').disabled = true;
+    try {
+      var data = await api('POST', '/api/flows', body);
+      openFlow(data.flow.id);
+      loadCanvas();
+    } catch (err) {
+      form.querySelector('button[type=submit]').disabled = false;
+      showToast(err.message);
+    }
+  });
+}
+
+function openResumeForm(flowId) {
+  stopView();
+  modal.classList.add('open');
+  modalBox.innerHTML =
+    '<button class="close" onclick="closeModal()">✕</button>' +
+    '<h2>▶ Continuar fluxo</h2><div class="sub">' + esc(flowId) + ' · aguardando aprovação: segue para a próxima etapa · falhou: repete a etapa · pede humano: mais uma rodada</div>' +
+    '<form class="run-form" id="resumeForm">' +
+      '<label for="r-note">instruções (opcional)</label><textarea id="r-note" rows="4" style="background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px" placeholder="vão para a próxima etapa, com prioridade sobre a revisão"></textarea>' +
+      '<div class="full"><button class="go" type="submit">▶ Continuar</button></div>' +
+    '</form>';
+  var form = document.getElementById('resumeForm');
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    var note = document.getElementById('r-note').value.trim();
+    try {
+      await api('POST', '/api/flows/' + encodeURIComponent(flowId) + '/resume', note ? { note: note } : {});
+      openFlow(flowId);
+      loadCanvas();
+    } catch (err) { showToast(err.message); }
+  });
+}
+
+async function stopFlowUi(flowId) {
+  if (!confirm('Parar o fluxo ' + flowId + '? A etapa em andamento é interrompida.')) return;
+  try {
+    await api('POST', '/api/flows/' + encodeURIComponent(flowId) + '/stop');
+    loadCanvas();
+  } catch (err) { showToast(err.message); }
+}
+
+function openFlow(flowId) {
+  stopView();
+  var mine = { runId: null, seq: 0, timer: null };
+  view = mine;
+  modal.classList.add('open');
+  modalBox.innerHTML = '<button class="close" onclick="closeModal()">✕</button><div id="fl-body"><p style="color:var(--muted)">carregando…</p></div>';
+  var tick = async function () {
+    if (view !== mine) return;
+    try {
+      var d = await api('GET', '/api/flows/' + encodeURIComponent(flowId));
+      if (view !== mine) return;
+      var f = d.flow;
+      var spec = function (a) { return a ? esc(a.tool) + (a.model ? ':' + esc(a.model) : '') : '—'; };
+      var steps = d.steps.map(function (st) {
+        var verdict = st.verdict ? (st.verdict === 'approved' ? ' · APROVADO' : ' · MUDANÇAS') : '';
+        return '<li data-run="' + esc(st.run_id || '') + '"><span>' + st.seq + '. ' + esc(ROLE_SHORT[st.role] || st.role) + ' · ' + esc(st.tool) +
+          '</span><span class="run-status ' + esc(st.status) + '">' + esc(st.status) + verdict + '</span></li>' +
+          (st.notes && st.verdict === 'changes' ? '<pre class="file">' + esc(st.notes) + '</pre>' : '') +
+          (st.error ? '<p style="color:var(--danger);font-size:12px">' + esc(st.error) + '</p>' : '');
+      }).join('');
+      document.getElementById('fl-body').innerHTML =
+        '<h2>🔗 ' + esc(f.id) + '</h2>' +
+        '<div class="sub">' + esc(f.task_id) + ' · ' + esc(FLOW_STATUS[f.status] || f.status) + (f.error ? ' · ' + esc(f.error) : '') +
+        '<br/>implementar ' + spec(f.plan.implement) + ' → revisar ' + spec(f.plan.review) + ' → corrigir ' + spec(f.plan.fix) +
+        ' · até ' + f.rounds + ' revisão(ões) · aprovação: ' + esc(f.approve) + '</div>' +
+        '<h3>Etapas (' + d.steps.length + ') — clique para a timeline</h3>' +
+        (steps ? '<ul class="runs-list">' + steps + '</ul>' : '<p class="empty">nenhuma etapa ainda</p>');
+      document.querySelectorAll('#fl-body .runs-list li').forEach(function (li) {
+        if (li.dataset.run) li.addEventListener('click', function () { openTimeline(li.dataset.run); });
+      });
+      if (f.status === 'running') mine.timer = setTimeout(tick, 2000);
+    } catch (err) {
+      if (view === mine) document.getElementById('fl-body').innerHTML = '<p style="color:var(--danger)">' + esc(err.message) + '</p>';
+    }
+  };
+  tick();
 }
 
 async function api(method, url, body) {
@@ -1251,6 +1407,10 @@ function attachCardClicks() {
         if (btn.dataset.act === 'run') return openRunForm(btn.dataset.task);
         if (btn.dataset.act === 'stop') return stopRun(btn.dataset.run);
         if (btn.dataset.act === 'timeline') return openTimeline(btn.dataset.run);
+        if (btn.dataset.act === 'flow') return openFlowForm(btn.dataset.task);
+        if (btn.dataset.act === 'flow-resume') return openResumeForm(btn.dataset.flow);
+        if (btn.dataset.act === 'flow-stop') return stopFlowUi(btn.dataset.flow);
+        if (btn.dataset.act === 'flow-show') return openFlow(btn.dataset.flow);
         return;
       }
       openDetail(card.dataset.id, card.dataset.project);

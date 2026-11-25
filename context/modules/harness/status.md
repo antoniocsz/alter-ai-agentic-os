@@ -506,6 +506,18 @@
 - Pendências: API e canvas (122); docs (123).
 - Decisões: estado do fluxo no banco e execução em primeiro plano (CLI) — retomável a qualquer momento.
 
+## Handoff (task 122 — orquestracao-encadeada: API e canvas)
+- Feito: `lib/runs-api.js` — `GET /api/flows?task=`, `GET /api/flows/:id` (fluxo + etapas),
+  `POST /api/flows` (202; fluxo em segundo plano no processo do serve), `POST /api/flows/:id/resume`
+  (`{ note }`) e `/stop`; mesmas guardas (token, origem, Host, unsafe só com `--allow-unsafe`);
+  run avulso e fluxo não coexistem na task (409); `stopAll` também para fluxos. `lib/canvas.js` —
+  fluxo mais recente no cartão (estado, erro, etapas com veredito). `kanban.js` — "🔗 Fluxo" (tools
+  por papel, rodadas, aprovação, opções), "▶ Continuar fluxo" (instruções), "■ Parar fluxo",
+  "🔗 etapas" (modal com vereditos, o que a revisão pediu e timeline de cada etapa, ao vivo).
+  +2 testes (`flows-api.test.js`); suíte completa verde (327).
+- Pendências: docs (123).
+- Decisões: fluxo disparado pelo serve é interrompido quando o serve encerra (fica `stopped`).
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do

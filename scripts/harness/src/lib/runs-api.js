@@ -11,11 +11,14 @@ import { openDb } from './db.js'
 import { getRun, listRuns, runEvents, latestRun, pidAlive, runDurationMs } from './runs.js'
 import { runTool, stopRun } from './runner.js'
 import { resolveTaskId } from './db.js'
-import { prepareRun } from '../run.js'
+import { activeDir, resolveTaskName } from './tasks.js'
+import { prepareRun, resolveRunOptions, taskWorktree } from '../run.js'
+import { FlowError, APPROVE_MODES, createFlow, flowSteps, getFlow, listFlows, parseAgentSpec, resumeFlow, runFlow, stopFlow } from './flows.js'
 import { detectRuntimes } from '../runtimes.js'
 
 const MAX_BODY = 16 * 1024
 const RUN_ID_RE = /^run-[A-Za-z0-9x]+-\d{8,}[0-9-]*$/
+const FLOW_ID_RE = /^flow-[A-Za-z0-9x]+-\d{8,}$/
 const TASK_ARG_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,120}$/
 const LOOPBACK = ['localhost', '127.0.0.1', '::1', '[::1]']
 const RUNTIMES_TTL_MS = 30_000
@@ -60,6 +63,7 @@ export function createRunsApi(root, opts = {}) {
   const allowUnsafe = Boolean(opts.allowUnsafe)
   const allowedHosts = new Set([...LOOPBACK, String(opts.host ?? '127.0.0.1').toLowerCase()])
   const active = new Map() // runId → { taskId, controller, done }
+  const flowsActive = new Map() // flowId → { taskId, controller, done }
   let runtimesCache = null
 
   function withDb(fn) {
@@ -146,7 +150,7 @@ export function createRunsApi(root, opts = {}) {
       } catch (err) {
         throw new ApiError(err.code === 'BUDGET' ? 409 : 422, err.message)
       }
-      const busy = [...active.values()].some((a) => a.taskId === prep.taskId)
+      const busy = [...active.values(), ...flowsActive.values()].some((a) => a.taskId === prep.taskId)
       const last = latestRun(db, prep.taskId)
       if (busy || (last?.status === 'running' && pidAlive(last.pid))) {
         throw new ApiError(409, `já há um run em andamento para ${prep.taskId}${last?.status === 'running' ? ` (${last.id})` : ''}`)
@@ -206,6 +210,155 @@ export function createRunsApi(root, opts = {}) {
     })
   }
 
+  // ---------- fluxos (orquestração encadeada, task 122) ----------
+
+  function flowOut(db, id) {
+    const flow = getFlow(db, id)
+    if (!flow) throw new ApiError(404, `fluxo não encontrado: ${id}`)
+    return { flow, steps: flowSteps(db, id), running: flowsActive.has(id) }
+  }
+
+  function listFlowsApi({ task = null, limit = 30 } = {}) {
+    if (task !== null && !TASK_ARG_RE.test(task)) throw new ApiError(400, `task inválida: ${task}`)
+    const taskId = task ? resolveTaskId(root, task) : null
+    return withDb((db) => listFlows(db, { taskId, limit: Math.min(Number(limit) || 30, 200) }).map((f) => ({ ...f, running: flowsActive.has(f.id) })))
+  }
+
+  function getFlowApi(id) {
+    if (!FLOW_ID_RE.test(id)) throw new ApiError(400, `id de fluxo inválido: ${id}`)
+    return withDb((db) => flowOut(db, id))
+  }
+
+  /** Executa o fluxo em segundo plano no processo do serve (um banco aberto por fluxo). */
+  function driveFlow(flowId, taskId) {
+    const db = openDb(root)
+    const controller = new AbortController()
+    const plan = getFlow(db, flowId).plan
+    const entry = { taskId, controller, done: null }
+    entry.done = runFlow({
+      db,
+      flowId,
+      env,
+      signal: controller.signal,
+      prepare: (role, agent, extra) => prepareRun(root, stepFlagsOf(plan, agent), taskId, db, { role, extra }),
+      worktree: (t) => taskWorktree(root, t)
+    })
+      .catch(() => null)
+      .finally(() => {
+        flowsActive.delete(flowId)
+        try {
+          db.close()
+        } catch {}
+      })
+    flowsActive.set(flowId, entry)
+  }
+
+  function stepFlagsOf(plan, agent) {
+    const flags = { tool: agent.tool }
+    if (agent.model) flags.model = agent.model
+    if (plan.unsafe) flags.unsafe = true
+    if (plan.ignoreBudget) flags['ignore-budget'] = true
+    if (plan.noContext) flags['no-context'] = true
+    return flags
+  }
+
+  function taskBusy(db, taskId) {
+    if ([...active.values()].some((a) => a.taskId === taskId)) return true
+    if ([...flowsActive.values()].some((a) => a.taskId === taskId)) return true
+    const last = latestRun(db, taskId)
+    return last?.status === 'running' && pidAlive(last.pid)
+  }
+
+  function startFlowApi(body) {
+    if (!body || typeof body !== 'object' || Array.isArray(body)) throw new ApiError(400, 'body deve ser um objeto JSON')
+    const task = body.task === undefined || body.task === null ? '' : String(body.task)
+    if (!TASK_ARG_RE.test(task)) throw new ApiError(400, 'task obrigatória')
+    for (const k of ['unsafe', 'ignoreBudget', 'noContext']) {
+      if (body[k] !== undefined && typeof body[k] !== 'boolean') throw new ApiError(400, `${k} deve ser true/false`)
+    }
+    if (body.unsafe && !allowUnsafe) throw new ApiError(403, 'unsafe desativado neste serve — suba com: harness serve --allow-unsafe')
+    let plan
+    try {
+      plan = {
+        implement: parseAgentSpec(body.implement, 'implement'),
+        review: parseAgentSpec(body.review, 'review'),
+        fix: body.fix ? parseAgentSpec(body.fix, 'fix') : null,
+        unsafe: Boolean(body.unsafe),
+        ignoreBudget: Boolean(body.ignoreBudget),
+        noContext: Boolean(body.noContext)
+      }
+    } catch (err) {
+      throw new ApiError(400, err.message)
+    }
+    const rounds = body.rounds === undefined || body.rounds === null ? 2 : body.rounds
+    const approve = body.approve ?? 'none'
+    if (!APPROVE_MODES.includes(approve)) throw new ApiError(400, `approve inválido: ${approve}`)
+    for (const role of ['implement', 'review', 'fix']) {
+      const agent = plan[role] ?? plan.implement
+      try {
+        resolveRunOptions(stepFlagsOf(plan, agent), agent.tool)
+      } catch (err) {
+        throw new ApiError(422, `${role} (${agent.tool}): ${err.message}`)
+      }
+    }
+    return withDb((db) => {
+      let taskId
+      try {
+        taskId = resolveTaskName(activeDir(root), task)
+      } catch {
+        throw new ApiError(422, `task não está ativa: ${task}`)
+      }
+      if (!taskWorktree(root, taskId)) throw new ApiError(422, `task sem worktree: ${taskId} — rode: harness worktree start ${task}`)
+      if (taskBusy(db, taskId)) throw new ApiError(409, `já há um run ou fluxo em andamento para ${taskId}`)
+      let flow
+      try {
+        flow = createFlow(db, { taskId, plan, rounds, approve })
+      } catch (err) {
+        throw new ApiError(err instanceof FlowError && /fluxo aberto/.test(err.message) ? 409 : 400, err.message)
+      }
+      driveFlow(flow.id, taskId)
+      return flowOut(db, flow.id)
+    })
+  }
+
+  function resumeFlowApi(id, body = {}) {
+    if (!FLOW_ID_RE.test(id)) throw new ApiError(400, `id de fluxo inválido: ${id}`)
+    if (body.note !== undefined && body.note !== null && typeof body.note !== 'string') throw new ApiError(400, 'note deve ser texto')
+    return withDb((db) => {
+      const flow = getFlow(db, id)
+      if (!flow) throw new ApiError(404, `fluxo não encontrado: ${id}`)
+      if (flowsActive.has(id)) throw new ApiError(409, 'fluxo já está rodando')
+      if (taskBusy(db, flow.task_id)) throw new ApiError(409, `já há um run em andamento para ${flow.task_id}`)
+      try {
+        resumeFlow(db, id, { note: body.note ?? null })
+      } catch (err) {
+        throw new ApiError(409, err.message)
+      }
+      driveFlow(id, flow.task_id)
+      return flowOut(db, id)
+    })
+  }
+
+  function stopFlowApi(id) {
+    if (!FLOW_ID_RE.test(id)) throw new ApiError(400, `id de fluxo inválido: ${id}`)
+    const own = flowsActive.get(id)
+    if (own) own.controller.abort()
+    return withDb((db) => {
+      if (!getFlow(db, id)) throw new ApiError(404, `fluxo não encontrado: ${id}`)
+      try {
+        const res = stopFlow(db, id, { stopRun: own ? null : stopRun })
+        return { ok: true, flow: res.flow }
+      } catch (err) {
+        if (own) return { ok: true, flow: getFlow(db, id) }
+        throw new ApiError(409, err.message)
+      }
+    })
+  }
+
+  function flowSettled(id) {
+    return flowsActive.get(id)?.done ?? Promise.resolve(null)
+  }
+
   /** Espera o fim de um run disparado por este serve (testes e encerramento). */
   function settled(id) {
     return active.get(id)?.done ?? Promise.resolve(null)
@@ -213,7 +366,7 @@ export function createRunsApi(root, opts = {}) {
 
   /** Encerramento do serve: interrompe os runs em andamento e espera fecharem. */
   async function stopAll() {
-    const pending = [...active.values()]
+    const pending = [...active.values(), ...flowsActive.values()]
     for (const a of pending) a.controller.abort()
     await Promise.all(pending.map((a) => a.done))
   }
@@ -269,7 +422,7 @@ export function createRunsApi(root, opts = {}) {
   /** Atende `/api/runtimes` e `/api/runs*`. Retorna false se a rota não é desta API. */
   function handle(req, res, url) {
     const p = url.pathname
-    if (p !== '/api/runtimes' && p !== '/api/runs' && !p.startsWith('/api/runs/')) return false
+    if (p !== '/api/runtimes' && p !== '/api/runs' && !p.startsWith('/api/runs/') && p !== '/api/flows' && !p.startsWith('/api/flows/')) return false
     const exec = async () => {
       if (!hostAllowed(req)) throw new ApiError(403, 'host não permitido')
       const q = url.searchParams
@@ -291,11 +444,25 @@ export function createRunsApi(root, opts = {}) {
       if (req.method === 'GET' && getM) {
         return send(res, 200, { ok: true, ...get(decodeURIComponent(getM[1]), { after: q.get('after') ?? 0, native: q.get('native') === '1' }) })
       }
+      if (req.method === 'GET' && p === '/api/flows') return send(res, 200, { ok: true, flows: listFlowsApi({ task: q.get('task'), limit: q.get('limit') ?? 30 }) })
+      if (req.method === 'POST' && p === '/api/flows') {
+        checkWrite(req)
+        return send(res, 202, { ok: true, ...startFlowApi(await readJson(req)) })
+      }
+      const flowAct = p.match(/^\/api\/flows\/([^/]+)\/(resume|stop)$/)
+      if (req.method === 'POST' && flowAct) {
+        checkWrite(req)
+        const id = decodeURIComponent(flowAct[1])
+        if (flowAct[2] === 'stop') return send(res, 200, stopFlowApi(id))
+        return send(res, 202, { ok: true, ...resumeFlowApi(id, await readJson(req)) })
+      }
+      const flowGet = p.match(/^\/api\/flows\/([^/]+)$/)
+      if (req.method === 'GET' && flowGet) return send(res, 200, { ok: true, ...getFlowApi(decodeURIComponent(flowGet[1])) })
       throw new ApiError(404, 'rota não encontrada')
     }
     exec().catch((err) => send(res, err instanceof ApiError ? err.status : 500, { ok: false, error: err.message }))
     return true
   }
 
-  return { token, allowUnsafe, runtimes, list, get, dispatch, stop, settled, stopAll, handle, active }
+  return { token, allowUnsafe, runtimes, list, get, dispatch, stop, settled, stopAll, handle, active, flowSettled, flowsActive }
 }
