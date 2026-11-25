@@ -28,6 +28,7 @@ Camada de operação que padroniza como agentes de IA trabalham em um projeto de
 - [Execução ao vivo (canvas)](#execução-ao-vivo-canvas)
 - [API local e canvas interativo](#api-local-e-canvas-interativo)
 - [App desktop](#app-desktop)
+- [Coordenador de tarefas (`harness coordinate`)](#coordenador-de-tarefas-harness-coordinate)
 - [Orquestração encadeada (`harness flow`)](#orquestração-encadeada-harness-flow)
 - [Execução competitiva (`harness compete`)](#execução-competitiva-harness-compete)
 - [Rotinas e `harness serve`](#rotinas-e-harness-serve)
@@ -174,6 +175,7 @@ tasks/
 | `harness history <task>` | Mostra eventos + interações de uma task (memorização) |
 | `harness report` | Métricas do banco (WIP, cycle time, aging, throughput). Flags: `--format`, `--module`, `--days` |
 | `harness kanban` | Painel kanban: `--serve [porta]` (drag&drop) ou `--out <arquivo>` (estático) |
+| `harness coordinate plan <feature> --tool <t>` / `approve` / `next` | Coordenador: decompõe a feature em tasks, você aprova, executa em ondas (ver "Coordenador de tarefas") |
 | `harness flow <task> --implement <tool> --review <tool> [--fix t] [--rounds n] [--approve none\|review\|each]` | Orquestração encadeada: implementar → revisar → corrigir (ver "Orquestração encadeada") |
 | `harness compete <task> --tools <t1,t2,...> [--judge <tool>]` | Execução competitiva: candidatas em worktrees próprias, juiz opcional, você escolhe (ver "Execução competitiva") |
 | `harness context <task> [--stats] [--full]` / `context digest <módulo> --tool <t>` | Pacote de contexto com estatística de economia; digest do histórico do módulo (ver "Otimizador de contexto") |
@@ -705,6 +707,37 @@ pnpm harness worktree finish 12 --handoff "…"       # integração continua ta
 
 Fora desta versão: ondas por dependência (B esperar A ser integrada), integração automática e
 tool/modelo diferentes por task no mesmo lote.
+
+### Coordenador de tarefas (`harness coordinate`)
+
+Um agente **coordenador** lê a spec (e o plano) de uma feature e propõe a decomposição em tasks;
+o harness valida, você aprova, e o harness cria as tasks e executa em **ondas** (as que já têm as
+dependências concluídas rodam em paralelo).
+
+```bash
+harness coordinate plan f1 --tool claude [--max-tasks 8]     # coordenador propõe (só lê)
+harness coordinate show <plano> [--json]                     # ondas, escopos, dependências, ACs, avisos
+harness coordinate edit <plano> --file plano.json            # ajuste à mão (revalida)
+harness coordinate approve <plano> [--only T1,T2]            # cria as tasks em tasks/queue/
+harness coordinate next <plano> --tool claude [--review codex] [--max-parallel 3]
+harness coordinate status <plano>                            # onde está cada task, run/fluxo, prontas
+harness coordinate reject <plano> | list [<feature>]
+```
+
+- **Plano**: tasks com título, agente, escopo (arquivos exatos), dependências, ACs da spec, tipo,
+  prioridade, complexidade, o que existe, o que criar, especificação e critérios de conclusão. O
+  coordenador responde um JSON entre `--- PLANO ---` e `--- FIM ---`; ele só lê (Claude em `plan`,
+  Codex `read-only`; se alterar algo, o plano é descartado).
+- **Validação** (recusa o plano): escopo vazio ou caminho fora do repositório, dependência
+  inexistente ou em ciclo, ids repetidos, sem critério, e **duas tasks com arquivos em comum sem
+  dependência entre elas** (o paralelismo quebraria o escopo). **Avisos**: AC que não existe na spec
+  e ACs da spec sem task.
+- **Aprovação**: cria as tasks na ordem das ondas, com `## Depende de` apontando para os números
+  criados e as seções preenchidas (passam no DoR do `harness start`). `--only` cria só parte.
+- **next**: pega as tasks do plano na queue cujas dependências estão em `done/`, faz `start` +
+  `worktree start` e roda — `harness run` com `--tool`, ou fluxo implementar → revisar com
+  `--review`. A integração continua sua (`harness worktree finish <task>`); depois, `next` de novo
+  para a onda seguinte.
 
 ### Orquestração encadeada (`harness flow`)
 

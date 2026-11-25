@@ -23,11 +23,20 @@ o humano aprovando o plano.
 
 ## Critérios de aceitação
 
-- [ ] AC-1 — Plano gerado por agente só leitura, bloco parseável, guardas (alteração, sem bloco).
-- [ ] AC-2 — Validação de escopo/dependências/ciclos/critérios e avisos de ACs; ondas.
-- [ ] AC-3 — Aprovação cria tasks prontas para o DoR, ligadas por `Depende de`; `--only`; edição.
-- [ ] AC-4 — `next` executa a onda pronta (run ou fluxo) e `status` mostra o andamento.
-- [ ] AC-5 — Zero dependências novas; testes com agente falso.
+- [x] AC-1 — Plano gerado por agente só leitura, bloco parseável, guardas (alteração, sem bloco).
+- [x] AC-2 — Validação de escopo/dependências/ciclos/critérios e avisos de ACs; ondas.
+- [x] AC-3 — Aprovação cria tasks prontas para o DoR, ligadas por `Depende de`; `--only`; edição.
+- [x] AC-4 — `next` executa a onda pronta (run ou fluxo) e `status` mostra o andamento.
+- [x] AC-5 — Zero dependências novas; testes com agente falso.
+
+## Estado (2026-11-25)
+
+- Entregue nas tasks 137 (coordenador) e 138 (docs).
+- Validado com agente falso: plano válido, edição, aprovação (tasks passam no DoR), onda com
+  fluxo implementar → revisar, status, onda seguinte; guardas (escrita, sem bloco, escopos
+  sobrepostos, --only incompleto, rejeição).
+- Pendente: qualidade do plano com o Claude real; painel do coordenador no canvas.
+- Decisões: coordenador só propõe; integração continua humana.
 
 ## Fora de escopo
 

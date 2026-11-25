@@ -673,6 +673,13 @@
 - Pendências: docs (138); validar com o Claude real (qualidade do plano); painel no canvas.
 - Decisões: coordenador só propõe; o humano aprova e integra; tasks independentes com escopos disjuntos.
 
+## Handoff (task 138 — coordenador-de-tarefas: docs)
+- Feito: README — seção "Coordenador de tarefas (`harness coordinate`)" (plano, validação,
+  aprovação, ondas com `next`, status) e linha na tabela da CLI. AGENTS.md — papel de coordenador.
+  Spec com ACs e Estado.
+- Pendências: validar o plano com o Claude real; painel do coordenador no canvas.
+- Decisões: —
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do

@@ -139,6 +139,10 @@ pnpm harness budget                 # consumo medido × limites (harness.json �
   histórico do módulo em `digest.md`.
 - No lote, tasks com dependência entre si ou escopos sobrepostos são recusadas antes de qualquer
   execução; a integração continua task a task (`worktree finish`).
+- Coordenador: `pnpm harness coordinate plan <feature> --tool claude` → o humano aprova
+  (`approve`) → `coordinate next <plano> --tool claude [--review codex]` roda a onda pronta. Como
+  **coordenador**, só leia e responda o JSON do plano entre `--- PLANO ---` e `--- FIM ---`, com
+  escopos disjuntos entre tasks independentes.
 - Fluxo encadeado: `pnpm harness flow <task> --implement claude --review codex [--approve review]`
   — implementar → revisar → corrigir na mesma worktree até aprovar. Como **revisor**, só leia e
   termine com `VEREDITO: APROVADO` ou `VEREDITO: MUDANÇAS` + lista; como **correção**, atenda a
