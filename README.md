@@ -27,6 +27,7 @@ Camada de operação que padroniza como agentes de IA trabalham em um projeto de
 - [Qualidade pós-run e analytics](#qualidade-pós-run-e-analytics)
 - [Execução ao vivo (canvas)](#execução-ao-vivo-canvas)
 - [API local e canvas interativo](#api-local-e-canvas-interativo)
+- [App desktop](#app-desktop)
 - [Orquestração encadeada (`harness flow`)](#orquestração-encadeada-harness-flow)
 - [Execução competitiva (`harness compete`)](#execução-competitiva-harness-compete)
 - [Rotinas e `harness serve`](#rotinas-e-harness-serve)
@@ -917,6 +918,29 @@ servidor) mostra um cartão ao vivo por task da coluna `active`:
 - Multi-projeto no workspace: a vista é por projeto (o kanban agregado do workspace é
   outra superfície).
 
+## App desktop
+
+`apps/desktop` é um app **Electron** sobre a API local: escolhe a pasta de um projeto, sobe o
+`harness serve` dele e mostra o board, a vista Execução (rodar/parar agentes, fluxos, competições,
+timeline ao vivo) e o Analytics numa janela — sem terminal.
+
+```bash
+cd apps/desktop
+npm install          # electron + electron-builder ficam só neste app
+npm start            # ou: npm start -- D:\projetos\meu-projeto
+npm run dist:win     # instalador (.exe) em apps/desktop/dist/ (também dist:mac, dist:linux)
+```
+
+- Roda o harness com o Node embutido no Electron (não precisa de Node instalado; `HARNESS_NODE`
+  usa outro). O instalador leva o CLI do harness em `resources/harness/`.
+- Menus: **Arquivo** (abrir projeto, recentes), **Visualizar** (Board `Ctrl+1`, Execução `Ctrl+2`,
+  Analytics `Ctrl+3`), **Servidor** (reiniciar, liberar unsafe neste projeto, abrir no navegador,
+  ver log).
+- Ao fechar, encerra o serve com `POST /api/shutdown` (token da sessão) — encerramento gracioso
+  também no Windows (runs em andamento são interrompidos e o `serve.json` é removido).
+- Janela isolada (sem Node na página); só a origem do serve navega dentro dela.
+- Detalhes em [`apps/desktop/README.md`](apps/desktop/README.md).
+
 ## API local e canvas interativo
 
 O `harness serve` expõe uma **API local de execuções** e liga os controles da vista Execução
@@ -942,6 +966,7 @@ O disparo passa pelo **mesmo caminho do `harness run`**: task ativa, com worktre
 | `GET /api/runs/:id?after=<seq>` | run + eventos depois de `seq` (polling incremental; `&native=1` inclui o evento bruto) |
 | `POST /api/runs` | `{ task, tool, model?, permissionMode?, unsafe?, ignoreBudget?, contextBudget? }` → **202** com o run (segue em segundo plano) |
 | `POST /api/runs/:id/stop` | interrompe o run |
+| `POST /api/shutdown` | encerra o serve com graça (usado pelo app desktop; exige o token) |
 
 Erros vêm como `{ ok: false, error }`: 422 para validação do `harness run` (task fora de
 `active/`, sem worktree, tool ausente, opencode sem unsafe), 409 para orçamento estourado ou run

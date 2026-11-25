@@ -652,6 +652,13 @@
 - Pendências: docs (136); rodar `npm install && npm start` no Windows (Electron não roda no CI nem na VM).
 - Decisões: app consome só a API local; o harness segue sem dependências.
 
+## Handoff (task 136 — app-desktop: docs)
+- Feito: README — seção "App desktop" (instalar, rodar, gerar instalador, Node embutido, menus,
+  encerramento por /api/shutdown, segurança) e a rota `POST /api/shutdown` na tabela da API local.
+  Spec com ACs e Estado.
+- Pendências: validar `npm start` e `npm run dist:win` no Windows; ícone do app.
+- Decisões: —
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do

@@ -22,11 +22,19 @@ sem subir servidor à mão.
 
 ## Critérios de aceitação
 
-- [ ] AC-1 — Núcleo sem Electron (caminhos, Node, projeto, serve, configurações) testado.
-- [ ] AC-2 — `POST /api/shutdown` com token encerra o serve com graça (exit 0, serve.json removido).
-- [ ] AC-3 — App Electron com menus, recentes, unsafe por projeto, log, janela isolada.
-- [ ] AC-4 — Empacotamento declarado (electron-builder, CLI do harness em resources).
-- [ ] AC-5 — Harness continua sem dependências; docs.
+- [x] AC-1 — Núcleo sem Electron (caminhos, Node, projeto, serve, configurações) testado.
+- [x] AC-2 — `POST /api/shutdown` com token encerra o serve com graça (exit 0, serve.json removido).
+- [x] AC-3 — App Electron com menus, recentes, unsafe por projeto, log, janela isolada.
+- [x] AC-4 — Empacotamento declarado (electron-builder, CLI do harness em resources).
+- [x] AC-5 — Harness continua sem dependências; docs.
+
+## Estado (2026-11-25)
+
+- Entregue nas tasks 135 (app + /api/shutdown) e 136 (docs).
+- Validado: núcleo com testes, serve real subindo e saindo com exit 0 por /api/shutdown, main.js
+  compila. NÃO validado: o Electron em si (não roda no CI nem na VM de desenvolvimento).
+- Pendente: `npm install && npm start` e `npm run dist:win` no Windows; ícone do app.
+- Decisões: Electron (escolha do usuário); app só consome a API local; harness sem dependências.
 
 ## Fora de escopo
 
