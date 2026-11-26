@@ -2,7 +2,7 @@
 // o app sobe o `harness serve` do projeto escolhido (com o Node do próprio Electron ou
 // `HARNESS_NODE`) e abre o Workspace (conversa + mudanças), o quadro, o Analytics e o canvas clássico numa janela.
 // A lógica sem Electron vive em core.js (testada); aqui só janela, menus e ciclo de vida.
-import { app, BrowserWindow, Menu, dialog, shell, clipboard } from 'electron'
+import { app, BrowserWindow, Menu, dialog, shell, clipboard, ipcMain } from 'electron'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
@@ -13,7 +13,8 @@ import {
   saveSettings,
   startServe,
   stopServe,
-  touchRecent
+  touchRecent,
+  validProjectRequest
 } from './core.js'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
@@ -43,7 +44,7 @@ function showWelcome(extra = '') {
       'AlterAI - Agentic OS',
       `<h1>AlterAI - Agentic OS</h1><p>Abra a pasta de um projeto do harness (com <code>harness.json</code>) em
        <kbd>Arquivo → Abrir projeto…</kbd> (<kbd>Ctrl/Cmd+O</kbd>). O app sobe o <code>harness serve</code> do projeto e
-       mostra o board, a vista Execução e o Analytics.</p>${extra}`
+       abre o Workspace; dali você troca de projeto pelo nome no topo.</p>${extra}`
     )
   )
 }
@@ -190,7 +191,7 @@ function createWindow() {
     minHeight: 600,
     backgroundColor: '#0f1117',
     title: 'AlterAI - Agentic OS',
-    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true }
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, preload: path.join(HERE, 'preload.cjs') }
   })
   // Só a origem do serve navega dentro da janela; links externos vão para o navegador.
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -213,6 +214,25 @@ function createWindow() {
   })
   buildMenu()
 }
+
+// Ponte da página (task 142): só a página do serve aberto pode pedir; a pasta precisa ser projeto.
+const fromServe = (event) => Boolean(current && event.senderFrame && isInternalUrl(event.senderFrame.url, current.info.url))
+ipcMain.handle('harness:open-project', async (event, root) => {
+  if (!fromServe(event)) return { ok: false, error: 'origem não autorizada' }
+  const dir = validProjectRequest(root)
+  if (!dir) return { ok: false, error: 'não é um projeto do harness' }
+  setImmediate(() => openProject(dir))
+  return { ok: true }
+})
+ipcMain.handle('harness:pick-project', async (event) => {
+  if (!fromServe(event)) return { ok: false, error: 'origem não autorizada' }
+  setImmediate(() => pickProject())
+  return { ok: true }
+})
+ipcMain.handle('harness:recents', async (event) => {
+  if (!fromServe(event)) return []
+  return settings.recents.filter((p) => isHarnessProject(p))
+})
 
 if (!app.requestSingleInstanceLock()) {
   app.quit()

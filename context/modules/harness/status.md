@@ -714,6 +714,16 @@
 - Pendências: competição lado a lado e Início no Workspace; validar com as tools reais.
 - Decisões: comentários ficam no navegador; correção vai para a sessão do último run de escrita.
 
+## Handoff (task 142 — projetos-e-inicio: seletor de projetos)
+- Feito: `lib/projects.js` (NOVO) — `listProjects` (projetos do `.harness-workspace.json` + harnessSource,
+  caminhos com `\` ou `/`, contagem de tasks, pasta ausente) e `GET /api/projects`. Workspace: nome do
+  projeto no topo vira seletor (`Ctrl P`, filtro, setas/Enter). App desktop: `preload.cjs` (NOVO) expõe
+  `harnessDesktop` (abrir projeto, escolher pasta, recentes); `ipcMain` aceita só a origem do serve e
+  só pasta de projeto (`validProjectRequest`). +4 testes; suíte verde (366); conferido no workspace real
+  (8 projetos).
+- Pendências: tela Início (143); testar a troca dentro do app no Windows.
+- Decisões: no navegador o seletor só copia o `harness serve` da outra pasta.
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do

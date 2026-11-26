@@ -93,6 +93,16 @@ aside.right{flex:1 1 360px;max-width:460px;border-left:1px solid var(--line);bac
 .gate pre{margin:6px 0 0;white-space:pre-wrap;color:var(--muted);font-size:11px;max-height:160px;overflow:auto}
 .toast{position:fixed;right:16px;bottom:16px;max-width:420px;background:#1C1213;border:1px solid #4D2523;color:#F2C2BF;border-radius:10px;padding:10px 14px;white-space:pre-wrap;display:none;z-index:9}
 .sr{position:absolute;left:-9999px}
+.proj-btn{display:inline-flex;align-items:center;gap:8px;height:32px;padding:0 10px;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--text);font-weight:600;max-width:280px}
+.proj-btn:hover,.proj-btn[aria-expanded=true]{background:#1B1D23;border-color:var(--line2)}
+.proj-btn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.proj-menu{position:fixed;top:46px;left:10px;width:380px;max-height:70vh;overflow:auto;background:#15171C;border:1px solid var(--line2);border-radius:12px;box-shadow:0 18px 40px rgba(0,0,0,.45);padding:8px;z-index:8;display:none}
+.proj-menu.open{display:block}
+.proj-menu input{width:100%;height:32px;border-radius:8px;border:1px solid var(--line2);background:#0F1014;padding:0 10px;margin-bottom:6px;outline:0}
+.proj{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:8px 10px;border-radius:8px;border:0;background:transparent;color:var(--text)}
+.proj:hover,.proj.focus{background:#1F222B}.proj:disabled{opacity:.45;cursor:default}
+.proj .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.proj .pt{display:block;color:var(--dim);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:rtl;text-align:left}
 .an{flex:1;display:flex;min-height:0}
 .an-files{flex:0 0 230px;border-right:1px solid var(--line);overflow:auto;padding:8px}
 .an-code{flex:1;min-width:0;display:flex;flex-direction:column}
@@ -120,7 +130,9 @@ aside.right{flex:1 1 360px;max-width:460px;border-left:1px solid var(--line);bac
 <script type="application/json" id="cfg">__CONFIG__</script>
 <header class="top">
   <span class="logo">A</span>
-  <strong id="proj">__TITLE__</strong>
+  <button class="proj-btn" id="proj" aria-haspopup="true" aria-expanded="false" title="Trocar de projeto (Ctrl P)"><span id="proj-name">projeto</span>
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+  <div class="proj-menu" id="proj-menu" role="dialog" aria-label="Trocar de projeto"></div>
   <label class="search"><span class="sr">Buscar task</span>
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
     <input id="q" placeholder="Buscar task…" autocomplete="off"><kbd>Ctrl K</kbd>
@@ -712,6 +724,8 @@ aside.right{flex:1 1 360px;max-width:460px;border-left:1px solid var(--line);bac
     if (ev.target.dataset && ev.target.dataset.pick) { state.picked[ev.target.dataset.pick] = ev.target.checked; const sc = $('an-scroll'); state.anScroll = sc ? sc.scrollTop : 0; renderCenter() }
   })
   document.addEventListener('keydown', (ev) => {
+    if ((ev.ctrlKey || ev.metaKey) && !ev.shiftKey && ev.key.toLowerCase() === 'p') { ev.preventDefault(); openProjMenu(); return }
+    if ($('proj-menu').classList.contains('open')) return
     if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'k') { ev.preventDefault(); $('q').focus(); $('q').select(); return }
     if (ev.target.id === 'msg' && ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); send(); return }
     if (ev.key === 'Escape') {
@@ -721,6 +735,88 @@ aside.right{flex:1 1 360px;max-width:460px;border-left:1px solid var(--line);bac
   })
   $('q').addEventListener('input', (ev) => { state.filter = ev.target.value; renderSide() })
   $('q').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { const first = document.querySelector('#side [data-task]'); if (first) { select(first.dataset.task); ev.target.blur() } } })
+
+
+  // ---- seletor de projetos (task 142) -------------------------------------------------------
+  const desk = window.harnessDesktop || null
+  const proj = { data: null, recents: [], filter: '', focus: 0 }
+  async function loadProjects() {
+    try {
+      proj.data = await api('/api/projects')
+      $('proj-name').textContent = proj.data.current.name
+      document.title = proj.data.current.name + ' — Workspace'
+    } catch {}
+  }
+  function projRows() {
+    const f = proj.filter.toLowerCase()
+    const rows = []
+    const d = proj.data
+    const list = d && d.projects && d.projects.length ? d.projects : d ? [{ ...d.current, current: true, exists: true }] : []
+    for (const p of list) rows.push({ ...p, group: d && d.workspace ? 'Workspace ' + d.workspace.name : 'Projeto' })
+    for (const r of proj.recents) if (!rows.some((x) => x.root.toLowerCase() === r.toLowerCase())) rows.push({ name: r.split(/[\\/]/).filter(Boolean).pop(), root: r, exists: true, group: 'Recentes' })
+    return rows.filter((r) => !f || (r.name + ' ' + r.root).toLowerCase().includes(f))
+  }
+  function renderProjMenu() {
+    const rows = projRows()
+    proj.focus = Math.min(proj.focus, Math.max(rows.length - 1, 0))
+    let html = '<label class="sr" for="proj-q">Filtrar projetos</label><input id="proj-q" placeholder="Filtrar projetos…" autocomplete="off" value="' + esc(proj.filter) + '">'
+    let group = null
+    rows.forEach((r, i) => {
+      if (r.group !== group) { group = r.group; html += '<div class="sec">' + esc(group) + '</div>' }
+      const st = r.stats ? (r.stats.active ? '<span class="chip ok">' + r.stats.active + ' ativa' + (r.stats.active > 1 ? 's' : '') + '</span>' : '') + (r.stats.queue ? '<span class="chip">' + r.stats.queue + ' na fila</span>' : '') + (!r.stats.active && !r.stats.queue ? '<span class="chip">' + r.stats.done + ' feitas</span>' : '') : ''
+      html += '<button class="proj' + (i === proj.focus ? ' focus' : '') + '" data-proj="' + esc(r.root) + '"' + (r.exists === false ? ' disabled title="pasta não encontrada"' : '') + '>' +
+        '<span class="dot" style="background:' + (r.current ? 'var(--accent)' : 'transparent') + ';border:1.5px solid ' + (r.current ? 'var(--accent)' : 'var(--dim)') + '"></span>' +
+        '<span class="nm">' + esc(r.name) + '<span class="pt"><bdi dir="ltr">' + esc(r.root) + '</bdi></span></span>' + st + '</button>'
+    })
+    if (!rows.length) html += '<div class="hint" style="padding:10px">Nenhum projeto encontrado.</div>'
+    html += '<div style="border-top:1px solid var(--line);margin-top:6px;padding-top:6px">' + (desk
+      ? '<button class="proj" data-act="pick-project"><span class="nm">Abrir outra pasta…</span><kbd>Ctrl O</kbd></button>'
+      : '<div class="hint" style="padding:6px 10px">No navegador, trocar de projeto = rodar <span class="mono">harness serve</span> na pasta dele. No app desktop a troca é direta.</div>') + '</div>'
+    $('proj-menu').innerHTML = html
+  }
+  async function openProjMenu() {
+    proj.filter = ''; proj.focus = 0
+    if (desk) { try { proj.recents = await desk.recents() } catch { proj.recents = [] } }
+    await loadProjects()
+    renderProjMenu()
+    $('proj-menu').classList.add('open')
+    $('proj').setAttribute('aria-expanded', 'true')
+    const q = $('proj-q'); if (q) q.focus()
+  }
+  function closeProjMenu() { $('proj-menu').classList.remove('open'); $('proj').setAttribute('aria-expanded', 'false') }
+  async function switchProject(root) {
+    const cur = proj.data && proj.data.current
+    if (cur && cur.root.toLowerCase() === root.toLowerCase()) { closeProjMenu(); return }
+    if (!desk) {
+      const cmd = 'cd "' + root + '" && pnpm harness serve'
+      try { await navigator.clipboard.writeText(cmd) } catch {}
+      toast('No navegador, abra o outro projeto com:\n' + cmd + '\n(comando copiado)')
+      return
+    }
+    const r = await desk.openProject(root)
+    if (!r || !r.ok) toast('Não consegui abrir: ' + ((r && r.error) || 'erro'))
+    else closeProjMenu()
+  }
+  $('proj').addEventListener('click', () => ($('proj-menu').classList.contains('open') ? closeProjMenu() : openProjMenu()))
+  $('proj-menu').addEventListener('input', (ev) => { if (ev.target.id === 'proj-q') { proj.filter = ev.target.value; proj.focus = 0; renderProjMenu(); const q = $('proj-q'); q.focus(); q.setSelectionRange(q.value.length, q.value.length) } })
+  $('proj-menu').addEventListener('keydown', (ev) => {
+    const rows = projRows()
+    if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+      ev.preventDefault()
+      proj.focus = (proj.focus + (ev.key === 'ArrowDown' ? 1 : -1) + rows.length) % Math.max(rows.length, 1)
+      renderProjMenu(); $('proj-q').focus()
+    }
+    if (ev.key === 'Enter' && ev.target.id === 'proj-q') { ev.preventDefault(); const r = rows[proj.focus]; if (r && r.exists !== false) switchProject(r.root) }
+    if (ev.key === 'Escape') { ev.stopPropagation(); closeProjMenu(); $('proj').focus() }
+  })
+  $('proj-menu').addEventListener('click', (ev) => {
+    const b = ev.target.closest('[data-proj],[data-act=pick-project]')
+    if (!b) return
+    ev.stopPropagation()
+    if (b.dataset.proj) return switchProject(b.dataset.proj)
+    closeProjMenu(); desk.pickProject()
+  })
+  document.addEventListener('mousedown', (ev) => { if (!ev.target.closest('#proj-menu,#proj')) closeProjMenu() })
 
   async function loadCost() {
     try {
@@ -733,6 +829,7 @@ aside.right{flex:1 1 360px;max-width:460px;border-left:1px solid var(--line);bac
     if (CFG.control) { try { state.runtimes = (await api('/api/runtimes')).runtimes } catch {} }
     await loadCards()
     loadCost()
+    loadProjects()
     if (!state.selected) renderCenter()
     setInterval(() => { loadCards() }, 4000)
     setInterval(() => { if (runningRun() || (card() && classify(card()).group === 'running')) loadConv() }, 2000)

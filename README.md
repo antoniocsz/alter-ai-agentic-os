@@ -722,6 +722,10 @@ A tela principal do `harness serve` e do app desktop:
 - API usada: `GET /api/changes?task=` (e `&file=` para o patch) e `POST /api/runs` com `note`
   (instruções do humano num run novo), além de `/api/conversation`, `/api/canvas` e `/api/board`.
 - Integrar continua pelo terminal (`harness worktree finish`); o botão *Concluir task…* copia o comando.
+- **Seletor de projetos** (nome do projeto no topo, `Ctrl P`): lista os projetos do workspace
+  (`.harness-workspace.json`) com tasks ativas/na fila e, no app desktop, os recentes e "Abrir outra
+  pasta…". No app a troca é direta; no navegador o seletor copia o `harness serve` da outra pasta.
+  API: `GET /api/projects`.
 
 ### Modo Analisar (Workspace → *Analisar*)
 

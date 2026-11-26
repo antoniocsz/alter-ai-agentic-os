@@ -1,5 +1,6 @@
 import http from 'node:http'
 import { renderWorkspacePage } from './lib/workspace-page.js'
+import { listProjects } from './lib/projects.js'
 import fs from 'node:fs'
 import path from 'node:path'
 import { DB_DIR, openDb, boardQuery, taskDetails, resolveTaskId, syncFromMarkdown } from './lib/db.js'
@@ -276,6 +277,12 @@ function route(req, res, ctx, page, canvasPage, extras = {}) {
   if (req.method === 'GET' && pathname === '/workspace' && extras.workspacePage) {
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
     return res.end(extras.workspacePage)
+  }
+
+  // Seletor de projetos do Workspace (task 142): projetos do workspace com a contagem de tasks.
+  if (req.method === 'GET' && pathname === '/api/projects') {
+    res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
+    return res.end(JSON.stringify({ ok: true, ...listProjects(projectRoot(ctx)) }))
   }
 
   if (req.method === 'GET' && pathname === '/api/board') {

@@ -43,4 +43,4 @@ O instalador leva o CLI do harness (`scripts/harness`, sem os testes) em `resour
 
 ## Atalhos
 
-`Ctrl/Cmd+O` abrir projeto · `Ctrl/Cmd+1` Workspace · `Ctrl/Cmd+2` quadro · `Ctrl/Cmd+3` analytics · `Ctrl/Cmd+4` canvas clássico.
+`Ctrl/Cmd+P` trocar de projeto (seletor no topo do Workspace: projetos do workspace + recentes) · `Ctrl/Cmd+O` abrir projeto · `Ctrl/Cmd+1` Workspace · `Ctrl/Cmd+2` quadro · `Ctrl/Cmd+3` analytics · `Ctrl/Cmd+4` canvas clássico.

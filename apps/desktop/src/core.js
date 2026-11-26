@@ -191,3 +191,14 @@ export function touchRecent(settings, dir) {
   const same = (p) => (process.platform === 'win32' ? p.toLowerCase() === norm.toLowerCase() : p === norm)
   return { ...settings, recents: [norm, ...settings.recents.filter((p) => !same(p))].slice(0, MAX_RECENTS) }
 }
+
+/**
+ * Pedido de troca de projeto vindo da página (task 142): só caminho absoluto de uma pasta que é
+ * projeto do harness. Devolve o caminho resolvido ou null.
+ */
+export function validProjectRequest(root, { isProject = isHarnessProject } = {}) {
+  if (typeof root !== 'string' || !root || root.length > 4096 || root.includes('\0')) return null
+  if (!path.isAbsolute(root)) return null
+  const resolved = path.resolve(root)
+  return isProject(resolved) ? resolved : null
+}
