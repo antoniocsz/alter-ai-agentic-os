@@ -26,7 +26,8 @@ export function detectRuntimes(env = process.env) {
       command: [driver.bin, ...driver.command({})].join(' '),
       defaults: DEFAULTS[name] ?? null,
       install: exe ? null : driver.installHint,
-      requires_unsafe: Boolean(driver.requiresUnsafe)
+      requires_unsafe: Boolean(driver.requiresUnsafe),
+      supports_resume: Boolean(driver.supportsResume)
     }
   })
 }

@@ -153,7 +153,8 @@ pnpm harness budget                 # consumo medido × limites (harness.json �
 - Competição: `pnpm harness compete <task> --tools claude,codex [--judge claude]` — cada candidata
   resolve a task na sua worktree; o humano escolhe com `harness compete pick <comp> <candidata>`.
   Como **juiz**, só leia e termine com `VENCEDOR: <candidata>` ou `VENCEDOR: NENHUM`.
-- Pelo painel: `pnpm harness serve` → `/canvas` tem "▶ Rodar agente", "■ Parar" e a timeline ao
+- Pelo painel: `pnpm harness serve` → `/workspace` (conversa com o agente, mudanças e gates por
+  task) e `/canvas` tem "▶ Rodar agente", "■ Parar" e a timeline ao
   vivo; a API local (`/api/runs`, token em `.harness/serve.json`) aplica as mesmas regras do
   `harness run`. `unsafe` pelo painel só com `harness serve --allow-unsafe` e aprovação explícita.
 

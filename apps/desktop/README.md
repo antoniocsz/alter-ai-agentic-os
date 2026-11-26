@@ -1,8 +1,9 @@
 # AlterAI - Agentic OS — app desktop
 
 App Electron sobre a API local do `harness serve`: abre a pasta de um projeto do harness, sobe o
-servidor do projeto e mostra o **board**, a **vista Execução** (rodar/parar agentes, fluxos,
-competições, timeline ao vivo) e o **Analytics** numa janela.
+servidor do projeto e abre no **Workspace** (tasks por estado, conversa contínua com o agente,
+mudanças da worktree e gates), com o **quadro**, o **Analytics** e o **canvas clássico** (fluxos,
+competições) a um atalho.
 
 ## Rodar em desenvolvimento
 
@@ -42,4 +43,4 @@ O instalador leva o CLI do harness (`scripts/harness`, sem os testes) em `resour
 
 ## Atalhos
 
-`Ctrl/Cmd+O` abrir projeto · `Ctrl/Cmd+1` board · `Ctrl/Cmd+2` execução · `Ctrl/Cmd+3` analytics.
+`Ctrl/Cmd+O` abrir projeto · `Ctrl/Cmd+1` Workspace · `Ctrl/Cmd+2` quadro · `Ctrl/Cmd+3` analytics · `Ctrl/Cmd+4` canvas clássico.

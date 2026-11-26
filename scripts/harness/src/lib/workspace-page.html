@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__TITLE__ — Workspace</title>
+<style>
+:root{--bg:#0D0E11;--side:#121318;--panel:#16181D;--line:#22252C;--line2:#2F333C;--text:#E7E9EE;--muted:#A3A9B4;--dim:#8A909B;--accent:#8B9BFF;--accent-bg:#2A2F45;--ok:#3DD68C;--warn:#F5A524;--bad:#F2706B}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:13px/1.45 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;overflow:hidden}
+a{color:#A9B5FF;text-decoration:none}a:hover{color:#C9D1FF}
+.mono{font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Consolas,monospace}
+button,select,textarea,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;border-radius:8px;border:1px solid var(--line2);background:#1A1C22;color:var(--text);font-weight:500;white-space:nowrap}
+.btn:hover{border-color:#4A4F5A}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#0D0E11;font-weight:600}
+.btn.ok{background:var(--ok);border-color:var(--ok);color:#07140D;font-weight:600}
+.btn.danger{color:#F2A9A5;border-color:#4D2523}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--muted)}
+.btn.sm{height:28px;padding:0 10px;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 8px;border:1px solid #2A2D35;border-radius:999px;font-size:12px;color:#B8BEC8;background:#15171C;white-space:nowrap}
+.chip.ok{color:var(--ok);border-color:#1F4D37}.chip.warn{color:var(--warn);border-color:#4A3A12}.chip.bad{color:var(--bad);border-color:#4D2523}.chip.acc{color:#C9D1FF;border-color:#2E3557}
+.dot{width:8px;height:8px;border-radius:50%;flex:none;display:inline-block}
+header.top{height:48px;flex:none;display:flex;align-items:center;gap:12px;padding:0 14px;border-bottom:1px solid var(--line);background:#101115}
+.logo{width:22px;height:22px;border-radius:6px;background:var(--accent);color:#0D0E11;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:12px}
+.search{flex:1 1 280px;max-width:480px;margin:0 auto;display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;border:1px solid #262931;border-radius:8px;background:#15171C;color:var(--dim)}
+.search input{flex:1;background:transparent;border:0;outline:0;min-width:0}
+kbd{font:11px "JetBrains Mono",monospace;border:1px solid var(--line2);border-radius:5px;padding:1px 5px;color:var(--dim)}
+.layout{flex:1;display:flex;min-height:0}
+aside.side{flex:0 0 268px;background:var(--side);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+.side-scroll{flex:1;overflow:auto;padding:10px 8px}
+.sec{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#9AA1AC;padding:12px 10px 6px;display:flex;gap:6px}
+.sec.warn{color:var(--warn)}
+.item{display:flex;align-items:flex-start;gap:10px;width:100%;text-align:left;padding:8px 10px;border-radius:8px;border:0;background:transparent;color:var(--text)}
+.item:hover{background:#1B1D23}.item.sel{background:#1F222B}
+.item .t{display:block;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .s{display:block;color:var(--muted);font-size:12px;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .n{margin-left:auto;color:var(--dim);font-size:11px}
+.item .d{margin-top:5px}
+.side-nav{border-top:1px solid var(--line);padding:8px}
+.side-nav a{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:8px;color:#B8BEC8}
+.side-nav a:hover{background:#1B1D23}
+.side-nav a span{margin-left:auto}
+main.center{flex:999 1 520px;min-width:0;display:flex;flex-direction:column;min-height:0}
+.task-head{padding:12px 22px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.task-head h1{margin:0;font-size:17px;font-weight:600}
+.subbar{padding:10px 22px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.thread{flex:1;overflow:auto;padding:18px 22px}
+.thread-inner{max-width:880px;display:flex;flex-direction:column;gap:14px}
+.bubble{align-self:flex-end;max-width:78%;background:#1B1E26;border:1px solid #2A2D35;border-radius:12px;padding:9px 13px;white-space:pre-wrap;word-break:break-word}
+.agent{display:flex;gap:11px}
+.avatar{width:26px;height:26px;border-radius:7px;background:var(--accent-bg);color:#C9D1FF;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex:none;text-transform:uppercase}
+.agent-body{flex:1;min-width:0}
+.msg{white-space:pre-wrap;word-break:break-word;line-height:1.6;margin:0 0 6px}
+details.tools{border:1px solid var(--line);border-radius:10px;background:var(--side);padding:7px 12px;margin:6px 0}
+details.tools summary{cursor:pointer;color:#B8BEC8;font-size:12px}
+.tool{display:flex;gap:10px;padding:3px 0;color:#B8BEC8;font-size:12px;word-break:break-all}
+.tool b{font-weight:400;color:var(--dim);width:64px;flex:none}
+.err{border:1px solid #4D2523;background:#1C1213;border-radius:10px;padding:9px 12px;color:#F2C2BF;white-space:pre-wrap}
+.runfoot{display:flex;gap:8px;flex-wrap:wrap;align-items:center;color:var(--dim);font-size:12px;margin-top:6px}
+.runstart{display:flex;align-items:center;gap:10px;color:var(--dim);font-size:12px}
+.runstart::before,.runstart::after{content:"";flex:1;border-top:1px solid var(--line)}
+.notice{border:1px solid #4A3A12;background:#17140C;border-radius:12px;padding:12px 14px}
+.empty{color:var(--dim);text-align:center;padding:60px 20px;line-height:1.7}
+.composer-wrap{padding:10px 22px 16px}
+.composer{max-width:880px;border:1px solid var(--line2);border-radius:14px;background:#15171C;padding:10px 12px}
+.composer textarea{width:100%;resize:none;background:transparent;border:0;outline:0;min-height:44px;max-height:200px;line-height:1.5;font-size:14px}
+.crow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px}
+.seg{display:inline-flex;border:1px solid var(--line2);border-radius:8px;overflow:hidden}
+.seg button{height:28px;padding:0 11px;border:0;background:transparent;color:#B8BEC8;font-size:12px}
+.seg button[aria-pressed=true]{background:var(--accent-bg);color:#C9D1FF}
+select{height:28px;border-radius:8px;border:1px solid var(--line2);background:#1A1C22;padding:0 8px;font-size:12px}
+.hint{color:var(--dim);font-size:12px}
+aside.right{flex:1 1 360px;max-width:460px;border-left:1px solid var(--line);background:var(--side);display:flex;flex-direction:column;min-height:0}
+.tabs{display:flex;gap:2px;padding:8px 10px 0;border-bottom:1px solid var(--line)}
+.tabs button{height:34px;padding:0 12px;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--muted)}
+.tabs button[aria-selected=true]{color:var(--text);border-bottom-color:var(--accent)}
+.pane{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+.file{display:flex;gap:8px;align-items:center;width:100%;padding:6px 9px;border-radius:7px;border:0;background:transparent;text-align:left;font-size:12px;color:var(--text)}
+.file:hover{background:#1B1D23}.file.sel{background:#1F222B}
+.file .p{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:rtl;text-align:left}
+.add{color:var(--ok)}.del{color:var(--bad)}
+.diff{border:1px solid var(--line);border-radius:10px;background:#0F1014;font-size:12px;line-height:1.65;overflow:auto;max-height:520px}
+.diff div{padding:0 10px;white-space:pre}
+.diff .a{background:#0F2A1C;color:#9FE8C4}.diff .r{background:#2A1416;color:#F2A9A5}.diff .h{color:#9AA1AC;background:#14161B}
+.gate{display:flex;gap:8px;align-items:center;padding:7px 9px;border:1px solid var(--line);border-radius:8px}
+.gate pre{margin:6px 0 0;white-space:pre-wrap;color:var(--muted);font-size:11px;max-height:160px;overflow:auto}
+.toast{position:fixed;right:16px;bottom:16px;max-width:420px;background:#1C1213;border:1px solid #4D2523;color:#F2C2BF;border-radius:10px;padding:10px 14px;white-space:pre-wrap;display:none;z-index:9}
+.sr{position:absolute;left:-9999px}
+@media (max-width:900px){aside.right{display:none}aside.side{flex-basis:220px}}
+</style>
+</head>
+<body>
+<script type="application/json" id="cfg">__CONFIG__</script>
+<header class="top">
+  <span class="logo">A</span>
+  <strong id="proj">__TITLE__</strong>
+  <label class="search"><span class="sr">Buscar task</span>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+    <input id="q" placeholder="Buscar task…" autocomplete="off"><kbd>Ctrl K</kbd>
+  </label>
+  <span class="chip" id="running-chip"><span class="dot" style="background:var(--dim)"></span>nenhum agente rodando</span>
+  <span class="chip mono" id="cost-chip" title="custo medido nas últimas 24h">24h —</span>
+</header>
+<div class="layout">
+  <aside class="side" aria-label="Tasks">
+    <div class="side-scroll" id="side"></div>
+    <nav class="side-nav" aria-label="Vistas">
+      <a href="/">Quadro<span><kbd>Ctrl 2</kbd></span></a>
+      <a href="/analytics">Analytics<span><kbd>Ctrl 3</kbd></span></a>
+      <a href="/canvas">Canvas (clássico)</a>
+    </nav>
+  </aside>
+  <main class="center" id="center"></main>
+  <aside class="right" id="right" aria-label="Painel da task">
+    <div class="tabs" role="tablist">
+      <button role="tab" id="tab-changes" aria-selected="true">Mudanças <span class="mono hint" id="changes-count"></span></button>
+      <button role="tab" id="tab-gates" aria-selected="false">Gates</button>
+      <button role="tab" id="tab-run" aria-selected="false">Execução</button>
+    </div>
+    <div class="pane" id="pane"></div>
+  </aside>
+</div>
+<div class="toast" id="toast" role="alert"></div>
+<script>
+(() => {
+  const CFG = JSON.parse(document.getElementById('cfg').textContent)
+  const $ = (id) => document.getElementById(id)
+  const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
+  const num = (id) => (String(id).match(/^(\d+)-/) || [])[1] || id
+  const money = (v) => (v == null ? 'n/d' : '$' + Number(v).toFixed(2).replace('.', ','))
+  const toks = (a, b) => {
+    if (a == null && b == null) return 'n/d'
+    const n = Number(a || 0) + Number(b || 0)
+    return n < 1000 ? n + ' tok' : (n / 1000).toFixed(1).replace('.', ',') + 'k tok'
+  }
+  const dur = (a, b) => {
+    if (!a) return ''
+    const ms = (b ? Date.parse(b) : Date.now()) - Date.parse(a)
+    if (!(ms >= 0)) return ''
+    const s = Math.round(ms / 1000)
+    return s < 60 ? s + 's' : Math.floor(s / 60) + 'm' + String(s % 60).padStart(2, '0') + 's'
+  }
+  const state = { cards: [], queue: [], selected: null, conv: null, changes: null, file: null, patch: null, tab: 'changes', mode: null, tool: null, runtimes: [], filter: '', busy: false }
+
+  function toast(msg) {
+    const t = $('toast')
+    t.textContent = msg
+    t.style.display = 'block'
+    clearTimeout(toast.h)
+    toast.h = setTimeout(() => (t.style.display = 'none'), 7000)
+  }
+
+  async function api(path, opts = {}) {
+    const headers = { 'content-type': 'application/json' }
+    if (opts.method && opts.method !== 'GET') headers['x-harness-token'] = CFG.token
+    const res = await fetch(path, { ...opts, headers })
+    let body = null
+    try { body = await res.json() } catch {}
+    if (!res.ok || !body || body.ok === false) throw new Error((body && body.error) || 'erro ' + res.status)
+    return body
+  }
+
+  // ---- classificação da barra lateral -------------------------------------------------------
+  function classify(c) {
+    const run = c.run, flow = c.flow, comp = c.competition
+    if ((run && run.status === 'running') || (flow && flow.status === 'running') || (comp && comp.status === 'running')) {
+      const what = flow && flow.status === 'running' ? 'fluxo' : comp && comp.status === 'running' ? 'competição' : (run.tool || 'agente')
+      return { group: 'running', reason: what + (run && run.last_agent_event ? ' · ' + run.last_agent_event.summary : ' · rodando') }
+    }
+    if (flow && flow.status === 'waiting_approval') return { group: 'attention', reason: 'Fluxo aguarda sua aprovação' }
+    if (flow && flow.status === 'needs_human') return { group: 'attention', reason: 'Fluxo precisa de você' }
+    if (comp && comp.status === 'ready') return { group: 'attention', reason: 'Competição pronta · escolher' }
+    if (run && run.status === 'failed') return { group: 'attention', reason: 'Execução falhou' }
+    if (run && run.quality === 'failed') return { group: 'attention', reason: 'Gates falharam' }
+    if (run && run.status === 'completed') return { group: 'attention', reason: 'Agente terminou · revisar' }
+    return { group: 'idle', reason: c.worktree && c.worktree !== 'raiz' ? 'Sem execução' : 'Sem worktree' }
+  }
+
+  function renderSide() {
+    const f = state.filter.toLowerCase()
+    const match = (t) => !f || (t.id + ' ' + (t.title || '')).toLowerCase().includes(f)
+    const groups = { attention: [], running: [], idle: [] }
+    for (const c of state.cards) if (match(c)) { const k = classify(c); groups[k.group].push({ c, k }) }
+    const queue = state.queue.filter(match)
+    const dot = { attention: '<span class="dot d" style="background:var(--warn)"></span>', running: '<span class="dot d" style="background:var(--ok);animation:pulse 1.2s infinite"></span>', idle: '<span class="dot d" style="border:1.5px solid var(--dim)"></span>' }
+    const item = (c, k, g) => '<button class="item' + (c.id === state.selected ? ' sel' : '') + '" data-task="' + esc(c.id) + '">' + dot[g] +
+      '<span style="flex:1;min-width:0"><span class="t">' + esc(c.title || c.id) + '</span><span class="s">' + esc(k.reason) + '</span></span><span class="n mono">' + esc(num(c.id)) + '</span></button>'
+    let html = ''
+    const sec = (label, cls, list, g) => {
+      if (!list.length) return
+      html += '<div class="sec ' + cls + '">' + label + ' · ' + list.length + '</div>' + list.map(({ c, k }) => item(c, k, g)).join('')
+    }
+    sec('Precisa de você', 'warn', groups.attention, 'attention')
+    sec('Rodando', '', groups.running, 'running')
+    sec('Paradas', '', groups.idle, 'idle')
+    if (queue.length) {
+      html += '<div class="sec">Fila · ' + queue.length + '</div>' + queue.map((t) =>
+        '<div class="item" title="Inicie com: harness start ' + esc(num(t.id)) + '" style="color:#B8BEC8;cursor:default"><span class="dot d" style="border-radius:2px;background:#3A3E48"></span><span style="flex:1;min-width:0"><span class="t">' + esc(t.title || t.id) + '</span><span class="s">harness start ' + esc(num(t.id)) + '</span></span><span class="n mono">' + esc(num(t.id)) + '</span></div>').join('')
+    }
+    if (!html) html = '<div class="empty">Nenhuma task ativa.<br><span class="mono">harness start &lt;task&gt;</span></div>'
+    $('side').innerHTML = html
+    const running = groups.running.length
+    $('running-chip').innerHTML = '<span class="dot" style="background:' + (running ? 'var(--ok)' : 'var(--dim)') + '"></span>' + (running ? running + (running > 1 ? ' agentes rodando' : ' agente rodando') : 'nenhum agente rodando')
+  }
+
+  // ---- centro: conversa ---------------------------------------------------------------------
+  const card = () => state.cards.find((c) => c.id === state.selected) || null
+  const lastRun = () => (state.conv && state.conv.runs.length ? state.conv.runs[state.conv.runs.length - 1] : null)
+  const runningRun = () => (state.conv ? state.conv.runs.find((r) => r.status === 'running') : null)
+  const canResume = (tool) => { const r = state.runtimes.find((x) => x.tool === tool); return Boolean(r && r.supports_resume) }
+
+  function toolLabel(e) {
+    const p = e.payload || {}
+    if (e.type === 'agent.file_changed') return ['Alterou', p.path]
+    const name = p.name || p.tool || 'ação'
+    const input = p.input || {}
+    const target = input.file_path || input.path || input.command || input.pattern || input.url || ''
+    return [name, typeof target === 'string' ? target : JSON.stringify(target)]
+  }
+
+  function renderRun(run, idx) {
+    let html = ''
+    const label = run.parent_run_id ? '' : (idx === 0 ? 'Execução inicial' : 'Nova execução') + ' · ' + esc(run.tool) + (run.model ? ' · ' + esc(run.model) : '')
+    if (label) html += '<div class="runstart">' + label + '</div>'
+    const events = run.events || []
+    let tools = []
+    let agentOpen = false
+    let agentHtml = ''
+    const flushTools = () => {
+      if (!tools.length) return
+      const files = tools.filter((t) => t[0] === 'Alterou').length
+      agentHtml += '<details class="tools"><summary>' + tools.length + (tools.length > 1 ? ' ações' : ' ação') + (files ? ' · ' + files + (files > 1 ? ' arquivos alterados' : ' arquivo alterado') : '') + '</summary>' +
+        tools.map((t) => '<div class="tool mono"><b>' + esc(t[0]) + '</b><span>' + esc(t[1]) + '</span></div>').join('') + '</details>'
+      tools = []
+    }
+    const flushAgent = () => {
+      flushTools()
+      if (agentHtml) html += '<div class="agent"><span class="avatar">' + esc((run.tool || '?')[0]) + '</span><div class="agent-body">' + agentHtml + '</div></div>'
+      agentHtml = ''
+      agentOpen = false
+    }
+    const seenText = new Set()
+    for (const e of events) {
+      const p = e.payload || {}
+      if (e.type === 'user.message') { flushAgent(); html += '<div class="bubble">' + esc(p.text) + '</div>'; continue }
+      if (e.type === 'agent.message') {
+        if (p.final && seenText.has(p.text)) continue
+        seenText.add(p.text)
+        flushTools(); agentOpen = true; agentHtml += '<p class="msg">' + esc(p.text) + '</p>'; continue
+      }
+      if (e.type === 'agent.tool_call' || e.type === 'agent.file_changed') { agentOpen = true; tools.push(toolLabel(e)); continue }
+      if (e.type === 'agent.error') { flushTools(); agentHtml += '<div class="err">' + esc(p.reason || p.message || 'erro do agente') + '</div>'; continue }
+      if (e.type === 'run.failed') { flushTools(); agentHtml += '<div class="err">Falhou: ' + esc(p.error || p.reason || 'erro') + '</div>' }
+    }
+    if (run.status === 'running') agentHtml += '<div class="runfoot"><span class="dot" style="background:var(--ok)"></span>' + esc(run.tool) + ' trabalhando · ' + dur(run.started_at) + '</div>'
+    flushAgent()
+    if (run.status !== 'running') {
+      const q = run.quality === 'passed' ? '<span class="chip ok">gates ✓</span>' : run.quality === 'failed' ? '<span class="chip bad">gates ✗</span>' : ''
+      const st = run.status === 'failed' ? '<span class="chip bad">falhou</span>' : ''
+      html += '<div class="runfoot mono">' + st + q + '<span>' + esc(run.tool) + '</span><span>' + toks(run.tokens_in, run.tokens_out) + '</span><span>' + money(run.cost_usd) + '</span><span>' + dur(run.started_at, run.finished_at) + '</span></div>'
+    }
+    return html
+  }
+
+  function flowBar(c) {
+    const f = c && c.flow
+    if (!f || !f.steps || !f.steps.length) return ''
+    const role = { implement: 'Implementar', review: 'Revisar', fix: 'Corrigir' }
+    const steps = f.steps.map((s) => {
+      const mark = s.status === 'running' ? '<span class="dot" style="background:var(--ok)"></span>' : s.verdict === 'changes' ? '<span style="color:var(--warn)">!</span>' : s.status === 'failed' ? '<span style="color:var(--bad)">✗</span>' : '<span style="color:var(--ok)">✓</span>'
+      const v = s.verdict === 'approved' ? ' · aprovado' : s.verdict === 'changes' ? ' · ajustes' : ''
+      return '<span class="chip">' + mark + esc(role[s.role] || s.role) + v + '</span>'
+    }).join('<span style="color:#4A4F5A">—</span>')
+    let act = ''
+    if (f.status === 'waiting_approval' || f.status === 'needs_human' || f.status === 'failed') act = '<button class="btn sm primary" data-act="flow-resume">Aprovar e seguir</button><button class="btn sm danger" data-act="flow-stop">Parar fluxo</button>'
+    if (f.status === 'running') act = '<button class="btn sm danger" data-act="flow-stop">Parar fluxo</button>'
+    return '<div class="subbar"><span class="hint">Fluxo</span>' + steps + '<span style="flex:1"></span>' + act + '</div>'
+  }
+
+  function compBar(c) {
+    const k = c && c.competition
+    if (!k || !['running', 'ready'].includes(k.status)) return ''
+    const list = (k.competitors || []).map((x) => '<span class="chip' + (k.judge_winner === x.key ? ' acc' : '') + '">' + esc(x.key) + ' · ' + esc(x.tool) + '</span>').join('')
+    return '<div class="subbar"><span class="hint">Competição</span>' + list + (k.judge_winner ? '<span class="hint">juiz recomenda ' + esc(k.judge_winner) + '</span>' : '') + '<span style="flex:1"></span>' +
+      (k.status === 'ready' ? '<a class="btn sm primary" href="/canvas">Comparar e escolher</a>' : '<span class="chip"><span class="dot" style="background:var(--ok)"></span>candidatas rodando</span>') + '</div>'
+  }
+
+  function renderCenter() {
+    const c = card()
+    if (!c) {
+      $('center').innerHTML = '<div class="empty">Escolha uma task na barra lateral.<br>Tasks da fila começam com <span class="mono">harness start &lt;n&gt;</span> e <span class="mono">harness worktree start &lt;n&gt;</span>.</div>'
+      return
+    }
+    const runs = state.conv ? state.conv.runs : []
+    const hasWt = c.worktree && c.worktree !== 'raiz'
+    let body = runs.map(renderRun).join('')
+    if (!runs.length) body = '<div class="empty">Nenhuma execução ainda.<br>' + (hasWt ? 'Escreva abaixo e escolha a ferramenta para começar.' : 'Crie a worktree: <span class="mono">harness worktree start ' + esc(num(c.id)) + '</span>') + '</div>'
+    const k = classify(c)
+    const status = runningRun() ? '<span class="chip ok">rodando</span>' : k.group === 'attention' ? '<span class="chip warn">' + esc(k.reason) + '</span>' : k.group === 'running' ? '<span class="chip ok">rodando</span>' : ''
+    $('center').innerHTML =
+      '<div class="task-head"><span class="mono hint">' + esc(num(c.id)) + '</span><h1>' + esc(c.title || c.id) + '</h1>' + status +
+      (c.branch ? '<span class="chip mono">' + esc(c.branch) + '</span>' : '') + '<span style="flex:1"></span>' +
+      '<button class="btn sm" data-act="copy-finish" title="Revise as mudanças e integre pelo terminal">Concluir task…</button></div>' +
+      flowBar(c) + compBar(c) +
+      '<div class="thread" id="thread"><div class="thread-inner">' + body + '</div></div>' +
+      composerHtml(c, hasWt)
+    const th = $('thread')
+    if (th) th.scrollTop = th.scrollHeight
+    const ta = $('msg')
+    if (ta && state.draft) ta.value = state.draft
+  }
+
+  function composerHtml(c, hasWt) {
+    if (!CFG.control) return '<div class="composer-wrap"><div class="composer hint">Somente leitura: abra pelo <span class="mono">harness serve</span> para conversar com o agente.</div></div>'
+    if (!hasWt) return ''
+    const live = runningRun()
+    const last = lastRun()
+    const resumable = last && last.can_continue && canResume(last.tool)
+    // Modo automático até o humano escolher: continuar quando há sessão, senão execução nova.
+    if (!state.modeByUser || (state.mode === 'continue' && !resumable)) state.mode = resumable ? 'continue' : 'new'
+    const installed = state.runtimes.filter((r) => r.installed)
+    if (!state.tool || !installed.some((r) => r.tool === state.tool)) state.tool = (last && installed.some((r) => r.tool === last.tool) ? last.tool : installed[0] && installed[0].tool) || null
+    const opts = installed.map((r) => '<option value="' + esc(r.tool) + '"' + (r.tool === state.tool ? ' selected' : '') + '>' + esc(r.tool) + '</option>').join('')
+    const reviewOpts = installed.map((r) => '<option value="' + esc(r.tool) + '">' + esc(r.tool) + '</option>').join('')
+    const seg = (m, label, dis) => '<button type="button" data-mode="' + m + '" aria-pressed="' + (state.mode === m) + '"' + (dis ? ' disabled title="' + esc(dis) + '"' : '') + '>' + label + '</button>'
+    const ph = state.mode === 'continue' ? 'Responda ou peça um ajuste — continua a sessão do ' + (last ? last.tool : 'agente') + '…' : state.mode === 'flow' ? 'O fluxo usa a task como está — instruções vão na aprovação da revisão.' : 'Instruções extras para esta execução (opcional) — a task e o contexto vão junto…'
+    let right = ''
+    if (state.mode === 'continue') right = '<span class="chip">mesma sessão · ' + esc(last ? last.tool : '') + '</span>'
+    if (state.mode === 'new') right = '<label class="sr" for="tool">Ferramenta</label><select id="tool">' + opts + '</select>'
+    if (state.mode === 'flow') right = '<span class="hint">implementar</span><select id="tool">' + opts + '</select><span class="hint">revisar</span><select id="review">' + reviewOpts + '</select>'
+    return '<div class="composer-wrap"><form class="composer" id="composer"><label class="sr" for="msg">Mensagem</label>' +
+      '<textarea id="msg" rows="2" placeholder="' + esc(ph) + '"' + (live ? ' disabled' : '') + '></textarea>' +
+      '<div class="crow"><div class="seg" role="group" aria-label="Modo">' +
+      seg('continue', 'Continuar', resumable ? '' : 'sem sessão para continuar') + seg('new', 'Nova execução', '') + seg('flow', 'Fluxo', '') + '</div>' + right +
+      '<span style="flex:1"></span>' +
+      (live ? '<button type="button" class="btn danger" data-act="stop" data-run="' + esc(live.id) + '">Parar <kbd>Esc</kbd></button>'
+        : '<span class="hint" title="Shift+Enter quebra linha">Enter envia</span><button class="btn primary" type="submit" aria-label="Enviar"' + (installed.length ? '' : ' disabled title="nenhuma ferramenta instalada"') + '>Enviar</button>') +
+      '</div></form></div>'
+  }
+
+  // ---- painel direito -----------------------------------------------------------------------
+  function renderPane() {
+    for (const t of ['changes', 'gates', 'run']) $('tab-' + t).setAttribute('aria-selected', String(state.tab === t))
+    const ch = state.changes
+    $('changes-count').textContent = ch && ch.files ? String(ch.files.length) : ''
+    const c = card()
+    if (!c) { $('pane').innerHTML = '<div class="hint">Sem task selecionada.</div>'; return }
+    if (state.tab === 'changes') {
+      if (!ch) { $('pane').innerHTML = '<div class="hint">' + (c.worktree === 'raiz' ? 'Task sem worktree.' : 'Carregando…') + '</div>'; return }
+      if (ch.error) { $('pane').innerHTML = '<div class="hint">' + esc(ch.error) + '</div>'; return }
+      const add = ch.files.reduce((s, f) => s + (f.added || 0), 0), del = ch.files.reduce((s, f) => s + (f.removed || 0), 0)
+      let html = '<div class="hint">Comparado com <span class="mono">' + esc(ch.base) + '</span> · <span class="mono add">+' + add + '</span> <span class="mono del">−' + del + '</span></div>'
+      if (!ch.files.length) html += '<div class="hint">Nenhuma mudança ainda.</div>'
+      html += '<div>' + ch.files.map((f) => '<button class="file mono' + (f.path === state.file ? ' sel' : '') + '" data-file="' + esc(f.path) + '"><span class="p" title="' + esc(f.path) + '">' + esc(f.path) + '</span>' +
+        (f.status === 'added' ? '<span class="chip ok">novo</span>' : f.status === 'deleted' ? '<span class="chip bad">removido</span>' : '') +
+        '<span class="add">' + (f.added == null ? 'bin' : '+' + f.added) + '</span><span class="del">' + (f.removed ? '−' + f.removed : '') + '</span></button>').join('') + '</div>'
+      if (state.patch) {
+        const lines = state.patch.patch.split('\n').slice(0, 3000)
+        html += '<div class="diff mono">' + lines.map((l) => '<div class="' + (l.startsWith('@@') ? 'h' : l.startsWith('+') ? 'a' : l.startsWith('-') ? 'r' : '') + '">' + esc(l || ' ') + '</div>').join('') + '</div>'
+        if (state.patch.truncated) html += '<div class="hint">Diff cortado — abra o arquivo no editor.</div>'
+      }
+      $('pane').innerHTML = html
+      return
+    }
+    const run = lastRun()
+    if (state.tab === 'gates') {
+      if (!run) { $('pane').innerHTML = '<div class="hint">Sem execução.</div>'; return }
+      const gates = (run.events || []).filter((e) => e.type === 'quality.gate')
+      if (!gates.length) { $('pane').innerHTML = '<div class="hint">' + (run.status === 'running' ? 'Os gates rodam quando o agente terminar.' : 'Nenhum gate pós-run nesta execução (harness.json → gates.run).') + '</div>'; return }
+      $('pane').innerHTML = gates.map((e) => {
+        const p = e.payload || {}
+        const ok = p.ok === true || p.status === 'passed'
+        return '<div class="gate"><div style="flex:1"><div><span class="chip ' + (ok ? 'ok' : 'bad') + '">' + (ok ? '✓' : '✗') + '</span> <strong>' + esc(p.gate || p.name || 'gate') + '</strong> <span class="hint mono">' + esc(p.command || '') + '</span></div>' +
+          (!ok && (p.output || p.tail) ? '<pre class="mono">' + esc(p.output || p.tail) + '</pre>' : '') + '</div></div>'
+      }).join('')
+      return
+    }
+    if (!run) { $('pane').innerHTML = '<div class="hint">Sem execução.</div>'; return }
+    const row = (k, v) => '<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--line)"><span class="hint">' + k + '</span><span class="mono" style="text-align:right;word-break:break-all">' + v + '</span></div>'
+    $('pane').innerHTML = '<div>' + row('Execução', esc(run.id)) + row('Ferramenta', esc(run.tool) + (run.model ? ' · ' + esc(run.model) : '')) + row('Status', esc(run.status)) +
+      row('Sessão', esc(run.session_id || 'n/d')) + row('Tokens', toks(run.tokens_in, run.tokens_out)) + row('Custo', money(run.cost_usd)) + row('Duração', dur(run.started_at, run.finished_at) || 'n/d') + '</div>' +
+      '<div class="hint">Timeline completa: <span class="mono">harness events ' + esc(run.id) + '</span></div>'
+  }
+
+  // ---- carga de dados -----------------------------------------------------------------------
+  async function loadCards() {
+    try {
+      const [cv, board] = await Promise.all([api('/api/canvas'), api('/api/board')])
+      state.cards = cv.canvas
+      state.queue = board.board.queue || []
+      if (!state.selected || !state.cards.some((c) => c.id === state.selected)) {
+        const fromHash = decodeURIComponent((location.hash.match(/task=([^&]+)/) || [])[1] || '')
+        const pick = state.cards.find((c) => c.id === fromHash) || state.cards.find((c) => classify(c).group === 'attention') || state.cards[0]
+        if (pick) select(pick.id)
+      }
+      renderSide()
+    } catch (err) { toast('Painel: ' + err.message) }
+  }
+
+  async function loadConv() {
+    if (!state.selected) return
+    const id = state.selected
+    try {
+      const conv = await api('/api/conversation?task=' + encodeURIComponent(num(id)) + '&limit=40')
+      if (id !== state.selected) return
+      const sig = JSON.stringify(conv.runs.map((r) => [r.id, r.status, r.events.length]))
+      const changed = sig !== state.convSig
+      state.conv = conv
+      state.convSig = sig
+      if (changed) { keepDraft(); renderCenter(); renderPane() }
+      if (changed) loadChanges()
+    } catch (err) {
+      state.conv = { runs: [] }
+      keepDraft(); renderCenter()
+    }
+  }
+
+  async function loadChanges() {
+    const c = card()
+    if (!c || c.worktree === 'raiz') { state.changes = null; renderPane(); return }
+    try {
+      state.changes = await api('/api/changes?task=' + encodeURIComponent(num(c.id)))
+      if (state.file && !state.changes.files.some((f) => f.path === state.file)) { state.file = null; state.patch = null }
+      if (state.file) await loadPatch(state.file, false)
+    } catch (err) { state.changes = { error: err.message } }
+    renderPane()
+  }
+
+  async function loadPatch(file, render = true) {
+    try {
+      const r = await api('/api/changes?task=' + encodeURIComponent(num(state.selected)) + '&file=' + encodeURIComponent(file))
+      state.file = file
+      state.patch = r.file
+    } catch (err) { toast(err.message) }
+    if (render) renderPane()
+  }
+
+  function keepDraft() { const ta = $('msg'); if (ta) state.draft = ta.value }
+
+  function select(id, load = true) {
+    if (state.selected !== id) { state.conv = null; state.convSig = null; state.changes = null; state.file = null; state.patch = null; state.draft = ''; state.mode = null; state.modeByUser = false }
+    state.selected = id
+    history.replaceState(null, '', '#task=' + encodeURIComponent(id))
+    renderSide(); renderCenter(); renderPane()
+    if (load) { loadConv(); loadChanges() }
+  }
+
+  // ---- ações --------------------------------------------------------------------------------
+  async function send() {
+    const c = card()
+    if (!c || state.busy) return
+    const text = ($('msg') && $('msg').value.trim()) || ''
+    const task = num(c.id)
+    state.busy = true
+    try {
+      if (state.mode === 'continue') {
+        if (!text) { toast('Escreva a mensagem para o agente.'); return }
+        await api('/api/runs', { method: 'POST', body: JSON.stringify({ task, continue: lastRun().id, message: text }) })
+      } else if (state.mode === 'flow') {
+        const body = { task, implement: $('tool').value, review: $('review').value }
+        await api('/api/flows', { method: 'POST', body: JSON.stringify(body) })
+      } else {
+        const body = { task, tool: $('tool').value }
+        if (text) body.note = text
+        await api('/api/runs', { method: 'POST', body: JSON.stringify(body) })
+      }
+      state.draft = ''
+      if ($('msg')) $('msg').value = ''
+      state.convSig = null
+      await loadConv(); loadCards()
+    } catch (err) { toast(err.message) } finally { state.busy = false }
+  }
+
+  async function act(name, el) {
+    const c = card()
+    try {
+      if (name === 'stop') await api('/api/runs/' + encodeURIComponent(el.dataset.run) + '/stop', { method: 'POST', body: '{}' })
+      if (name === 'flow-resume') await api('/api/flows/' + encodeURIComponent(c.flow.id) + '/resume', { method: 'POST', body: JSON.stringify(($('msg') && $('msg').value.trim()) ? { note: $('msg').value.trim() } : {}) })
+      if (name === 'flow-stop') await api('/api/flows/' + encodeURIComponent(c.flow.id) + '/stop', { method: 'POST', body: '{}' })
+      if (name === 'copy-finish') {
+        const cmd = 'pnpm harness worktree finish ' + num(c.id) + ' --handoff "..."'
+        try { await navigator.clipboard.writeText(cmd) } catch {}
+        toast('Revise as mudanças e integre pelo terminal:\n' + cmd + '\n(comando copiado)')
+        return
+      }
+      state.convSig = null
+      await loadConv(); loadCards()
+    } catch (err) { toast(err.message) }
+  }
+
+  document.addEventListener('click', (ev) => {
+    const t = ev.target.closest('[data-task],[data-mode],[data-act],[data-file],[role=tab]')
+    if (!t) return
+    if (t.dataset.task) return select(t.dataset.task)
+    if (t.dataset.mode) { keepDraft(); state.mode = t.dataset.mode; state.modeByUser = true; renderCenter(); return }
+    if (t.dataset.act) return act(t.dataset.act, t)
+    if (t.dataset.file) return loadPatch(t.dataset.file)
+    if (t.getAttribute('role') === 'tab') { state.tab = t.id.replace('tab-', ''); renderPane() }
+  })
+  document.addEventListener('submit', (ev) => { if (ev.target.id === 'composer') { ev.preventDefault(); send() } })
+  document.addEventListener('change', (ev) => { if (ev.target.id === 'tool') state.tool = ev.target.value })
+  document.addEventListener('keydown', (ev) => {
+    if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'k') { ev.preventDefault(); $('q').focus(); $('q').select(); return }
+    if (ev.target.id === 'msg' && ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); send(); return }
+    if (ev.key === 'Escape') {
+      const stop = document.querySelector('[data-act=stop]')
+      if (stop && document.activeElement && document.activeElement.id !== 'q') act('stop', stop)
+    }
+  })
+  $('q').addEventListener('input', (ev) => { state.filter = ev.target.value; renderSide() })
+  $('q').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { const first = document.querySelector('#side [data-task]'); if (first) { select(first.dataset.task); ev.target.blur() } } })
+
+  async function loadCost() {
+    try {
+      const a = await api('/api/analytics?since=24h')
+      $('cost-chip').textContent = '24h ' + money(a.totals.cost_usd)
+    } catch {}
+  }
+
+  async function boot() {
+    if (CFG.control) { try { state.runtimes = (await api('/api/runtimes')).runtimes } catch {} }
+    await loadCards()
+    loadCost()
+    if (!state.selected) renderCenter()
+    setInterval(() => { loadCards() }, 4000)
+    setInterval(() => { if (runningRun() || (card() && classify(card()).group === 'running')) loadConv() }, 2000)
+    setInterval(() => { loadConv(); loadCost() }, 10000)
+  }
+  const st = document.createElement('style')
+  st.textContent = '@keyframes pulse{50%{opacity:.35}}'
+  document.head.appendChild(st)
+  boot()
+})()
+</script>
+</body>
+</html>

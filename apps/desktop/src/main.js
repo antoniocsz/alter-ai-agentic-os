@@ -1,6 +1,6 @@
 // App desktop do AlterAI - Agentic OS (feature app-desktop, task 136). Electron sobre a API local:
 // o app sobe o `harness serve` do projeto escolhido (com o Node do próprio Electron ou
-// `HARNESS_NODE`) e abre o board, a vista Execução (canvas com controles) e o Analytics numa janela.
+// `HARNESS_NODE`) e abre o Workspace (conversa + mudanças), o quadro, o Analytics e o canvas clássico numa janela.
 // A lógica sem Electron vive em core.js (testada); aqui só janela, menus e ciclo de vida.
 import { app, BrowserWindow, Menu, dialog, shell, clipboard } from 'electron'
 import path from 'node:path'
@@ -77,7 +77,7 @@ async function openProject(root) {
     settings = touchRecent(settings, root)
     saveSettings(SETTINGS, settings)
     win.setTitle(`AlterAI — ${path.basename(root)}${allowUnsafe ? ' · unsafe liberado' : ''}`)
-    await win.loadURL(new URL('/canvas', current.info.url).href)
+    await win.loadURL(new URL('/workspace', current.info.url).href)
   } catch (err) {
     showError('Não consegui subir o harness serve', err, err.log)
   } finally {
@@ -153,9 +153,10 @@ function buildMenu() {
     {
       label: 'Visualizar',
       submenu: [
-        { label: 'Board', accelerator: 'CmdOrCtrl+1', enabled: has, click: () => go('/') },
-        { label: 'Execução', accelerator: 'CmdOrCtrl+2', enabled: has, click: () => go('/canvas') },
+        { label: 'Workspace', accelerator: 'CmdOrCtrl+1', enabled: has, click: () => go('/workspace') },
+        { label: 'Quadro', accelerator: 'CmdOrCtrl+2', enabled: has, click: () => go('/') },
         { label: 'Analytics', accelerator: 'CmdOrCtrl+3', enabled: has, click: () => go('/analytics') },
+        { label: 'Canvas (clássico)', accelerator: 'CmdOrCtrl+4', enabled: has, click: () => go('/canvas') },
         { type: 'separator' },
         { role: 'reload', label: 'Recarregar' },
         { role: 'toggleDevTools', label: 'Ferramentas de desenvolvedor' },
@@ -171,7 +172,7 @@ function buildMenu() {
       submenu: [
         { label: 'Reiniciar', enabled: has, click: () => openProject(current.root) },
         { label: 'Liberar unsafe neste projeto', type: 'checkbox', enabled: has, checked: Boolean(has && settings.unsafe[path.resolve(current.root)]), click: toggleUnsafe },
-        { label: 'Abrir no navegador', enabled: has, click: () => shell.openExternal(new URL('/canvas', current.info.url).href) },
+        { label: 'Abrir no navegador', enabled: has, click: () => shell.openExternal(new URL('/workspace', current.info.url).href) },
         { label: 'Copiar endereço da API', enabled: has, click: () => clipboard.writeText(current.info.url) },
         { label: 'Ver log', enabled: has, click: showLog }
       ]

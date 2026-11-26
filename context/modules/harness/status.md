@@ -691,6 +691,18 @@
   interface de conversa no app (Workspace).
 - Decisões: continuação manda só a mensagem + lembrete das regras; tool fixa pela sessão.
 
+## Handoff (task 140 — workspace-app: Workspace do app)
+- Feito: `lib/workspace-page.{js,html}` (NOVOS) — `/workspace`: barra lateral por estado (precisa de
+  você / rodando / paradas / fila, busca Ctrl K), conversa da task (mensagens, ações recolhíveis,
+  erros, custo; Continuar / Nova execução / Fluxo; Enter envia, Esc para), painel Mudanças / Gates /
+  Execução. `lib/changes.js` (NOVO) — mudanças da worktree × base e patch por arquivo;
+  `GET /api/changes`, `note` no `POST /api/runs`, `supports_resume` em `/api/runtimes`. App desktop
+  abre no Workspace (Ctrl+1..4). README/AGENTS. +3 testes; suíte verde (357); verificado em Chromium
+  headless com agente falso.
+- Pendências: modo Analisar (achados nas linhas), competição lado a lado e Início; rodar o app
+  Electron no Windows; validar com as tools reais.
+- Decisões: página sem framework, só API local; concluir a task continua no terminal.
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do

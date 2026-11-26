@@ -14,6 +14,7 @@ import { resolveTaskId } from './db.js'
 import { activeDir, resolveTaskName } from './tasks.js'
 import { prepareRun, prepareContinue, resolveRunOptions, taskWorktree } from '../run.js'
 import { ConversationError, conversationOf } from './conversation.js'
+import { taskChanges, filePatch } from './changes.js'
 import { FlowError, APPROVE_MODES, createFlow, flowSteps, getFlow, listFlows, parseAgentSpec, resumeFlow, runFlow, stopFlow } from './flows.js'
 import { detectRuntimes } from '../runtimes.js'
 import { parseTask } from './tasks.js'
@@ -154,18 +155,26 @@ export function createRunsApi(root, opts = {}) {
       if (typeof body.message !== 'string') throw new ApiError(400, 'message obrigatória para continuar a conversa')
       return { task, flags, cont: { from: body.continue === true ? null : body.continue, message: body.message } }
     }
-    return { task, flags, cont: null }
+    // Instruções extras do humano num run novo (task 140): anexadas ao prompt e abertas na timeline.
+    if (body.note !== undefined && body.note !== null) {
+      if (typeof body.note !== 'string' || body.note.length > 12000) throw new ApiError(400, 'note deve ser texto (até 12000 caracteres)')
+    }
+    const note = typeof body.note === 'string' && body.note.trim() ? body.note.trim() : null
+    return { task, flags, cont: null, note }
   }
 
   /** Dispara o agente; resolve com o run já aberto (`running`). O run segue em segundo plano. */
   function dispatch(body) {
-    const { task, flags, cont } = flagsFrom(body)
+    const { task, flags, cont, note = null } = flagsFrom(body)
     const db = openDb(root)
     let keepOpen = false
     try {
       let prep
       try {
-        prep = cont ? prepareContinue(root, flags, task, db, cont) : prepareRun(root, flags, task, db)
+        prep = cont
+          ? prepareContinue(root, flags, task, db, cont)
+          : prepareRun(root, flags, task, db, note ? { extra: `--- INSTRUÇÕES DO HUMANO ---\n${note}` } : {})
+        if (note) prep.userMessage = note
       } catch (err) {
         throw new ApiError(err.code === 'BUDGET' ? 409 : err instanceof ConversationError ? 409 : 422, err.message)
       }
@@ -224,6 +233,19 @@ export function createRunsApi(root, opts = {}) {
     if (!Number.isInteger(n) || n < 1 || n > 200) throw new ApiError(400, `limit inválido: ${limit} (1–200)`)
     const taskId = resolveTaskId(root, task)
     return withDb((db) => ({ task: taskId, runs: conversationOf(db, taskId, { limit: n }) }))
+  }
+
+  /** Mudanças da worktree da task × base (task 140); com `file`, o patch daquele arquivo. */
+  function changes(task, file = null) {
+    if (!task || !TASK_ARG_RE.test(task)) throw new ApiError(400, 'task obrigatória (?task=07)')
+    const taskId = resolveTaskId(root, task)
+    const wt = taskWorktree(root, taskId)
+    if (!wt) throw new ApiError(404, `task sem worktree: ${taskId}`)
+    if (file === null) return { task: taskId, worktree: wt.path ?? null, ...taskChanges(root, wt.dir) }
+    if (typeof file !== 'string' || !file || file.length > 1024) throw new ApiError(400, 'file inválido')
+    const one = filePatch(root, wt.dir, file)
+    if (!one) throw new ApiError(404, `arquivo fora das mudanças da task: ${file}`)
+    return { task: taskId, file: one }
   }
 
   function stop(id) {
@@ -587,7 +609,7 @@ export function createRunsApi(root, opts = {}) {
   /** Atende `/api/runtimes` e `/api/runs*`. Retorna false se a rota não é desta API. */
   function handle(req, res, url) {
     const p = url.pathname
-    if (!/^\/api\/(runtimes|runs|flows|competitions|shutdown|conversation)(\/|$)/.test(p)) return false
+    if (!/^\/api\/(runtimes|runs|flows|competitions|shutdown|conversation|changes)(\/|$)/.test(p)) return false
     const exec = async () => {
       if (!hostAllowed(req)) throw new ApiError(403, 'host não permitido')
       const q = url.searchParams
@@ -608,6 +630,9 @@ export function createRunsApi(root, opts = {}) {
       const getM = p.match(/^\/api\/runs\/([^/]+)$/)
       if (req.method === 'GET' && getM) {
         return send(res, 200, { ok: true, ...get(decodeURIComponent(getM[1]), { after: q.get('after') ?? 0, native: q.get('native') === '1' }) })
+      }
+      if (req.method === 'GET' && p === '/api/changes') {
+        return send(res, 200, { ok: true, ...changes(q.get('task'), q.has('file') ? q.get('file') : null) })
       }
       if (req.method === 'GET' && p === '/api/conversation') {
         return send(res, 200, { ok: true, ...conversation(q.get('task'), { limit: q.get('limit') ?? 30 }) })
@@ -653,5 +678,5 @@ export function createRunsApi(root, opts = {}) {
     return true
   }
 
-  return { token, allowUnsafe, runtimes, list, get, dispatch, conversation, stop, settled, stopAll, handle, active, flowSettled, flowsActive, compSettled, compsActive }
+  return { token, allowUnsafe, runtimes, list, get, dispatch, conversation, changes, stop, settled, stopAll, handle, active, flowSettled, flowsActive, compSettled, compsActive }
 }

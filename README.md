@@ -707,6 +707,22 @@ pnpm harness run 12 --continue run-12-20261125… --message "…"   # continua u
 - **Status**: testado com agente falso. A retomada com as tools reais ainda precisa de validação
   (em especial o `codex exec resume` com o prompt pelo stdin).
 
+### Workspace (`/workspace`)
+
+A tela principal do `harness serve` e do app desktop:
+
+- **Barra lateral por estado**: *Precisa de você* (agente terminou, falhou, gates falharam, fluxo
+  aguardando aprovação, competição pronta), *Rodando*, *Paradas* e *Fila*. Busca com `Ctrl K`.
+- **Centro**: a conversa da task — suas mensagens, o que o agente respondeu, as ações agrupadas e
+  recolhíveis, erros e o custo de cada execução. A caixa de mensagem tem três modos: *Continuar*
+  (mesma sessão do agente), *Nova execução* (escolhe a ferramenta; o texto vira instruções extras)
+  e *Fluxo* (implementar → revisar). `Enter` envia, `Esc` para o agente.
+- **Painel direito**: *Mudanças* (arquivos da worktree × base, com o diff de cada um), *Gates*
+  (resultado dos gates pós-run) e *Execução* (sessão, tokens, custo, duração).
+- API usada: `GET /api/changes?task=` (e `&file=` para o patch) e `POST /api/runs` com `note`
+  (instruções do humano num run novo), além de `/api/conversation`, `/api/canvas` e `/api/board`.
+- Integrar continua pelo terminal (`harness worktree finish`); o botão *Concluir task…* copia o comando.
+
 ### Lote paralelo (`run --batch`)
 
 Vários agentes ao mesmo tempo, cada um na própria worktree:

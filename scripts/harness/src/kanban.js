@@ -1,4 +1,5 @@
 import http from 'node:http'
+import { renderWorkspacePage } from './lib/workspace-page.js'
 import fs from 'node:fs'
 import path from 'node:path'
 import { DB_DIR, openDb, boardQuery, taskDetails, resolveTaskId, syncFromMarkdown } from './lib/db.js'
@@ -197,9 +198,14 @@ export function serveBoard(ctx, port, host = '127.0.0.1', extras = {}) {
     ctx.title,
     extras.runs ? { control: true, token: extras.runs.token, allowUnsafe: extras.runs.allowUnsafe } : {}
   )
+  // Workspace (task 140): conversa + mudanças; mesmos controles/token do canvas.
+  const workspacePage = renderWorkspacePage(
+    ctx.title,
+    extras.runs ? { control: true, token: extras.runs.token, allowUnsafe: extras.runs.allowUnsafe } : {}
+  )
   const server = http.createServer((req, res) => {
     try {
-      route(req, res, ctx, page, canvasPage, extras)
+      route(req, res, ctx, page, canvasPage, { ...extras, workspacePage })
     } catch (err) {
       sendError(res, 500, `erro interno: ${err.message}`)
     }
@@ -265,6 +271,11 @@ function route(req, res, ctx, page, canvasPage, extras = {}) {
   if (req.method === 'GET' && pathname === '/canvas' && canvasPage) {
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
     return res.end(canvasPage)
+  }
+
+  if (req.method === 'GET' && pathname === '/workspace' && extras.workspacePage) {
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
+    return res.end(extras.workspacePage)
   }
 
   if (req.method === 'GET' && pathname === '/api/board') {
