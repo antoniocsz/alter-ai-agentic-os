@@ -724,6 +724,15 @@
 - Pendências: tela Início (143); testar a troca dentro do app no Windows.
 - Decisões: no navegador o seletor só copia o `harness serve` da outra pasta.
 
+## Handoff (task 143 — projetos-e-inicio: tela Início)
+- Feito: `lib/overview.js` (NOVO) — `projectOverview` (contagens, fila por prioridade, ativas, concluídas
+  recentes com handoff, uso 7d) e `GET /api/overview`; `POST /api/pipeline/tasks` (cria na fila) e
+  `POST /api/pipeline/start` (start + worktree) com token. Workspace → Início (`Ctrl 0`, abre sozinho
+  sem task ativa): "O que vamos construir?", indicadores, fila com Iniciar, concluídas recentes.
+  +2 testes; suíte verde (368); conferido com os dados reais do harness (136 concluídas).
+- Pendências: competição lado a lado no Workspace; testar no app no Windows.
+- Decisões: planejar feature pela tela só mostra os passos do coordenador (sem rodar daqui).
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do

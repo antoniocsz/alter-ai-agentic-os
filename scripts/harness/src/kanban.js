@@ -1,6 +1,7 @@
 import http from 'node:http'
 import { renderWorkspacePage } from './lib/workspace-page.js'
 import { listProjects } from './lib/projects.js'
+import { projectOverview } from './lib/overview.js'
 import fs from 'node:fs'
 import path from 'node:path'
 import { DB_DIR, openDb, boardQuery, taskDetails, resolveTaskId, syncFromMarkdown } from './lib/db.js'
@@ -283,6 +284,23 @@ function route(req, res, ctx, page, canvasPage, extras = {}) {
   if (req.method === 'GET' && pathname === '/api/projects') {
     res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
     return res.end(JSON.stringify({ ok: true, ...listProjects(projectRoot(ctx)) }))
+  }
+
+  // Tela Início do Workspace (task 143): pipeline, fila, concluídas recentes e uso dos agentes.
+  if (req.method === 'GET' && pathname === '/api/overview') {
+    const root = projectRoot(ctx)
+    let db = null
+    try {
+      db = openDb(root)
+    } catch {}
+    try {
+      res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
+      return res.end(JSON.stringify({ ok: true, ...projectOverview(root, db) }))
+    } finally {
+      try {
+        db?.close()
+      } catch {}
+    }
   }
 
   if (req.method === 'GET' && pathname === '/api/board') {

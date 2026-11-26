@@ -19,7 +19,9 @@ import { taskFindings } from './findings.js'
 import { FlowError, APPROVE_MODES, createFlow, flowSteps, getFlow, listFlows, parseAgentSpec, resumeFlow, runFlow, stopFlow } from './flows.js'
 import { detectRuntimes } from '../runtimes.js'
 import { parseTask } from './tasks.js'
-import { parseBaseline } from './pipeline.js'
+import { parseBaseline, startTask } from './pipeline.js'
+import { createTaskFile } from '../task.js'
+import { startWorktree } from './worktree.js'
 import { CompetitionError, competitors as compCandidates, createCompetition, discardCompetition, getCompetition, listCompetitions, openCompetitionFor, parseCompetitors, pickCompetitor, runCompetition } from './competitions.js'
 import path from 'node:path'
 
@@ -245,6 +247,44 @@ export function createRunsApi(root, opts = {}) {
     if (!Number.isInteger(n) || n < 1 || n > 200) throw new ApiError(400, `limit inválido: ${limit} (1–200)`)
     const taskId = resolveTaskId(root, task)
     return withDb((db) => ({ task: taskId, runs: conversationOf(db, taskId, { limit: n }) }))
+  }
+
+  /**
+   * Pipeline pela tela Início (task 143): criar task na fila (só título + prioridade; o resto do
+   * Definition of Ready continua no arquivo) e iniciar = `harness start` + `worktree start`.
+   */
+  function createTaskApi(body) {
+    const description = typeof body.description === 'string' ? body.description.trim() : ''
+    if (!description || description.length > 200) throw new ApiError(400, 'description obrigatória (até 200 caracteres)')
+    const priority = body.priority === undefined ? 'P2' : String(body.priority).toUpperCase()
+    if (!/^P[0-3]$/.test(priority)) throw new ApiError(400, 'priority deve ser P0..P3')
+    let created
+    try {
+      created = createTaskFile(root, { description, priority })
+    } catch (err) {
+      throw new ApiError(422, err.message)
+    }
+    return { task: created.name, file: created.relPath.replace(/\\/g, '/') }
+  }
+
+  function startTaskApi(body) {
+    const task = typeof body.task === 'string' ? body.task : ''
+    if (!task || !TASK_ARG_RE.test(task)) throw new ApiError(400, 'task obrigatória')
+    let started
+    try {
+      started = startTask(root, task)
+    } catch (err) {
+      throw new ApiError(422, err.message)
+    }
+    if (!started.ok) throw new ApiError(422, started.error ?? started.issues?.join('; ') ?? 'não deu para iniciar a task')
+    const taskId = resolveTaskId(root, task)
+    let worktree = null
+    try {
+      worktree = startWorktree(root, taskId).entry
+    } catch (err) {
+      return { task: taskId, worktree: null, warning: `task ativa, mas a worktree não foi criada: ${err.message}` }
+    }
+    return { task: taskId, worktree }
   }
 
   /** Achados da revisão mais recente da task (modo Analisar, task 141). */
@@ -628,7 +668,7 @@ export function createRunsApi(root, opts = {}) {
   /** Atende `/api/runtimes` e `/api/runs*`. Retorna false se a rota não é desta API. */
   function handle(req, res, url) {
     const p = url.pathname
-    if (!/^\/api\/(runtimes|runs|flows|competitions|shutdown|conversation|changes|findings)(\/|$)/.test(p)) return false
+    if (!/^\/api\/(runtimes|runs|flows|competitions|shutdown|conversation|changes|findings|pipeline)(\/|$)/.test(p)) return false
     const exec = async () => {
       if (!hostAllowed(req)) throw new ApiError(403, 'host não permitido')
       const q = url.searchParams
@@ -660,6 +700,14 @@ export function createRunsApi(root, opts = {}) {
         return send(res, 200, { ok: true, ...conversation(q.get('task'), { limit: q.get('limit') ?? 30 }) })
       }
       if (req.method === 'GET' && p === '/api/flows') return send(res, 200, { ok: true, flows: listFlowsApi({ task: q.get('task'), limit: q.get('limit') ?? 30 }) })
+      if (req.method === 'POST' && p === '/api/pipeline/tasks') {
+        checkWrite(req)
+        return send(res, 201, { ok: true, ...createTaskApi(await readJson(req)) })
+      }
+      if (req.method === 'POST' && p === '/api/pipeline/start') {
+        checkWrite(req)
+        return send(res, 200, { ok: true, ...startTaskApi(await readJson(req)) })
+      }
       if (req.method === 'POST' && p === '/api/flows') {
         checkWrite(req)
         return send(res, 202, { ok: true, ...startFlowApi(await readJson(req)) })

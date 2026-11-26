@@ -31,7 +31,7 @@ header.top{height:48px;flex:none;display:flex;align-items:center;gap:12px;paddin
 .search input{flex:1;background:transparent;border:0;outline:0;min-width:0}
 kbd{font:11px "JetBrains Mono",monospace;border:1px solid var(--line2);border-radius:5px;padding:1px 5px;color:var(--dim)}
 .layout{flex:1;display:flex;min-height:0}
-aside.side{flex:0 0 268px;background:var(--side);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+aside.side{flex:0 0 268px;width:268px;min-width:0;overflow:hidden;background:var(--side);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
 .side-scroll{flex:1;overflow:auto;padding:10px 8px}
 .sec{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#9AA1AC;padding:12px 10px 6px;display:flex;gap:6px}
 .sec.warn{color:var(--warn)}
@@ -93,6 +93,21 @@ aside.right{flex:1 1 360px;max-width:460px;border-left:1px solid var(--line);bac
 .gate pre{margin:6px 0 0;white-space:pre-wrap;color:var(--muted);font-size:11px;max-height:160px;overflow:auto}
 .toast{position:fixed;right:16px;bottom:16px;max-width:420px;background:#1C1213;border:1px solid #4D2523;color:#F2C2BF;border-radius:10px;padding:10px 14px;white-space:pre-wrap;display:none;z-index:9}
 .sr{position:absolute;left:-9999px}
+.home{flex:1;overflow:auto;padding:22px 26px}
+.home-inner{max-width:1180px;display:flex;flex-direction:column;gap:18px}
+.kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
+.kpi{border:1px solid var(--line);border-radius:12px;background:var(--side);padding:11px 13px}
+.kpi b{display:block;font:500 22px "JetBrains Mono",ui-monospace,monospace;margin-top:3px}
+.cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.box{border:1px solid var(--line);border-radius:12px;background:var(--side);padding:12px 14px;min-width:0}
+.box h2{margin:0 0 8px;font-size:14px}
+.row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row .tt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ho{color:var(--muted);font-size:12px;margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.home-btn{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border-radius:8px;border:0;background:transparent;color:var(--text);text-align:left;font-weight:500}
+.home-btn:hover{background:#1B1D23}.home-btn.sel{background:#1F222B}
+@media (max-width:1100px){.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}.cols{grid-template-columns:1fr}}
 .proj-btn{display:inline-flex;align-items:center;gap:8px;height:32px;padding:0 10px;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--text);font-weight:600;max-width:280px}
 .proj-btn:hover,.proj-btn[aria-expanded=true]{background:#1B1D23;border-color:var(--line2)}
 .proj-btn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -222,7 +237,7 @@ aside.right{flex:1 1 360px;max-width:460px;border-left:1px solid var(--line);bac
     for (const c of state.cards) if (match(c)) { const k = classify(c); groups[k.group].push({ c, k }) }
     const queue = state.queue.filter(match)
     const dot = { attention: '<span class="dot d" style="background:var(--warn)"></span>', running: '<span class="dot d" style="background:var(--ok);animation:pulse 1.2s infinite"></span>', idle: '<span class="dot d" style="border:1.5px solid var(--dim)"></span>' }
-    const item = (c, k, g) => '<button class="item' + (c.id === state.selected ? ' sel' : '') + '" data-task="' + esc(c.id) + '">' + dot[g] +
+    const item = (c, k, g) => '<button class="item' + (c.id === state.selected && !state.home ? ' sel' : '') + '" data-task="' + esc(c.id) + '">' + dot[g] +
       '<span style="flex:1;min-width:0"><span class="t">' + esc(c.title || c.id) + '</span><span class="s">' + esc(k.reason) + '</span></span><span class="n mono">' + esc(num(c.id)) + '</span></button>'
     let html = ''
     const sec = (label, cls, list, g) => {
@@ -237,6 +252,7 @@ aside.right{flex:1 1 360px;max-width:460px;border-left:1px solid var(--line);bac
         '<div class="item" title="Inicie com: harness start ' + esc(num(t.id)) + '" style="color:#B8BEC8;cursor:default"><span class="dot d" style="border-radius:2px;background:#3A3E48"></span><span style="flex:1;min-width:0"><span class="t">' + esc(t.title || t.id) + '</span><span class="s">harness start ' + esc(num(t.id)) + '</span></span><span class="n mono">' + esc(num(t.id)) + '</span></div>').join('')
     }
     if (!html) html = '<div class="empty">Nenhuma task ativa.<br><span class="mono">harness start &lt;task&gt;</span></div>'
+    html = '<button class="home-btn' + (state.home ? ' sel' : '') + '" data-home="1"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Início<span style="margin-left:auto"><kbd>Ctrl 0</kbd></span></button>' + html
     $('side').innerHTML = html
     const running = groups.running.length
     $('running-chip').innerHTML = '<span class="dot" style="background:' + (running ? 'var(--ok)' : 'var(--dim)') + '"></span>' + (running ? running + (running > 1 ? ' agentes rodando' : ' agente rodando') : 'nenhum agente rodando')
@@ -328,6 +344,8 @@ aside.right{flex:1 1 360px;max-width:460px;border-left:1px solid var(--line);bac
   }
 
   function renderCenter() {
+    $('right').style.display = state.home ? 'none' : ''
+    if (state.home) return renderHome()
     const c = card()
     if (!c) {
       $('center').innerHTML = '<div class="empty">Escolha uma task na barra lateral.<br>Tasks da fila começam com <span class="mono">harness start &lt;n&gt;</span> e <span class="mono">harness worktree start &lt;n&gt;</span>.</div>'
@@ -580,12 +598,74 @@ aside.right{flex:1 1 360px;max-width:460px;border-left:1px solid var(--line);bac
     } catch (err) { toast(err.message) }
   }
 
+
+  // ---- tela Início (task 143) ---------------------------------------------------------------
+  async function loadOverview() {
+    try { state.overview = await api('/api/overview') } catch (err) { state.overview = { error: err.message } }
+    if (state.home) renderCenter()
+  }
+  function goHome() { keepDraft(); state.home = true; history.replaceState(null, '', '#inicio'); renderSide(); renderCenter(); loadOverview() }
+
+  function renderHome() {
+    const o = state.overview
+    const name = (proj.data && proj.data.current.name) || (o && o.name) || 'Projeto'
+    if (!o) { $('center').innerHTML = '<div class="empty">Carregando…</div>'; return }
+    if (o.error) { $('center').innerHTML = '<div class="empty">' + esc(o.error) + '</div>'; return }
+    const u = o.usage || {}
+    const pct = u.success_rate == null ? 'n/d' : Math.round(u.success_rate * 100) + '%'
+    const kpi = (label, value, hint) => '<div class="kpi"><span class="hint">' + label + '</span><b>' + value + '</b>' + (hint ? '<span class="hint">' + hint + '</span>' : '') + '</div>'
+    const prio = (p) => '<span class="chip' + (p === 'P0' ? ' bad' : p === 'P1' ? ' warn' : '') + '">' + esc(p) + '</span>'
+    const queue = o.queue.length ? o.queue.map((t) => '<div class="row"><span class="mono hint">' + esc(num(t.id)) + '</span><span class="tt" title="' + esc(t.title) + '">' + esc(t.title) + '</span>' + prio(t.priority) +
+      (CFG.control ? '<button class="btn sm" data-start="' + esc(num(t.id)) + '">Iniciar</button>' : '') + '</div>').join('') + (o.stats.queue > o.queue.length ? '<div class="hint" style="padding-top:6px">+' + (o.stats.queue - o.queue.length) + ' na fila (Quadro, Ctrl 2)</div>' : '')
+      : '<div class="hint">Fila vazia. Crie a próxima task acima.</div>'
+    const recent = o.recent.length ? o.recent.map((t) => '<div class="row" style="align-items:flex-start"><span class="mono hint" style="padding-top:1px">' + esc(num(t.id)) + '</span><div style="flex:1;min-width:0"><div class="tt">' + esc(t.title) + '</div>' + (t.handoff ? '<div class="ho">' + esc(t.handoff) + '</div>' : '') + '</div><span class="hint" style="white-space:nowrap">' + (t.at ? esc(t.at.slice(0, 10).split('-').reverse().join('/')) : '') + '</span></div>').join('')
+      : '<div class="hint">Nenhuma task concluída ainda.</div>'
+    const active = o.active.length ? '<div class="box"><h2>Em andamento</h2>' + o.active.map((t) => '<div class="row"><span class="mono hint">' + esc(num(t.id)) + '</span><span class="tt">' + esc(t.title) + '</span><button class="btn sm" data-task="' + esc(t.id) + '">Abrir</button></div>').join('') + '</div>' : ''
+    const composer = CFG.control
+      ? '<form class="composer" id="new-task" style="max-width:none"><label for="nt" style="font-weight:600;display:block;margin-bottom:4px">O que vamos construir?</label>' +
+        '<input id="nt" maxlength="200" placeholder="Título da task — ex.: exportar relatório em PDF" autocomplete="off" style="width:100%;height:36px;background:transparent;border:0;outline:0;font-size:15px">' +
+        '<div class="crow"><label class="sr" for="nt-p">Prioridade</label><select id="nt-p"><option>P0</option><option>P1</option><option selected>P2</option><option>P3</option></select>' +
+        '<span class="hint">vai para a fila — depois ajuste Escopo e Critério no arquivo da task</span><span style="flex:1"></span>' +
+        '<button type="button" class="btn sm" data-act="copy-plan" title="Quebrar uma feature em tasks com o coordenador">Planejar feature…</button><button class="btn sm primary">Criar na fila</button></div></form>'
+      : ''
+    $('center').innerHTML = '<div class="task-head"><h1>' + esc(name) + '</h1><span class="chip">Início</span><span style="flex:1"></span><a class="btn sm" href="/">Quadro</a><a class="btn sm" href="/analytics">Analytics</a></div>' +
+      '<div class="home"><div class="home-inner">' + composer +
+      '<div class="kpis">' + kpi('Ativas', o.stats.active) + kpi('Na fila', o.stats.queue) + kpi('Concluídas', o.stats.done) +
+      kpi('Execuções', u.runs ?? 0, 'últimos 7 dias') + kpi('Sucesso', pct, 'últimos 7 dias') + kpi('Custo', money(u.cost_usd ?? 0), 'últimos 7 dias') + '</div>' +
+      active + '<div class="cols"><div class="box"><h2>Fila</h2>' + queue + '</div><div class="box"><h2>Concluídas recentemente</h2>' + recent + '</div></div></div></div>'
+  }
+
+  async function createTask() {
+    const title = $('nt').value.trim()
+    if (!title) { toast('Escreva o título da task.'); return }
+    try {
+      const r = await api('/api/pipeline/tasks', { method: 'POST', body: JSON.stringify({ description: title, priority: $('nt-p').value }) })
+      toast('Task criada na fila: ' + r.file + '\nAjuste "## Escopo" e "## Critério de conclusão" no arquivo — o agente segue o que estiver lá.')
+      await loadOverview()
+    } catch (err) { toast(err.message) }
+  }
+
+  async function startFromHome(task) {
+    try {
+      const r = await api('/api/pipeline/start', { method: 'POST', body: JSON.stringify({ task }) })
+      if (r.warning) toast(r.warning)
+      await loadCards()
+      state.home = false
+      select(r.task)
+    } catch (err) { toast('Não deu para iniciar:\n' + err.message) }
+  }
+
   // ---- carga de dados -----------------------------------------------------------------------
   async function loadCards() {
     try {
       const [cv, board] = await Promise.all([api('/api/canvas'), api('/api/board')])
       state.cards = cv.canvas
       state.queue = board.board.queue || []
+      if (!state.booted) {
+        state.booted = true
+        if (location.hash === '#inicio' || !state.cards.length) { state.home = true; renderSide(); renderCenter(); loadOverview(); return }
+      }
+      if (state.home) { renderSide(); return }
       if (!state.selected || !state.cards.some((c) => c.id === state.selected)) {
         const fromHash = decodeURIComponent((location.hash.match(/task=([^&]+)/) || [])[1] || '')
         const pick = state.cards.find((c) => c.id === fromHash) || state.cards.find((c) => classify(c).group === 'attention') || state.cards[0]
@@ -639,6 +719,7 @@ aside.right{flex:1 1 360px;max-width:460px;border-left:1px solid var(--line);bac
   function select(id, load = true) {
     if (state.selected !== id) { state.conv = null; state.convSig = null; state.changes = null; state.file = null; state.patch = null; state.draft = ''; state.mode = null; state.modeByUser = false; state.findings = null; state.picked = {}; state.editing = null; state.ask = '' }
     state.selected = id
+    state.home = false
     history.replaceState(null, '', '#task=' + encodeURIComponent(id))
     renderSide(); renderCenter(); renderPane()
     loadComments()
@@ -689,7 +770,7 @@ aside.right{flex:1 1 360px;max-width:460px;border-left:1px solid var(--line);bac
   }
 
   document.addEventListener('click', (ev) => {
-    const t = ev.target.closest('[data-task],[data-mode],[data-act],[data-file],[role=tab],[data-view],[data-line],[data-uncomment],[data-goto]')
+    const t = ev.target.closest('[data-task],[data-mode],[data-act],[data-file],[role=tab],[data-view],[data-line],[data-uncomment],[data-goto],[data-home],[data-start]')
     if (!t) return
     const keepScroll = () => { const sc = $('an-scroll'); state.anScroll = sc ? sc.scrollTop : 0 }
     if (t.dataset.view) { keepDraft(); state.view = t.dataset.view; if (state.view === 'analyze' && !state.file && state.changes && state.changes.files && state.changes.files[0]) loadPatch(state.changes.files[0].path); renderCenter(); renderPane(); return }
@@ -698,6 +779,13 @@ aside.right{flex:1 1 360px;max-width:460px;border-left:1px solid var(--line);bac
     if (t.dataset.goto) { state.view = 'analyze'; loadPatch(t.dataset.goto); return }
     if (t.dataset.act === 'comment-cancel') { keepScroll(); state.editing = null; renderCenter(); return }
     if (t.dataset.act === 'send-fixes') return sendFixes()
+    if (t.dataset.home) return goHome()
+    if (t.dataset.start) return startFromHome(t.dataset.start)
+    if (t.dataset.act === 'copy-plan') {
+      const cmd = 'pnpm harness coordinate plan <feature> --tool claude'
+      try { navigator.clipboard.writeText(cmd) } catch {}
+      return toast('Para quebrar uma feature em tasks:\n1. pnpm harness feature <slug> (escreva spec.md)\n2. ' + cmd + '\n3. revise e aprove: pnpm harness coordinate approve <plano>\n(comando copiado)')
+    }
     if (t.dataset.task) return select(t.dataset.task)
     if (t.dataset.mode) { keepDraft(); state.mode = t.dataset.mode; state.modeByUser = true; renderCenter(); return }
     if (t.dataset.act) return act(t.dataset.act, t)
@@ -707,6 +795,7 @@ aside.right{flex:1 1 360px;max-width:460px;border-left:1px solid var(--line);bac
   document.addEventListener('submit', (ev) => {
     if (ev.target.id === 'composer') { ev.preventDefault(); send() }
     if (ev.target.id === 'ask-form') { ev.preventDefault(); askQuestion() }
+    if (ev.target.id === 'new-task') { ev.preventDefault(); createTask() }
     if (ev.target.id === 'comment-form') {
       ev.preventDefault()
       const text = $('comment-text').value.trim()
@@ -724,6 +813,7 @@ aside.right{flex:1 1 360px;max-width:460px;border-left:1px solid var(--line);bac
     if (ev.target.dataset && ev.target.dataset.pick) { state.picked[ev.target.dataset.pick] = ev.target.checked; const sc = $('an-scroll'); state.anScroll = sc ? sc.scrollTop : 0; renderCenter() }
   })
   document.addEventListener('keydown', (ev) => {
+    if ((ev.ctrlKey || ev.metaKey) && ev.key === '0') { ev.preventDefault(); goHome(); return }
     if ((ev.ctrlKey || ev.metaKey) && !ev.shiftKey && ev.key.toLowerCase() === 'p') { ev.preventDefault(); openProjMenu(); return }
     if ($('proj-menu').classList.contains('open')) return
     if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'k') { ev.preventDefault(); $('q').focus(); $('q').select(); return }
@@ -833,7 +923,7 @@ aside.right{flex:1 1 360px;max-width:460px;border-left:1px solid var(--line);bac
     if (!state.selected) renderCenter()
     setInterval(() => { loadCards() }, 4000)
     setInterval(() => { if (runningRun() || (card() && classify(card()).group === 'running')) loadConv() }, 2000)
-    setInterval(() => { loadConv(); loadCost() }, 10000)
+    setInterval(() => { if (state.home) loadOverview(); else loadConv(); loadCost() }, 10000)
   }
   const st = document.createElement('style')
   st.textContent = '@keyframes pulse{50%{opacity:.35}}'

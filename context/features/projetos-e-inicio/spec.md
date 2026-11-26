@@ -20,13 +20,17 @@ aberto, trocar com um clique entre os projetos do workspace e ver o status do pr
 
 ## Critérios de aceitação
 
-- [ ] AC-1 — `listProjects` lista os projetos do workspace (caminho com `\` ou `/`), marca o atual, conta tasks e sinaliza pasta ausente.
-- [ ] AC-2 — `GET /api/projects` no `harness serve`; seletor no Workspace com filtro e teclado.
-- [ ] AC-3 — app desktop: ponte `harnessDesktop` (abrir projeto, escolher pasta, recentes) só para a página do serve e só para pasta de projeto.
-- [ ] AC-4 — tela Início com contagens, atividade recente e uso dos agentes; abre sozinha quando não há task ativa.
-- [ ] AC-5 — criar task pela tela Início (fila) e planejar uma feature com o coordenador.
+- [x] AC-1 — `listProjects` lista os projetos do workspace (caminho com `\` ou `/`), marca o atual, conta tasks e sinaliza pasta ausente.
+- [x] AC-2 — `GET /api/projects` no `harness serve`; seletor no Workspace com filtro e teclado.
+- [x] AC-3 — app desktop: ponte `harnessDesktop` (abrir projeto, escolher pasta, recentes) só para a página do serve e só para pasta de projeto.
+- [x] AC-4 — tela Início com contagens, atividade recente e uso dos agentes; abre sozinha quando não há task ativa.
+- [x] AC-5 — criar task pela tela Início (fila), iniciar da fila (start + worktree) e mostrar os passos para planejar uma feature com o coordenador.
 
 ## Fora de escopo
 
 - Criar/registrar projeto novo no workspace pelo app.
 - Rodar agentes em vários projetos ao mesmo tempo na mesma janela.
+
+## Estado
+
+- 2026-11-26 — tasks 142 e 143: seletor de projetos e tela Início implementados e testados (API + navegador headless). Troca de projeto dentro do app ainda não testada no Windows.

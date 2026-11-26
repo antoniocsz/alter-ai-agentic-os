@@ -726,6 +726,11 @@ A tela principal do `harness serve` e do app desktop:
   (`.harness-workspace.json`) com tasks ativas/na fila e, no app desktop, os recentes e "Abrir outra
   pasta…". No app a troca é direta; no navegador o seletor copia o `harness serve` da outra pasta.
   API: `GET /api/projects`.
+- **Início** (`Ctrl 0`, abre sozinho quando não há task ativa): tasks ativas/na fila/concluídas,
+  execuções, taxa de sucesso e custo dos agentes nos últimos 7 dias, a fila por prioridade com
+  *Iniciar* (`harness start` + `worktree start`), as concluídas recentes com o handoff e
+  "O que vamos construir?" (cria a task na fila; *Planejar feature…* mostra os passos do coordenador).
+  API: `GET /api/overview`, `POST /api/pipeline/tasks` e `POST /api/pipeline/start` (com token).
 
 ### Modo Analisar (Workspace → *Analisar*)
 
