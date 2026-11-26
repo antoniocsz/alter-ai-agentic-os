@@ -703,6 +703,17 @@
   Electron no Windows; validar com as tools reais.
 - Decisões: página sem framework, só API local; concluir a task continua no terminal.
 
+## Handoff (task 141 — modo-analisar)
+- Feito: papel `ask` no run (prompt só leitura, claude `plan`, codex read-only, sem gates) +
+  `harness run <task> --ask` e `ask` no `POST /api/runs`; `runs.role`; guarda de só leitura no
+  `runTool` (worktree antes/depois → `agent.error` com `read_only_violation`). `lib/findings.js`
+  (NOVO) — `parseFindings`/`verdictOf`/`taskFindings` + `GET /api/findings`; revisor pede itens
+  `caminho/arquivo:linha —`. `--continue` sem id pula runs só leitura. Workspace → Analisar: diff
+  com linhas, achados marcáveis, comentários por linha (localStorage), perguntas, "Enviar ao agente
+  para corrigir". +5 testes; suíte verde (362); verificado em Chromium headless com agente falso.
+- Pendências: competição lado a lado e Início no Workspace; validar com as tools reais.
+- Decisões: comentários ficam no navegador; correção vai para a sessão do último run de escrita.
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do

@@ -15,6 +15,7 @@ import { activeDir, resolveTaskName } from './tasks.js'
 import { prepareRun, prepareContinue, resolveRunOptions, taskWorktree } from '../run.js'
 import { ConversationError, conversationOf } from './conversation.js'
 import { taskChanges, filePatch } from './changes.js'
+import { taskFindings } from './findings.js'
 import { FlowError, APPROVE_MODES, createFlow, flowSteps, getFlow, listFlows, parseAgentSpec, resumeFlow, runFlow, stopFlow } from './flows.js'
 import { detectRuntimes } from '../runtimes.js'
 import { parseTask } from './tasks.js'
@@ -160,12 +161,18 @@ export function createRunsApi(root, opts = {}) {
       if (typeof body.note !== 'string' || body.note.length > 12000) throw new ApiError(400, 'note deve ser texto (até 12000 caracteres)')
     }
     const note = typeof body.note === 'string' && body.note.trim() ? body.note.trim() : null
-    return { task, flags, cont: null, note }
+    // Pergunta sobre o código (modo Analisar, task 141): run só leitura.
+    if (body.ask !== undefined && body.ask !== null) {
+      if (typeof body.ask !== 'string' || !body.ask.trim() || body.ask.length > 12000) throw new ApiError(400, 'ask deve ser a pergunta (até 12000 caracteres)')
+      if (note) throw new ApiError(400, 'use ask OU note, não os dois')
+    }
+    const ask = typeof body.ask === 'string' && body.ask.trim() ? body.ask.trim() : null
+    return { task, flags, cont: null, note, ask }
   }
 
   /** Dispara o agente; resolve com o run já aberto (`running`). O run segue em segundo plano. */
   function dispatch(body) {
-    const { task, flags, cont, note = null } = flagsFrom(body)
+    const { task, flags, cont, note = null, ask = null } = flagsFrom(body)
     const db = openDb(root)
     let keepOpen = false
     try {
@@ -173,8 +180,11 @@ export function createRunsApi(root, opts = {}) {
       try {
         prep = cont
           ? prepareContinue(root, flags, task, db, cont)
-          : prepareRun(root, flags, task, db, note ? { extra: `--- INSTRUÇÕES DO HUMANO ---\n${note}` } : {})
+          : ask
+            ? prepareRun(root, flags, task, db, { role: 'ask', extra: `--- PERGUNTA DO HUMANO ---\n${ask}` })
+            : prepareRun(root, flags, task, db, note ? { extra: `--- INSTRUÇÕES DO HUMANO ---\n${note}` } : {})
         if (note) prep.userMessage = note
+        if (ask) prep.userMessage = ask
       } catch (err) {
         throw new ApiError(err.code === 'BUDGET' ? 409 : err instanceof ConversationError ? 409 : 422, err.message)
       }
@@ -202,6 +212,8 @@ export function createRunsApi(root, opts = {}) {
           gates: prep.gates,
           parentRunId: prep.parentRunId ?? null,
           userMessage: prep.userMessage ?? null,
+          role: prep.role ?? 'implement',
+          readOnlyGuard: Boolean(prep.readOnly),
           onStart: (id) => {
             runId = id
           }
@@ -233,6 +245,13 @@ export function createRunsApi(root, opts = {}) {
     if (!Number.isInteger(n) || n < 1 || n > 200) throw new ApiError(400, `limit inválido: ${limit} (1–200)`)
     const taskId = resolveTaskId(root, task)
     return withDb((db) => ({ task: taskId, runs: conversationOf(db, taskId, { limit: n }) }))
+  }
+
+  /** Achados da revisão mais recente da task (modo Analisar, task 141). */
+  function findings(task) {
+    if (!task || !TASK_ARG_RE.test(task)) throw new ApiError(400, 'task obrigatória (?task=07)')
+    const taskId = resolveTaskId(root, task)
+    return withDb((db) => ({ task: taskId, ...taskFindings(db, taskId) }))
   }
 
   /** Mudanças da worktree da task × base (task 140); com `file`, o patch daquele arquivo. */
@@ -609,7 +628,7 @@ export function createRunsApi(root, opts = {}) {
   /** Atende `/api/runtimes` e `/api/runs*`. Retorna false se a rota não é desta API. */
   function handle(req, res, url) {
     const p = url.pathname
-    if (!/^\/api\/(runtimes|runs|flows|competitions|shutdown|conversation|changes)(\/|$)/.test(p)) return false
+    if (!/^\/api\/(runtimes|runs|flows|competitions|shutdown|conversation|changes|findings)(\/|$)/.test(p)) return false
     const exec = async () => {
       if (!hostAllowed(req)) throw new ApiError(403, 'host não permitido')
       const q = url.searchParams
@@ -630,6 +649,9 @@ export function createRunsApi(root, opts = {}) {
       const getM = p.match(/^\/api\/runs\/([^/]+)$/)
       if (req.method === 'GET' && getM) {
         return send(res, 200, { ok: true, ...get(decodeURIComponent(getM[1]), { after: q.get('after') ?? 0, native: q.get('native') === '1' }) })
+      }
+      if (req.method === 'GET' && p === '/api/findings') {
+        return send(res, 200, { ok: true, ...findings(q.get('task')) })
       }
       if (req.method === 'GET' && p === '/api/changes') {
         return send(res, 200, { ok: true, ...changes(q.get('task'), q.has('file') ? q.get('file') : null) })
@@ -678,5 +700,5 @@ export function createRunsApi(root, opts = {}) {
     return true
   }
 
-  return { token, allowUnsafe, runtimes, list, get, dispatch, conversation, changes, stop, settled, stopAll, handle, active, flowSettled, flowsActive, compSettled, compsActive }
+  return { token, allowUnsafe, runtimes, list, get, dispatch, conversation, changes, findings, stop, settled, stopAll, handle, active, flowSettled, flowsActive, compSettled, compsActive }
 }

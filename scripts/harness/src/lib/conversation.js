@@ -25,7 +25,11 @@ export function validateMessage(message) {
   return message.trim()
 }
 
+const READ_ONLY_ROLES = { ask: 'modo Analisar', review: 'revisor', judge: 'juiz' }
+
 function readOnlyRole(db, runId) {
+  const own = db.prepare('SELECT role FROM runs WHERE id = ?').get(runId)?.role
+  if (own && READ_ONLY_ROLES[own]) return READ_ONLY_ROLES[own]
   try {
     if (db.prepare("SELECT 1 FROM flow_steps WHERE run_id = ? AND role = 'review'").get(runId)) return 'revisor'
   } catch {}
@@ -46,8 +50,9 @@ export function resolveContinuation(db, taskId, from, wtDir) {
     if (!run) throw new ConversationError(`run não encontrado: ${from}`)
     if (run.task_id !== taskId) throw new ConversationError(`o run ${run.id} é da task ${run.task_id}, não de ${taskId}`)
   } else {
+    // O último run "de escrita" com sessão: perguntas do modo Analisar (só leitura) ficam de fora.
     run = db
-      .prepare("SELECT * FROM runs WHERE task_id = ? AND session_id IS NOT NULL AND session_id <> '' ORDER BY started_at DESC, rowid DESC LIMIT 1")
+      .prepare("SELECT * FROM runs WHERE task_id = ? AND session_id IS NOT NULL AND session_id <> '' AND (role IS NULL OR role NOT IN ('ask','review','judge')) ORDER BY started_at DESC, rowid DESC LIMIT 1")
       .get(taskId)
     if (!run) throw new ConversationError(`nenhum run com sessão para continuar em ${taskId} — rode antes: harness run ${taskId} --tool <tool>`)
   }
@@ -95,6 +100,7 @@ export function conversationOf(db, taskId, { limit = 30 } = {}) {
     return {
       id: run.id,
       parent_run_id: run.parent_run_id ?? null,
+      role: run.role ?? null,
       tool: run.tool,
       model: run.model,
       session_id: run.session_id,

@@ -143,6 +143,8 @@ function migrate(db) {
   if (!runCols.includes('quality')) db.exec('ALTER TABLE runs ADD COLUMN quality TEXT')
   // Task 139 (conversa-continua): run que continua a sessão de outro run aponta para ele.
   if (!runCols.includes('parent_run_id')) db.exec('ALTER TABLE runs ADD COLUMN parent_run_id TEXT')
+  // Task 141 (modo Analisar): papel do run (implement | ask | review | judge | fix); null = antigo.
+  if (!runCols.includes('role')) db.exec('ALTER TABLE runs ADD COLUMN role TEXT')
   db.exec('CREATE INDEX IF NOT EXISTS idx_runs_batch ON runs(batch_id)')
   // Task 118 (memoria-em-niveis): memórias em níveis + índice FTS5.
   ensureMemorySchema(db)

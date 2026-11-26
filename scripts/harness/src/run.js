@@ -30,6 +30,7 @@ const SAFE_VALUE = /^[A-Za-z0-9._:/@-]+$/
 const USAGE = `uso: harness run <task> --tool <${Object.keys(DRIVERS).join('|')}> [--model <m>] [--permission-mode <modo>] [--unsafe] [--no-context | --context-budget <n>] [--ignore-budget] [--raw <arquivo>]
      harness run --batch <t1,t2,...> --tool <tool> [--max-parallel <n>] [--model <m>] [--unsafe]
      harness run <task> --continue [<run>] --message "<texto>" [--model <m>] [--unsafe]
+     harness run <task> --ask "<pergunta sobre o código>" --tool <t>   (só leitura)
      harness run --stop <run>`
 
 /** Worktree registrada da task (exigida: o agente nunca roda na árvore principal). */
@@ -48,6 +49,7 @@ export function taskWorktree(root, taskId) {
 export function buildPrompt(taskId, taskBody, wt, contextMd = null, { role = 'implement', extra = null } = {}) {
   if (role === 'review') return buildReviewPrompt(taskId, taskBody, wt, contextMd, extra)
   if (role === 'judge') return buildJudgePrompt(taskId, taskBody, wt, contextMd, extra)
+  if (role === 'ask') return buildAskPrompt(taskId, taskBody, wt, contextMd, extra)
   const parts = [
     `Você está executando a task ${taskId} do harness (AlterAI - Agentic OS)`,
     `na worktree ${wt.path} (branch ${wt.branch}). Regras desta execução:`,
@@ -97,6 +99,27 @@ function buildJudgePrompt(taskId, taskBody, wt, contextMd, extra) {
   return parts.join('\n')
 }
 
+/**
+ * Prompt da pergunta sobre o código (modo Analisar, task 141): só leitura; responde citando
+ * `arquivo:linha` para o painel ligar a resposta às linhas do diff.
+ */
+function buildAskPrompt(taskId, taskBody, wt, contextMd, extra) {
+  const parts = [
+    `Você está ANALISANDO o código da task ${taskId} do harness (AlterAI - Agentic OS), na worktree ${wt.path} (branch ${wt.branch}).`,
+    'O humano fez uma pergunta sobre o código. Regras desta execução:',
+    '- NÃO altere, crie, mova nem apague arquivos, e não rode comandos que mudem a worktree — só leia.',
+    '  (o harness compara a worktree antes e depois e avisa se algo mudou).',
+    '- Responda de forma direta e curta. Ao citar código, use `caminho/arquivo:linha` (caminho relativo à raiz).',
+    '- Se encontrar problemas, liste um por linha começando com `caminho/arquivo:linha — descrição`.',
+    '',
+    '--- TASK ---',
+    taskBody
+  ]
+  if (extra) parts.push('', extra)
+  if (contextMd) parts.push('', '--- CONTEXTO DO PROJETO (gerado pelo harness para esta task) ---', contextMd)
+  return parts.join('\n')
+}
+
 /** Prompt do revisor: não altera nada; compara a mudança com a task e dá veredito parseável. */
 function buildReviewPrompt(taskId, taskBody, wt, contextMd, extra) {
   const parts = [
@@ -108,7 +131,8 @@ function buildReviewPrompt(taskId, taskBody, wt, contextMd, extra) {
     '- Aponte só problemas reais e acionáveis; não peça mudanças de estilo sem motivo.',
     '- Termine a resposta com UMA destas linhas, exatamente:',
     '  `VEREDITO: APROVADO`',
-    '  `VEREDITO: MUDANÇAS` — seguida da lista numerada do que precisa mudar (arquivo e motivo).',
+    '  `VEREDITO: MUDANÇAS` — seguida da lista numerada do que precisa mudar; comece cada item com',
+    '  `caminho/arquivo:linha —` (caminho relativo à raiz) para o painel marcar o ponto no diff.',
     '',
     '--- TASK ---',
     taskBody
@@ -251,7 +275,8 @@ export function prepareRun(root, flags, arg, db, { role = 'implement', extra = n
   const toolName = flagString(flags, 'tool')
   if (!toolName) throw new Error(USAGE)
   const { probe: driver, opts, unsafe } = resolveRunOptions(flags, toolName)
-  if ((role === 'review' || role === 'judge') && !unsafe) {
+  const readOnly = role === 'review' || role === 'judge' || role === 'ask'
+  if (readOnly && !unsafe) {
     // Revisor só lê: Claude em modo plan, Codex com sandbox read-only (os demais: guarda do harness).
     opts.readOnly = true
     if (driver.id === 'claude') opts.permissionMode = 'plan'
@@ -284,8 +309,8 @@ export function prepareRun(root, flags, arg, db, { role = 'implement', extra = n
   }
   const ctx = contextForRun(root, taskId, budget, db)
   const prompt = buildPrompt(taskId, fs.readFileSync(path.join(activeDir(root), taskId), 'utf8'), wt, ctx?.md, { role, extra })
-  const gates = role === 'review' || role === 'judge' ? null : runGatesFor(root, flags)
-  return { taskId, wt, driver, opts, unsafe, gate, money, ctx, prompt, gates }
+  const gates = readOnly ? null : runGatesFor(root, flags)
+  return { taskId, wt, driver, opts, unsafe, gate, money, ctx, prompt, gates, role, readOnly }
 }
 
 /**
@@ -397,8 +422,12 @@ export async function runCmd(args) {
   const { signal, dispose } = withSigint()
   let announced = false
   try {
-    const prep =
-      cont === undefined
+    const ask = flagString(flags, 'ask')
+    if (flags.ask !== undefined && (!ask || !ask.trim())) throw new Error('--ask precisa da pergunta: harness run <task> --ask "..." --tool <t>')
+    if (ask && cont !== undefined) throw new Error('use --ask OU --continue, não os dois')
+    const prep = ask
+      ? { ...prepareRun(root, flags, arg, db, { role: 'ask', extra: `--- PERGUNTA DO HUMANO ---\n${ask.trim()}` }), userMessage: ask.trim() }
+      : cont === undefined
         ? prepareRun(root, flags, arg, db)
         : prepareContinue(root, flags, arg, db, { from: cont === true ? positionals[1] ?? null : cont, message: flagString(flags, 'message') ?? flagString(flags, 'm') })
     const { taskId, wt, driver, opts, unsafe, gate, money, ctx, prompt } = prep
@@ -423,6 +452,8 @@ export async function runCmd(args) {
       gates: prep.gates,
       parentRunId: prep.parentRunId ?? null,
       userMessage: prep.userMessage ?? null,
+      role: prep.role ?? 'implement',
+      readOnlyGuard: Boolean(prep.readOnly),
       onEvent: (ev) => {
         if (!announced) {
           announced = true

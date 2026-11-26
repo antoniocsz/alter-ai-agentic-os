@@ -123,7 +123,30 @@ const STDERR_TAIL = 4000
  * Executa `driver` com `prompt` (via stdin) em `cwd`, gravando o run em `db`.
  * Resolve com `{ runId, status, exitCode, error }`. `signal` (AbortSignal) interrompe.
  */
-export function runTool({ db, taskId, cwd, driver, prompt, opts = {}, env = process.env, signal = null, onEvent = () => {}, unsafe = false, batchId = null, limit = null, budgetOverride = false, rawLog = null, onStart = null, gates = null, parentRunId = null, userMessage = null }) {
+/** Estado da worktree (status + diff) para a guarda de run só leitura (task 141). */
+function worktreeState(dir) {
+  try {
+    const run = (args) => execFileSync('git', ['-C', dir, ...args], { encoding: 'utf8', timeout: 15_000, maxBuffer: 32 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] })
+    // Não rastreados: tamanho + mtime (o diff HEAD não enxerga o conteúdo deles).
+    const untracked = run(['ls-files', '--others', '--exclude-standard'])
+      .split('\n')
+      .filter(Boolean)
+      .map((f) => {
+        try {
+          const st = fs.statSync(path.join(dir, f))
+          return `${f}:${st.size}:${st.mtimeMs}`
+        } catch {
+          return f
+        }
+      })
+      .join('\n')
+    return run(['status', '--porcelain', '--untracked-files=all']) + '\n' + run(['diff', 'HEAD']) + '\n' + untracked
+  } catch {
+    return null
+  }
+}
+
+export function runTool({ db, taskId, cwd, driver, prompt, opts = {}, env = process.env, signal = null, onEvent = () => {}, unsafe = false, batchId = null, limit = null, budgetOverride = false, rawLog = null, onStart = null, gates = null, parentRunId = null, userMessage = null, role = null, readOnlyGuard = false }) {
   const exe = resolveExecutable(driver.bin, { env })
   if (!exe) throw new Error(`${driver.bin} não encontrado no PATH.\n  ${driver.installHint}`)
   if (!fs.existsSync(cwd)) throw new Error(`diretório de execução não existe: ${cwd}`)
@@ -131,6 +154,7 @@ export function runTool({ db, taskId, cwd, driver, prompt, opts = {}, env = proc
   const version = toolVersion(exe, { env })
   const [file, args] = spawnArgs(exe, driver.command(opts))
 
+  const guardBefore = readOnlyGuard ? worktreeState(cwd) : null
   const child = spawn(file, args, {
     cwd,
     env: childEnv(env, cwd),
@@ -150,7 +174,8 @@ export function runTool({ db, taskId, cwd, driver, prompt, opts = {}, env = proc
     unsafe,
     batchId,
     budgetOverride,
-    parentRunId
+    parentRunId,
+    role
   })
   inFlightRuns.add(runId) // task 131: não é órfão enquanto este processo o acompanha
   // API local (task 115): o chamador conhece o id antes do fim (responde 202 com ele).
@@ -300,6 +325,11 @@ export function runTool({ db, taskId, cwd, driver, prompt, opts = {}, env = proc
       } else if (final && final.ok === false) {
         status = 'failed'
         error = final.reason ?? 'o runtime reportou erro'
+      }
+
+      // Run só leitura (pergunta do modo Analisar, task 141): avisa se a worktree mudou.
+      if (readOnlyGuard && guardBefore !== null && worktreeState(cwd) !== guardBefore) {
+        record({ type: 'agent.error', payload: { reason: 'a execução era só leitura, mas a worktree mudou — confira as mudanças antes de seguir', read_only_violation: true } })
       }
 
       // Sem total final (run cortado antes do `result`), o parcial REPORTADO pela tool é o registro.

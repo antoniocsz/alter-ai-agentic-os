@@ -140,6 +140,8 @@ pnpm harness budget                 # consumo medido × limites (harness.json �
   histórico do módulo em `digest.md`.
 - Conversa contínua: numa continuação você recebe só a mensagem do humano — as regras do início da
   sessão continuam valendo (escopo, sem finish/merge/push, sem mexer em tasks/ e status.md).
+- Pergunta (modo Analisar, `harness run <task> --ask "..."`): só leia e responda direto; cite
+  código como `caminho/arquivo:linha` e problemas como `caminho/arquivo:linha — descrição`.
 - No lote, tasks com dependência entre si ou escopos sobrepostos são recusadas antes de qualquer
   execução; a integração continua task a task (`worktree finish`).
 - Coordenador: `pnpm harness coordinate plan <feature> --tool claude` → o humano aprova
@@ -148,7 +150,8 @@ pnpm harness budget                 # consumo medido × limites (harness.json �
   escopos disjuntos entre tasks independentes.
 - Fluxo encadeado: `pnpm harness flow <task> --implement claude --review codex [--approve review]`
   — implementar → revisar → corrigir na mesma worktree até aprovar. Como **revisor**, só leia e
-  termine com `VEREDITO: APROVADO` ou `VEREDITO: MUDANÇAS` + lista; como **correção**, atenda a
+  termine com `VEREDITO: APROVADO` ou `VEREDITO: MUDANÇAS` + lista (cada item começando com
+  `caminho/arquivo:linha —`); como **correção**, atenda a
   revisão e as instruções do humano. `harness flow resume|stop|show <flow>`.
 - Competição: `pnpm harness compete <task> --tools claude,codex [--judge claude]` — cada candidata
   resolve a task na sua worktree; o humano escolhe com `harness compete pick <comp> <candidata>`.

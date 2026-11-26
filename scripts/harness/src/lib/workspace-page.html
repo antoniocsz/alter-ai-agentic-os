@@ -46,8 +46,10 @@ aside.side{flex:0 0 268px;background:var(--side);border-right:1px solid var(--li
 .side-nav a:hover{background:#1B1D23}
 .side-nav a span{margin-left:auto}
 main.center{flex:999 1 520px;min-width:0;display:flex;flex-direction:column;min-height:0}
-.task-head{padding:12px 22px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.task-head h1{margin:0;font-size:17px;font-weight:600}
+.task-head{padding:12px 22px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+.task-head h1{margin:0;font-size:17px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:60px}
+.task-head .chip,.task-head .seg,.task-head .btn{flex:none}.task-head .branch{max-width:220px;overflow:hidden;text-overflow:ellipsis;flex:0 1 auto}
+@media (max-width:1500px){.task-head .branch{display:none}}
 .subbar{padding:10px 22px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .thread{flex:1;overflow:auto;padding:18px 22px}
 .thread-inner{max-width:880px;display:flex;flex-direction:column;gap:14px}
@@ -91,6 +93,26 @@ aside.right{flex:1 1 360px;max-width:460px;border-left:1px solid var(--line);bac
 .gate pre{margin:6px 0 0;white-space:pre-wrap;color:var(--muted);font-size:11px;max-height:160px;overflow:auto}
 .toast{position:fixed;right:16px;bottom:16px;max-width:420px;background:#1C1213;border:1px solid #4D2523;color:#F2C2BF;border-radius:10px;padding:10px 14px;white-space:pre-wrap;display:none;z-index:9}
 .sr{position:absolute;left:-9999px}
+.an{flex:1;display:flex;min-height:0}
+.an-files{flex:0 0 230px;border-right:1px solid var(--line);overflow:auto;padding:8px}
+.an-code{flex:1;min-width:0;display:flex;flex-direction:column}
+.an-scroll{flex:1;overflow:auto;padding:8px 0}
+.cl{display:flex;font:12.5px/1.7 "JetBrains Mono",ui-monospace,Consolas,monospace;white-space:pre}
+.cl .ln{width:52px;flex:none;text-align:right;padding-right:12px;color:#5E6470;border:0;background:transparent;font:inherit;cursor:pointer}
+.cl .ln:hover{color:var(--accent)}
+.cl .tx{flex:1;padding-right:12px}
+.cl.a{background:#0F2A1C;color:#9FE8C4}.cl.r{background:#2A1416;color:#F2A9A5}.cl.h{color:#9AA1AC;background:#14161B}.cl.mark{box-shadow:inset 3px 0 0 var(--warn)}
+.note{margin:4px 16px 8px 64px;border:1px solid #4A3A12;background:#17140C;border-radius:10px;padding:8px 11px;font-size:13px;white-space:normal}
+.note.mine{border-color:#2E3557;background:#141729}
+.note label{display:flex;gap:8px;align-items:flex-start;cursor:pointer}
+.note input[type=checkbox]{accent-color:var(--accent);margin-top:3px}
+.note textarea{width:100%;background:#0F1014;border:1px solid var(--line2);border-radius:8px;padding:6px 8px;resize:vertical;min-height:52px}
+.an-bar{border-top:1px solid var(--line);background:var(--side);padding:10px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.finding{display:flex;gap:9px;width:100%;text-align:left;padding:7px 9px;border-radius:8px;border:0;background:transparent;color:var(--text)}
+.finding:hover{background:#1B1D23}
+.qa{border:1px solid var(--line);border-radius:10px;padding:9px 11px}
+.qa .q{color:#C9D1FF;margin-bottom:4px;white-space:pre-wrap}
+.qa .a{white-space:pre-wrap;color:#D6D9DF;line-height:1.55}
 @media (max-width:900px){aside.right{display:none}aside.side{flex-basis:220px}}
 </style>
 </head>
@@ -145,7 +167,7 @@ aside.right{flex:1 1 360px;max-width:460px;border-left:1px solid var(--line);bac
     const s = Math.round(ms / 1000)
     return s < 60 ? s + 's' : Math.floor(s / 60) + 'm' + String(s % 60).padStart(2, '0') + 's'
   }
-  const state = { cards: [], queue: [], selected: null, conv: null, changes: null, file: null, patch: null, tab: 'changes', mode: null, tool: null, runtimes: [], filter: '', busy: false }
+  const state = { cards: [], queue: [], selected: null, conv: null, changes: null, file: null, patch: null, tab: 'changes', mode: null, tool: null, runtimes: [], filter: '', busy: false, view: 'chat', findings: null, comments: {}, picked: {}, editing: null, ask: '' }
 
   function toast(msg) {
     const t = $('toast')
@@ -211,6 +233,8 @@ aside.right{flex:1 1 360px;max-width:460px;border-left:1px solid var(--line);bac
   // ---- centro: conversa ---------------------------------------------------------------------
   const card = () => state.cards.find((c) => c.id === state.selected) || null
   const lastRun = () => (state.conv && state.conv.runs.length ? state.conv.runs[state.conv.runs.length - 1] : null)
+  const READ_ONLY = ['ask', 'review', 'judge']
+  const lastWrite = () => { const rs = state.conv ? state.conv.runs.filter((r) => !READ_ONLY.includes(r.role)) : []; return rs.length ? rs[rs.length - 1] : null }
   const runningRun = () => (state.conv ? state.conv.runs.find((r) => r.status === 'running') : null)
   const canResume = (tool) => { const r = state.runtimes.find((x) => x.tool === tool); return Boolean(r && r.supports_resume) }
 
@@ -225,7 +249,8 @@ aside.right{flex:1 1 360px;max-width:460px;border-left:1px solid var(--line);bac
 
   function renderRun(run, idx) {
     let html = ''
-    const label = run.parent_run_id ? '' : (idx === 0 ? 'Execução inicial' : 'Nova execução') + ' · ' + esc(run.tool) + (run.model ? ' · ' + esc(run.model) : '')
+    const kind = run.role === 'ask' ? 'Pergunta (só leitura)' : run.role === 'review' ? 'Revisão' : idx === 0 ? 'Execução inicial' : 'Nova execução'
+    const label = run.parent_run_id ? '' : kind + ' · ' + esc(run.tool) + (run.model ? ' · ' + esc(run.model) : '')
     if (label) html += '<div class="runstart">' + label + '</div>'
     const events = run.events || []
     let tools = []
@@ -304,11 +329,13 @@ aside.right{flex:1 1 360px;max-width:460px;border-left:1px solid var(--line);bac
     const status = runningRun() ? '<span class="chip ok">rodando</span>' : k.group === 'attention' ? '<span class="chip warn">' + esc(k.reason) + '</span>' : k.group === 'running' ? '<span class="chip ok">rodando</span>' : ''
     $('center').innerHTML =
       '<div class="task-head"><span class="mono hint">' + esc(num(c.id)) + '</span><h1>' + esc(c.title || c.id) + '</h1>' + status +
-      (c.branch ? '<span class="chip mono">' + esc(c.branch) + '</span>' : '') + '<span style="flex:1"></span>' +
+      (c.branch ? '<span class="chip mono branch" title="' + esc(c.branch) + '">' + esc(c.branch) + '</span>' : '') + '<span style="flex:1"></span>' +
+      '<div class="seg" role="group" aria-label="Vista da task"><button type="button" data-view="chat" aria-pressed="' + (state.view === 'chat') + '">Conversa</button><button type="button" data-view="analyze" aria-pressed="' + (state.view === 'analyze') + '"' + (hasWt ? '' : ' disabled') + '>Analisar</button></div>' +
       '<button class="btn sm" data-act="copy-finish" title="Revise as mudanças e integre pelo terminal">Concluir task…</button></div>' +
-      flowBar(c) + compBar(c) +
+      (state.view === 'analyze' && hasWt ? analyzeHtml(c) : flowBar(c) + compBar(c) +
       '<div class="thread" id="thread"><div class="thread-inner">' + body + '</div></div>' +
-      composerHtml(c, hasWt)
+      composerHtml(c, hasWt))
+    if (state.view === 'analyze') { const sc = $('an-scroll'); if (sc && state.anScroll) sc.scrollTop = state.anScroll; return }
     const th = $('thread')
     if (th) th.scrollTop = th.scrollHeight
     const ta = $('msg')
@@ -319,7 +346,7 @@ aside.right{flex:1 1 360px;max-width:460px;border-left:1px solid var(--line);bac
     if (!CFG.control) return '<div class="composer-wrap"><div class="composer hint">Somente leitura: abra pelo <span class="mono">harness serve</span> para conversar com o agente.</div></div>'
     if (!hasWt) return ''
     const live = runningRun()
-    const last = lastRun()
+    const last = lastWrite()
     const resumable = last && last.can_continue && canResume(last.tool)
     // Modo automático até o humano escolher: continuar quando há sessão, senão execução nova.
     if (!state.modeByUser || (state.mode === 'continue' && !resumable)) state.mode = resumable ? 'continue' : 'new'
@@ -345,6 +372,8 @@ aside.right{flex:1 1 360px;max-width:460px;border-left:1px solid var(--line);bac
 
   // ---- painel direito -----------------------------------------------------------------------
   function renderPane() {
+    $('right').querySelector('.tabs').style.display = state.view === 'analyze' ? 'none' : ''
+    if (state.view === 'analyze' && card()) return renderAnalyzePane()
     for (const t of ['changes', 'gates', 'run']) $('tab-' + t).setAttribute('aria-selected', String(state.tab === t))
     const ch = state.changes
     $('changes-count').textContent = ch && ch.files ? String(ch.files.length) : ''
@@ -387,6 +416,158 @@ aside.right{flex:1 1 360px;max-width:460px;border-left:1px solid var(--line);bac
       '<div class="hint">Timeline completa: <span class="mono">harness events ' + esc(run.id) + '</span></div>'
   }
 
+
+  // ---- modo Analisar (task 141) ------------------------------------------------------------
+  const tkey = () => state.selected
+  function loadComments() {
+    try { state.comments[tkey()] = JSON.parse(localStorage.getItem('harness.comments.' + tkey()) || '[]') } catch { state.comments[tkey()] = state.comments[tkey()] || [] }
+  }
+  function saveComments() { try { localStorage.setItem('harness.comments.' + tkey(), JSON.stringify(myComments())) } catch {} }
+  const myComments = () => state.comments[tkey()] || (state.comments[tkey()] = [])
+  const fKey = (f, i) => f.file + ':' + f.line + ':' + i
+  const allFindings = () => (state.findings && state.findings.findings ? state.findings.findings : [])
+  function pickedOf(f, i) { const k = fKey(f, i); return state.picked[k] !== undefined ? state.picked[k] : state.findings.verdict !== 'approved' }
+
+  function parsePatch(text) {
+    const rows = []
+    let oldN = 0, newN = 0
+    for (const l of text.split('\n').slice(0, 4000)) {
+      const h = l.match(/^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/)
+      if (h) { oldN = Number(h[1]); newN = Number(h[2]); rows.push({ t: 'h', text: l }); continue }
+      if (l.startsWith('+')) { rows.push({ t: 'a', n: newN++, text: l }); continue }
+      if (l.startsWith('-')) { rows.push({ t: 'r', o: oldN++, text: l }); continue }
+      if (l.startsWith('\\')) continue
+      rows.push({ t: '', n: newN++, o: oldN++, text: l })
+    }
+    return rows
+  }
+
+  function noteHtml(f, i) {
+    return '<div class="note"><label><input type="checkbox" data-pick="' + esc(fKey(f, i)) + '"' + (pickedOf(f, i) ? ' checked' : '') + '><span><span class="chip warn">revisão</span> ' + esc(f.text) + '</span></label></div>'
+  }
+  function commentHtml(cm, idx) {
+    return '<div class="note mine"><div style="display:flex;gap:8px;align-items:flex-start"><span class="chip acc">seu comentário</span><span style="flex:1;white-space:pre-wrap">' + esc(cm.text) + '</span><button class="btn sm ghost" data-uncomment="' + idx + '" aria-label="Remover comentário">Remover</button></div></div>'
+  }
+  function editorHtml() {
+    return '<form class="note mine" id="comment-form"><label class="sr" for="comment-text">Comentário</label><textarea id="comment-text" placeholder="O que precisa mudar nesta linha?"></textarea>' +
+      '<div class="crow"><span class="hint mono">' + esc(state.editing.file) + ':' + state.editing.line + '</span><span style="flex:1"></span><button type="button" class="btn sm ghost" data-act="comment-cancel">Cancelar</button><button class="btn sm primary">Comentar</button></div></form>'
+  }
+
+  function analyzeHtml(c) {
+    const ch = state.changes
+    const files = ch && ch.files ? ch.files : []
+    const fs = allFindings()
+    const count = (p) => fs.filter((f) => f.file === p).length + myComments().filter((m) => m.file === p).length
+    let list = '<div class="hint" style="padding:4px 6px 8px">' + (ch && ch.base ? 'Alterados × <span class="mono">' + esc(ch.base) + '</span>' : 'Carregando…') + '</div>'
+    list += files.map((f) => { const n = count(f.path); return '<button class="file mono' + (f.path === state.file ? ' sel' : '') + '" data-file="' + esc(f.path) + '"><span class="p" title="' + esc(f.path) + '">' + esc(f.path) + '</span>' + (n ? '<span class="chip warn">' + n + '</span>' : '') + '</button>' }).join('')
+    const outside = fs.filter((f) => !files.some((x) => x.path === f.file))
+    if (outside.length) list += '<div class="hint" style="padding:10px 6px 4px">Fora das mudanças</div>' + outside.map((f) => '<div class="file mono" title="' + esc(f.text) + '"><span class="p">' + esc(f.file) + ':' + f.line + '</span></div>').join('')
+    let code = ''
+    if (!state.file) code = '<div class="empty">' + (files.length ? 'Escolha um arquivo para ver o diff, os achados da revisão e comentar nas linhas.' : 'Nenhuma mudança na worktree ainda.') + '</div>'
+    else if (!state.patch) code = '<div class="empty">Carregando…</div>'
+    else {
+      const rows = parsePatch(state.patch.patch)
+      const shown = new Set()
+      const fFor = (n) => fs.map((f, i) => [f, i]).filter(([f]) => f.file === state.file && f.line === n)
+      const cFor = (n) => myComments().map((m, i) => [m, i]).filter(([m]) => m.file === state.file && m.line === n)
+      const head = fs.map((f, i) => [f, i]).filter(([f]) => f.file === state.file && !rows.some((r) => r.n === f.line))
+      code = head.map(([f, i]) => '<div class="note"><span class="hint mono">linha ' + f.line + ' (fora do diff)</span></div>' + noteHtml(f, i)).join('')
+      for (const r of rows) {
+        if (r.t === 'h') { code += '<div class="cl h"><span class="ln"></span><span class="tx">' + esc(r.text) + '</span></div>'; continue }
+        const marks = r.n !== undefined && r.t !== 'r' ? fFor(r.n) : []
+        const mine = r.n !== undefined && r.t !== 'r' ? cFor(r.n) : []
+        const ln = r.t === 'r' ? '<span class="ln">' + r.o + '</span>' : '<button class="ln" data-line="' + r.n + '" title="Comentar na linha ' + r.n + '">' + r.n + '</button>'
+        code += '<div class="cl ' + r.t + (marks.length || mine.length ? ' mark' : '') + '">' + ln + '<span class="tx">' + esc(r.text || ' ') + '</span></div>'
+        if (r.n !== undefined && r.t !== 'r' && !shown.has(r.n)) {
+          shown.add(r.n)
+          code += marks.map(([f, i]) => noteHtml(f, i)).join('') + mine.map(([m, i]) => commentHtml(m, i)).join('')
+          if (state.editing && state.editing.file === state.file && state.editing.line === r.n) code += editorHtml()
+        }
+      }
+      if (state.patch.truncated) code += '<div class="hint" style="padding:8px 16px">Diff cortado — abra o arquivo no editor.</div>'
+    }
+    const sel = allFindings().filter((f, i) => pickedOf(f, i)).length + myComments().length
+    const last = lastWrite()
+    const resumable = last && last.can_continue && canResume(last.tool)
+    const bar = CFG.control
+      ? '<div class="an-bar"><span>' + sel + (sel === 1 ? ' ponto selecionado' : ' pontos selecionados') + '</span><span class="hint">' + (resumable ? 'vai para a sessão do ' + esc(last.tool) : 'abre uma execução nova') + '</span><span style="flex:1"></span>' +
+        (runningRun() ? '<span class="chip ok">agente rodando</span>' : '<button class="btn primary" data-act="send-fixes"' + (sel ? '' : ' disabled') + '>Enviar ao agente para corrigir</button>') + '</div>'
+      : ''
+    return '<div class="an"><nav class="an-files" aria-label="Arquivos alterados">' + list + '</nav><div class="an-code"><div class="an-scroll" id="an-scroll">' + code + '</div>' + bar + '</div></div>'
+  }
+
+  function renderAnalyzePane() {
+    const fd = state.findings
+    let html = '<div style="display:flex;align-items:center;gap:8px"><strong>Achados da revisão</strong>'
+    if (fd && fd.verdict) html += fd.verdict === 'approved' ? '<span class="chip ok">aprovado</span>' : '<span class="chip warn">mudanças</span>'
+    html += '</div>'
+    if (!fd) html += '<div class="hint">Carregando…</div>'
+    else if (!fd.source) html += '<div class="hint">Nenhuma revisão ainda. Rode um fluxo (implementar → revisar) ou pergunte abaixo.</div>'
+    else {
+      html += '<div class="hint">' + esc(fd.source.tool) + ' · <span class="mono">' + esc(fd.source.run_id) + '</span></div>'
+      html += fd.findings.length ? fd.findings.map((f, i) => '<button class="finding" data-goto="' + esc(f.file) + '" data-goline="' + f.line + '"><span class="dot" style="background:var(--warn);margin-top:6px"></span><span style="flex:1;min-width:0">' + esc(f.text) + '<span class="mono hint" style="display:block">' + esc(f.file) + ':' + f.line + '</span></span></button>').join('')
+        : '<div class="hint">A revisão não citou linhas (formato <span class="mono">arquivo:linha — texto</span>).</div>'
+    }
+    html += '<div style="border-top:1px solid var(--line);margin-top:6px;padding-top:10px"><strong>Perguntar sobre o código</strong><div class="hint">Só leitura: o agente não altera arquivos.</div></div>'
+    const asks = state.conv ? state.conv.runs.filter((r) => r.role === 'ask') : []
+    html += asks.slice(-6).map((r) => {
+      const q = (r.events.find((e) => e.type === 'user.message') || {}).payload
+      const msgs = r.events.filter((e) => e.type === 'agent.message')
+      const a = msgs.length ? msgs[msgs.length - 1].payload.text : r.status === 'running' ? 'pensando…' : r.status === 'failed' ? 'falhou' : ''
+      const warn = r.events.some((e) => e.type === 'agent.error' && e.payload && e.payload.read_only_violation)
+      return '<div class="qa"><div class="q">' + esc(q ? q.text : '') + '</div><div class="a">' + esc(a) + '</div>' + (warn ? '<div class="err" style="margin-top:6px">A worktree mudou durante a pergunta — confira as mudanças.</div>' : '') + '<div class="hint mono" style="margin-top:4px">' + esc(r.tool) + ' · ' + money(r.cost_usd) + '</div></div>'
+    }).join('')
+    if (CFG.control) {
+      const installed = state.runtimes.filter((r) => r.installed)
+      html += '<form id="ask-form" class="composer" style="max-width:none"><label class="sr" for="ask">Pergunta</label><textarea id="ask" rows="2" placeholder="Ex.: onde isso pode quebrar?"' + (runningRun() ? ' disabled' : '') + '></textarea><div class="crow"><select id="ask-tool" aria-label="Ferramenta">' +
+        installed.map((r) => '<option value="' + esc(r.tool) + '"' + (r.tool === state.tool ? ' selected' : '') + '>' + esc(r.tool) + '</option>').join('') + '</select><span style="flex:1"></span><button class="btn sm primary"' + (runningRun() || !installed.length ? ' disabled' : '') + '>Perguntar</button></div></form>'
+    }
+    $('pane').innerHTML = html
+    const ta = $('ask')
+    if (ta && state.ask) ta.value = state.ask
+  }
+
+  async function loadFindings() {
+    if (!state.selected) return
+    try { state.findings = await api('/api/findings?task=' + encodeURIComponent(num(state.selected))) } catch (err) { state.findings = { source: null, findings: [], verdict: null } }
+    if (state.view === 'analyze') { renderCenter(); renderPane() }
+  }
+
+  async function askQuestion() {
+    const q = $('ask') && $('ask').value.trim()
+    if (!q) { toast('Escreva a pergunta.'); return }
+    try {
+      await api('/api/runs', { method: 'POST', body: JSON.stringify({ task: num(state.selected), tool: $('ask-tool').value, ask: q }) })
+      state.ask = ''
+      state.convSig = null
+      await loadConv(); loadCards()
+    } catch (err) { toast(err.message) }
+  }
+
+  async function sendFixes() {
+    const items = []
+    allFindings().forEach((f, i) => { if (pickedOf(f, i)) items.push('- ' + f.file + ':' + f.line + ' — ' + f.text + ' (revisão)') })
+    for (const m of myComments()) items.push('- ' + m.file + ':' + m.line + ' — ' + m.text)
+    if (!items.length) return
+    const text = 'Corrija estes pontos no código (achados da revisão e comentários do humano por linha):\n' + items.join('\n')
+    const last = lastWrite()
+    const resumable = last && last.can_continue && canResume(last.tool)
+    const installed = state.runtimes.filter((r) => r.installed)
+    const tool = (last && installed.some((r) => r.tool === last.tool) ? last.tool : installed[0] && installed[0].tool) || null
+    try {
+      if (resumable) await api('/api/runs', { method: 'POST', body: JSON.stringify({ task: num(state.selected), continue: last.id, message: text }) })
+      else if (tool) await api('/api/runs', { method: 'POST', body: JSON.stringify({ task: num(state.selected), tool, note: text }) })
+      else throw new Error('nenhuma ferramenta instalada')
+      state.comments[tkey()] = []
+      saveComments()
+      state.picked = {}
+      state.view = 'chat'
+      state.convSig = null
+      await loadConv(); loadCards()
+      renderCenter(); renderPane()
+    } catch (err) { toast(err.message) }
+  }
+
   // ---- carga de dados -----------------------------------------------------------------------
   async function loadCards() {
     try {
@@ -413,7 +594,7 @@ aside.right{flex:1 1 360px;max-width:460px;border-left:1px solid var(--line);bac
       state.conv = conv
       state.convSig = sig
       if (changed) { keepDraft(); renderCenter(); renderPane() }
-      if (changed) loadChanges()
+      if (changed) { loadChanges(); loadFindings() }
     } catch (err) {
       state.conv = { runs: [] }
       keepDraft(); renderCenter()
@@ -428,6 +609,7 @@ aside.right{flex:1 1 360px;max-width:460px;border-left:1px solid var(--line);bac
       if (state.file && !state.changes.files.some((f) => f.path === state.file)) { state.file = null; state.patch = null }
       if (state.file) await loadPatch(state.file, false)
     } catch (err) { state.changes = { error: err.message } }
+    if (state.view === 'analyze') renderCenter()
     renderPane()
   }
 
@@ -437,17 +619,18 @@ aside.right{flex:1 1 360px;max-width:460px;border-left:1px solid var(--line);bac
       state.file = file
       state.patch = r.file
     } catch (err) { toast(err.message) }
-    if (render) renderPane()
+    if (render) { if (state.view === 'analyze') { state.anScroll = 0; renderCenter() } renderPane() }
   }
 
   function keepDraft() { const ta = $('msg'); if (ta) state.draft = ta.value }
 
   function select(id, load = true) {
-    if (state.selected !== id) { state.conv = null; state.convSig = null; state.changes = null; state.file = null; state.patch = null; state.draft = ''; state.mode = null; state.modeByUser = false }
+    if (state.selected !== id) { state.conv = null; state.convSig = null; state.changes = null; state.file = null; state.patch = null; state.draft = ''; state.mode = null; state.modeByUser = false; state.findings = null; state.picked = {}; state.editing = null; state.ask = '' }
     state.selected = id
     history.replaceState(null, '', '#task=' + encodeURIComponent(id))
     renderSide(); renderCenter(); renderPane()
-    if (load) { loadConv(); loadChanges() }
+    loadComments()
+    if (load) { loadConv(); loadChanges(); loadFindings() }
   }
 
   // ---- ações --------------------------------------------------------------------------------
@@ -460,7 +643,7 @@ aside.right{flex:1 1 360px;max-width:460px;border-left:1px solid var(--line);bac
     try {
       if (state.mode === 'continue') {
         if (!text) { toast('Escreva a mensagem para o agente.'); return }
-        await api('/api/runs', { method: 'POST', body: JSON.stringify({ task, continue: lastRun().id, message: text }) })
+        await api('/api/runs', { method: 'POST', body: JSON.stringify({ task, continue: lastWrite().id, message: text }) })
       } else if (state.mode === 'flow') {
         const body = { task, implement: $('tool').value, review: $('review').value }
         await api('/api/flows', { method: 'POST', body: JSON.stringify(body) })
@@ -494,16 +677,40 @@ aside.right{flex:1 1 360px;max-width:460px;border-left:1px solid var(--line);bac
   }
 
   document.addEventListener('click', (ev) => {
-    const t = ev.target.closest('[data-task],[data-mode],[data-act],[data-file],[role=tab]')
+    const t = ev.target.closest('[data-task],[data-mode],[data-act],[data-file],[role=tab],[data-view],[data-line],[data-uncomment],[data-goto]')
     if (!t) return
+    const keepScroll = () => { const sc = $('an-scroll'); state.anScroll = sc ? sc.scrollTop : 0 }
+    if (t.dataset.view) { keepDraft(); state.view = t.dataset.view; if (state.view === 'analyze' && !state.file && state.changes && state.changes.files && state.changes.files[0]) loadPatch(state.changes.files[0].path); renderCenter(); renderPane(); return }
+    if (t.dataset.line) { keepScroll(); state.editing = { file: state.file, line: Number(t.dataset.line) }; renderCenter(); const ta = $('comment-text'); if (ta) ta.focus(); return }
+    if (t.dataset.uncomment !== undefined) { keepScroll(); myComments().splice(Number(t.dataset.uncomment), 1); saveComments(); renderCenter(); return }
+    if (t.dataset.goto) { state.view = 'analyze'; loadPatch(t.dataset.goto); return }
+    if (t.dataset.act === 'comment-cancel') { keepScroll(); state.editing = null; renderCenter(); return }
+    if (t.dataset.act === 'send-fixes') return sendFixes()
     if (t.dataset.task) return select(t.dataset.task)
     if (t.dataset.mode) { keepDraft(); state.mode = t.dataset.mode; state.modeByUser = true; renderCenter(); return }
     if (t.dataset.act) return act(t.dataset.act, t)
     if (t.dataset.file) return loadPatch(t.dataset.file)
     if (t.getAttribute('role') === 'tab') { state.tab = t.id.replace('tab-', ''); renderPane() }
   })
-  document.addEventListener('submit', (ev) => { if (ev.target.id === 'composer') { ev.preventDefault(); send() } })
-  document.addEventListener('change', (ev) => { if (ev.target.id === 'tool') state.tool = ev.target.value })
+  document.addEventListener('submit', (ev) => {
+    if (ev.target.id === 'composer') { ev.preventDefault(); send() }
+    if (ev.target.id === 'ask-form') { ev.preventDefault(); askQuestion() }
+    if (ev.target.id === 'comment-form') {
+      ev.preventDefault()
+      const text = $('comment-text').value.trim()
+      if (!text) return
+      const sc = $('an-scroll'); state.anScroll = sc ? sc.scrollTop : 0
+      myComments().push({ file: state.editing.file, line: state.editing.line, text })
+      saveComments()
+      state.editing = null
+      renderCenter()
+    }
+  })
+  document.addEventListener('input', (ev) => { if (ev.target.id === 'ask') state.ask = ev.target.value })
+  document.addEventListener('change', (ev) => {
+    if (ev.target.id === 'tool') state.tool = ev.target.value
+    if (ev.target.dataset && ev.target.dataset.pick) { state.picked[ev.target.dataset.pick] = ev.target.checked; const sc = $('an-scroll'); state.anScroll = sc ? sc.scrollTop : 0; renderCenter() }
+  })
   document.addEventListener('keydown', (ev) => {
     if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'k') { ev.preventDefault(); $('q').focus(); $('q').select(); return }
     if (ev.target.id === 'msg' && ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); send(); return }

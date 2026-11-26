@@ -723,6 +723,21 @@ A tela principal do `harness serve` e do app desktop:
   (instruções do humano num run novo), além de `/api/conversation`, `/api/canvas` e `/api/board`.
 - Integrar continua pelo terminal (`harness worktree finish`); o botão *Concluir task…* copia o comando.
 
+### Modo Analisar (Workspace → *Analisar*)
+
+Para revisar o código da task sem mudar nada:
+
+- **Diff por arquivo com números de linha**, os **achados da revisão** marcados nas linhas e os
+  **seus comentários**: clique no número da linha para comentar. Os achados vêm da revisão mais
+  recente (fluxo ou run de revisão); o revisor cita os pontos como `caminho/arquivo:linha — texto`.
+- **Perguntar sobre o código**: um run só leitura (`role = ask`) — Claude em `--permission-mode
+  plan`, Codex com sandbox read-only; o harness compara a worktree antes e depois e avisa se algo
+  mudou. Pelo CLI: `harness run <task> --ask "onde isso quebra?" --tool claude`.
+- **Enviar ao agente para corrigir**: junta os achados marcados e os comentários numa mensagem e
+  continua a sessão do último run de escrita (ou abre uma execução nova, se não houver sessão).
+- API: `GET /api/findings?task=` (achados + veredito da revisão) e `POST /api/runs` com `ask`.
+  Perguntas e revisões não entram no `--continue` (são só leitura).
+
 ### Lote paralelo (`run --batch`)
 
 Vários agentes ao mesmo tempo, cada um na própria worktree:
