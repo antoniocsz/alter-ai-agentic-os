@@ -191,6 +191,7 @@ function createWindow() {
     minHeight: 600,
     backgroundColor: '#0f1117',
     title: 'AlterAI - Agentic OS',
+    icon: path.join(HERE, '..', 'build', process.platform === 'win32' ? 'icon.ico' : 'icon.png'),
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, preload: path.join(HERE, 'preload.cjs') }
   })
   // Só a origem do serve navega dentro da janela; links externos vão para o navegador.

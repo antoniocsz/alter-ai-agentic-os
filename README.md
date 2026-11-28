@@ -1,6 +1,45 @@
 # AlterAI - Agentic OS
 
-Camada de operação que padroniza como agentes de IA trabalham em um projeto de software. O AlterAI - Agentic OS define o **protocolo obrigatório**, mantém o **contexto vivo** e gerencia o **pipeline de tarefas** — de forma reutilizável em qualquer projeto, independente do domínio ou da stack.
+**Sistema operacional para desenvolver software com agentes de IA.** O AlterAI - Agentic OS
+orquestra agentes de código — **Claude Code, Codex, OpenCode e Gemini** — sobre um pipeline de
+tasks com regras claras: cada task tem escopo declarado, roda isolada numa worktree do git, passa
+por gates de qualidade e deixa um handoff para a próxima. Funciona em qualquer projeto,
+independente do domínio ou da stack, pela CLI `harness` ou pelo **app desktop**.
+
+### O que ele faz
+
+- **Pipeline de tasks** (`queue → active → done`) com escopo, prioridade, Definition of Ready e
+  validação do que foi tocado no `finish`; vários projetos num mesmo workspace.
+- **Agentes de verdade, isolados**: `harness run` executa a tool escolhida dentro da worktree da
+  task, com permissões controladas, orçamento e registro de cada passo (mensagens, ferramentas,
+  arquivos, tokens e custo medidos).
+- **Conversa contínua**: continue a mesma sessão do agente com uma nova mensagem, sem recomeçar.
+- **Fluxos entre agentes**: implementar → revisar → corrigir até aprovar; competição entre agentes
+  com juiz; coordenador que quebra uma feature em tasks e roda em ondas paralelas.
+- **Contexto e memória**: pacote de contexto otimizado por task e memória em níveis (projeto,
+  conhecimento, agente, task) aprovada pelo humano.
+- **Qualidade e custo à vista**: gates pós-execução, analytics por ferramenta/modelo e limites de
+  gasto por task, dia e mês.
+- **App desktop e Workspace**: tela Início com o status do projeto, conversa com o agente, diff da
+  worktree, modo Analisar (achados da revisão nas linhas, comentários e perguntas só leitura) e
+  troca de projeto com `Ctrl P`.
+
+### Começo rápido
+
+```bash
+# CLI (Node ≥ 22.5)
+pnpm harness init meu-projeto --profile web --git      # projeto novo com a camada harness
+pnpm harness task "minha primeira task" --scope "src/a.ts"
+pnpm harness start 1 && pnpm harness worktree start 1
+pnpm harness run 1 --tool claude                       # o agente trabalha na worktree da task
+
+# App desktop
+cd apps/desktop && npm install
+npm run atalho        # cria o atalho "AlterAI - Agentic OS" (Área de Trabalho + Menu Iniciar)
+```
+
+O protocolo que todo agente segue está em [`AGENTS.md`](AGENTS.md); o resto deste README detalha
+cada parte.
 
 ## Índice
 
@@ -1020,21 +1059,27 @@ servidor) mostra um cartão ao vivo por task da coluna `active`:
 ## App desktop
 
 `apps/desktop` é um app **Electron** sobre a API local: escolhe a pasta de um projeto, sobe o
-`harness serve` dele e mostra o board, a vista Execução (rodar/parar agentes, fluxos, competições,
-timeline ao vivo) e o Analytics numa janela — sem terminal.
+`harness serve` dele e abre o **Workspace** (Início, conversa com o agente, mudanças, modo
+Analisar), o quadro, o Analytics e o canvas clássico numa janela — sem terminal.
 
 ```bash
 cd apps/desktop
 npm install          # electron + electron-builder ficam só neste app
-npm start            # ou: npm start -- D:\projetos\meu-projeto
+npm run atalho       # atalhos com ícone na Área de Trabalho e no Menu Iniciar (abre sem terminal)
+npm start            # ou direto: npm start -- D:\projetos\meu-projeto
 npm run dist:win     # instalador (.exe) em apps/desktop/dist/ (também dist:mac, dist:linux)
 ```
 
+- **Iniciador**: `npm run atalho` cria o atalho "AlterAI - Agentic OS" (Windows: Área de Trabalho
+  + Menu Iniciar, dá para fixar na barra de tarefas; Linux: `.desktop`). O atalho aponta para o
+  Electron deste app — rode de novo depois de mover a pasta ou reinstalar. Para distribuir para
+  outras máquinas, use o instalador (`npm run dist:win`), que já cria os atalhos.
+
 - Roda o harness com o Node embutido no Electron (não precisa de Node instalado; `HARNESS_NODE`
   usa outro). O instalador leva o CLI do harness em `resources/harness/`.
-- Menus: **Arquivo** (abrir projeto, recentes), **Visualizar** (Board `Ctrl+1`, Execução `Ctrl+2`,
-  Analytics `Ctrl+3`), **Servidor** (reiniciar, liberar unsafe neste projeto, abrir no navegador,
-  ver log).
+- Menus: **Arquivo** (abrir projeto, recentes), **Visualizar** (Workspace `Ctrl+1`, Quadro `Ctrl+2`,
+  Analytics `Ctrl+3`, Canvas `Ctrl+4`), **Servidor** (reiniciar, liberar unsafe neste projeto, abrir
+  no navegador, ver log). No Workspace, `Ctrl+P` troca de projeto e `Ctrl+0` abre o Início.
 - Ao fechar, encerra o serve com `POST /api/shutdown` (token da sessão) — encerramento gracioso
   também no Windows (runs em andamento são interrompidos e o `serve.json` é removido).
 - Janela isolada (sem Node na página); só a origem do serve navega dentro dela.

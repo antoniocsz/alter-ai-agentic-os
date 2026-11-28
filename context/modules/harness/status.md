@@ -733,6 +733,17 @@
 - Pendências: competição lado a lado no Workspace; testar no app no Windows.
 - Decisões: planejar feature pela tela só mostra os passos do coordenador (sem rodar daqui).
 
+## Handoff (task 144 — iniciador-app: atalho com ícone + README)
+- Feito: `apps/desktop/src/shortcut.js` (NOVO) — `npm run atalho` cria o atalho "AlterAI - Agentic OS"
+  (Windows: .lnk na Área de Trabalho e no Menu Iniciar via PowerShell/WScript.Shell → electron.exe do
+  app, sem terminal; Linux: `.desktop`; macOS: orienta `dist:mac`). Ícone `build/icon.{ico,png}`
+  (NOVOS) na janela e no electron-builder (NSIS com atalhos e escolha da pasta). README: abertura nova
+  (o que é, o que faz, começo rápido) e seção do app; README do app com o iniciador. +4 testes; suíte
+  verde (372).
+- Pendências: rodar `npm run atalho` no Windows (PowerShell não testado aqui); descrição/tópicos do
+  repositório no GitHub pela interface.
+- Decisões: atalho aponta para o Electron do `node_modules` (rodar de novo se mover a pasta).
+
 ## Histórico de handoffs
 ### Lote 2 — tasks 10, 11 e 12
 - Feito: limpeza de dogfood (tasks/módulos de exemplo do template removidos; identidade do

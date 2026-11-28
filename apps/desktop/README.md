@@ -14,6 +14,18 @@ npm start                   # abre o último projeto (ou pede a pasta)
 npm start -- D:\projetos\meu-projeto
 ```
 
+## Abrir com um clique (iniciador)
+
+```bash
+npm run atalho              # depois do npm install
+```
+
+Cria o atalho **AlterAI - Agentic OS** com o ícone do app — no Windows na Área de Trabalho e no
+Menu Iniciar (clique com o botão direito → *Fixar na barra de tarefas*); no Linux um `.desktop` em
+`~/.local/share/applications`. O atalho abre o Electron deste app direto, **sem janela de
+terminal**, no último projeto aberto. Se mover a pasta do repositório ou reinstalar as
+dependências, rode `npm run atalho` de novo. No macOS, use o instalador (`npm run dist:mac`).
+
 ## Gerar o instalador
 
 ```bash
@@ -22,7 +34,9 @@ npm run dist:mac            # .dmg
 npm run dist:linux          # AppImage
 ```
 
-O instalador leva o CLI do harness (`scripts/harness`, sem os testes) em `resources/harness/`.
+O instalador leva o CLI do harness (`scripts/harness`, sem os testes) em `resources/harness/`,
+usa o ícone de `build/` e cria os atalhos na Área de Trabalho e no Menu Iniciar (o instalador do
+Windows deixa escolher a pasta de instalação).
 
 ## Como funciona
 

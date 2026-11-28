@@ -3,7 +3,7 @@
   "productName": "AlterAI - Agentic OS",
   "version": "0.1.0",
   "private": true,
-  "description": "App desktop do AlterAI - Agentic OS: board, execução de agentes e analytics sobre a API local do harness serve",
+  "description": "App desktop do AlterAI - Agentic OS: Workspace (conversa com agentes, mudanças, análise), quadro e analytics sobre a API local do harness serve",
   "type": "module",
   "main": "src/main.js",
   "engines": {
@@ -11,6 +11,7 @@
   },
   "scripts": {
     "start": "electron .",
+    "atalho": "node src/shortcut.js",
     "dist": "electron-builder",
     "dist:win": "electron-builder --win",
     "dist:mac": "electron-builder --mac",
@@ -28,6 +29,8 @@
     },
     "files": [
       "src/**",
+      "build/icon.png",
+      "build/icon.ico",
       "package.json"
     ],
     "extraResources": [
@@ -44,7 +47,8 @@
     "win": {
       "target": [
         "nsis"
-      ]
+      ],
+      "icon": "build/icon.ico"
     },
     "mac": {
       "target": [
@@ -56,7 +60,16 @@
       "target": [
         "AppImage"
       ],
-      "category": "Development"
+      "category": "Development",
+      "icon": "build/icon.png"
+    },
+    "icon": "build/icon",
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "AlterAI - Agentic OS"
     }
   }
 }
